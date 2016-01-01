@@ -1,0 +1,10 @@
+*.o
+a.out
+GPATH
+GRTAGS
+GTAGS
+doxygen.warn
+\#*\#
+doc
+bin
+build
