@@ -23,6 +23,7 @@
 #include <ios>
 #include <iostream>
 
+#include "util/char_class.h"
 #include "util/exceptions.h"
 
 namespace parse {
@@ -80,26 +81,70 @@ int Lexer::Get() {
   return c;
 }
 
+void Lexer::GetUntilDelim() {
+  while (!Eof()) {
+    int next = Peek();
+    if (IsDelim(next)) {
+      break;
+    }
+    lexbuf_.push_back(Get());
+  }
+}
+
 void Lexer::LexId() {
+  GetUntilDelim();
+  bool inval = false;
+  for (auto c : lexbuf_) {
+    switch (c) {
+      case ID_SUBSEQUENT:
+        break;
+      default:
+        inval = true;
+    }
+  }
+
+  if (inval) {
+    std::string msg = "Invalid identifier: " + lexbuf_;
+    throw util::SyntaxException(msg, token_.mark);
+  }
+
+  token_.type = Token::Type::ID;
+  token_.id_val = &lexbuf_;
 }
 
 void Lexer::LexNum() {
+  GetUntilDelim();
+  token_.type = Token::Type::NUMBER;
+  token_.num_str = &lexbuf_;
 }
 
 void Lexer::LexChar() {
+  assert(Peek() == '\\');
+  GetUntilDelim();
+
+  if (lexbuf_ == "space") {
+    lexbuf_ = "#\\ ";
+  } else if (lexbuf_ == "newline") {
+    lexbuf_ = "#\\\n";
+  }
+
+  if (lexbuf_.size() != 3) { // 2 for #\, one for the character
+    std::string msg = "Invalid identifier: " + lexbuf_;
+    throw util::SyntaxException(msg, token_.mark);
+  }
+
+  token_.type = Token::Type::CHAR;
+  token_.char_val = lexbuf_[2];
 }
 
 // Lex string after getting '"'
 void Lexer::LexString() {
-  int c = Get();
-
-  while (c != '"' && !Eof()) {
+  for (int c; (c = Get()) != '"' && !Eof();) {
     // Handle escape
     if (c == '\\') {
       c = Get();
     }
     lexbuf_.push_back(c);
-    c = Get();
   }
   if (Eof()) {
     throw util::SyntaxException("Unterminated string literal", token_.mark);
@@ -173,19 +218,8 @@ const Token &Lexer::NextToken() {
       break;
 
     // Identifiers
-    case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G':
-    case 'H': case 'I': case 'J': case 'K': case 'L': case 'M': case 'N':
-    case 'O': case 'P': case 'Q': case 'R': case 'S': case 'T': case 'U':
-    case 'V': case 'W': case 'X': case 'Y': case 'Z':
-
-    case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g':
-    case 'h': case 'i': case 'j': case 'k': case 'l': case 'm': case 'n':
-    case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u':
-    case 'v': case 'w': case 'x': case 'y': case 'z':
-
-    // <special initial>
-    case '!': case '$': case '%': case '&': case '*': case '/': case ':':
-    case '<': case '=': case '>': case '?': case '^': case '_': case '~':
+    case ASCII_LETTER:
+    case SPECIAL_INITIAL:
       lexbuf_.push_back(c);
       LexId();
       break;

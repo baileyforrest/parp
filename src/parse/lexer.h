@@ -56,7 +56,7 @@ struct Token {
   union {
     const std::string *id_val;
     bool bool_val;
-    const expr::Number *num_val;
+    const std::string *num_str;
     char char_val;
     const std::string *str_val;
   };
@@ -74,6 +74,7 @@ private:
   int Get();
   int Peek() { return istream_.peek(); }
   int Eof() { return istream_.eof(); }
+  void GetUntilDelim();
   void LexId();
   void LexNum();
   void LexChar();
@@ -81,7 +82,6 @@ private:
 
   Token token_;
   std::string lexbuf_;
-  expr::Number num_;
   util::Mark mark_;
 
   std::istream &istream_;

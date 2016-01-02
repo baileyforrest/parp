@@ -20,9 +20,47 @@
 #ifndef EXPR_NUMBER_H_
 #define EXPR_NUMBER_H_
 
+#include "expr/expr.h"
+
+#include <cstdint>
+
 namespace expr {
 
-class Number {
+class Number : public Expr {
+public:
+  // TODO: Add support for more types
+  enum class Type {
+    RATIONAL,
+    FLOAT,
+  };
+
+  virtual Type type() const = 0;
+  virtual bool Exact() const = 0;
+};
+
+// TODO: Expand this to be arbitrary precision rational
+class Rational : public Number {
+public:
+  Type type() const override { return Type::RATIONAL; }
+  bool Exact() const override { return true; }
+
+  // TODO: Temp function for testing
+  int64_t val() { return val_; }
+
+private:
+  int64_t val_;
+};
+
+class Float : public Number {
+public:
+  Type type() const override { return Type::FLOAT; }
+  bool Exact() const override { return false; }
+
+  // TODO: Temp function for testing
+  double val() { return val_; }
+
+private:
+  double val_;
 };
 
 }  // namespace expr
