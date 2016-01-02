@@ -1,4 +1,6 @@
 #include <iostream>
+#include <string>
+
 #include "parse/lexer.h"
 
 int main(int argc, char* argv[]) {

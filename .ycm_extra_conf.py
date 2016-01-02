@@ -42,6 +42,11 @@ flags = [
   'src',
   '-x',
   'c++',
+
+  # For gtest
+  '-isystem',
+  'src/gtest/include',
+  '-pthread',
 ]
 
 

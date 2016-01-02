@@ -235,9 +235,14 @@ const Token &Lexer::NextToken() {
         case '\\':
           LexChar();
           break;
-        default:
+        case 'b': case 'o': case 'd': case 'x':
+        case 'e': case 'i':
           LexNum();
           break;
+        default:
+          std::string msg = std::string("Invalid token: ") + '#' +
+            static_cast<char>(Peek());
+          throw util::SyntaxException(msg, token_.mark);
       }
       break;
 
