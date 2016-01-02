@@ -21,7 +21,10 @@ debug: export BUILD_PATH := build/debug
 debug: export BIN_PATH := bin/debug
 install: export BIN_PATH := bin/release
 
-SOURCES := main.cc
+SOURCES := main.cc \
+	parse/lexer.cc \
+	util/exceptions.cc \
+	util/mark.cc \
 
 SOURCES := $(addprefix $(SRC_DIR)/, $(SOURCES))
 OBJECTS = $(SOURCES:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)

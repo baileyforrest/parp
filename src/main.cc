@@ -1,4 +1,5 @@
 #include <iostream>
+#include "parse/lexer.h"
 
 int main(int argc, char* argv[]) {
   // suppress warnings

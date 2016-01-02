@@ -1,4 +1,5 @@
 *.o
+*.pyc
 a.out
 GPATH
 GRTAGS
