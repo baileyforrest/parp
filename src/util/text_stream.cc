@@ -61,4 +61,9 @@ int TextStream::Peek() const {
   return istream_.peek();
 }
 
+bool TextStream::Eof() const {
+  // Next character may be EOF before eof bit is set
+  return istream_.eof() || istream_.peek() == std::istream::traits_type::eof();
+}
+
 }  // namespace util

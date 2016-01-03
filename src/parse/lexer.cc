@@ -28,26 +28,6 @@
 
 namespace parse {
 
-namespace {
-
-bool IsDelim(int c) {
-  if (std::isspace(c)) {
-    return true;
-  }
-
-  switch (c) {
-    case '(':
-    case ')':
-    case '"':
-    case ',':
-      return true;
-  }
-
-  return false;
-}
-
-}  // namespace
-
 std::ostream& operator<<(std::ostream& stream, Token::Type type) {
 #define CASE_TYPE(type) \
   case Token::Type::type: stream << "Token::Type::" #type; break
@@ -79,7 +59,7 @@ std::ostream& operator<<(std::ostream& stream, Token::Type type) {
 void Lexer::GetUntilDelim() {
   while (!stream_.Eof()) {
     int next = stream_.Peek();
-    if (IsDelim(next)) {
+    if (util::IsDelim(next)) {
       break;
     }
     lexbuf_.push_back(stream_.Get());
@@ -201,13 +181,14 @@ const Token &Lexer::NextToken() {
       }
       break;
     case '.':
-      if (IsDelim(stream_.Peek())) {
+      if (util::IsDelim(stream_.Peek())) {
         token_.type = Token::Type::DOT;
         break;
       }
       lexbuf_.push_back(c);
       if (std::isdigit(stream_.Peek())) {
         LexNum();
+        break;
       }
       LexId();
       break;
@@ -221,11 +202,10 @@ const Token &Lexer::NextToken() {
 
     case '#':
       switch (stream_.Peek()) {
-        case 't':
-        case 'f':
+        case 't': case 'T': case 'f': case 'F':
           c = stream_.Get();
           token_.type = Token::Type::BOOL;
-          token_.bool_val = c == 't';
+          token_.bool_val = (c == 't' || c == 'T');
           break;
         case '\\':
           LexChar();
@@ -244,7 +224,7 @@ const Token &Lexer::NextToken() {
 
     case '+':
     case '-':
-      if (IsDelim(stream_.Peek())) {
+      if (util::IsDelim(stream_.Peek())) {
         lexbuf_.push_back(c);
         token_.type = Token::Type::ID;
         token_.id_val = &lexbuf_;

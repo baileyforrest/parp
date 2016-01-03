@@ -16,40 +16,28 @@
  * You should have received a copy of the GNU General Public License
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
-/**
- * Encapsulation of character stream which keeps track of position in file
- */
 
-#ifndef UTIL_TEXT_STREAM_H_
-#define UTIL_TEXT_STREAM_H_
+#include "util/char_class.h"
 
-#include <string>
-#include <istream>
+#include <cctype>
 
-#include "util/mark.h"
-#include "util/macros.h"
 
 namespace util {
 
-class TextStream {
-public:
-  explicit TextStream(std::istream &istream, const std::string *file_name);
-  ~TextStream();
+bool IsDelim(int c) {
+  if (std::isspace(c)) {
+    return true;
+  }
 
-  int Get();
-  int Peek() const;
-  bool Eof() const;
+  switch (c) {
+    case '(':
+    case ')':
+    case '"':
+    case ',':
+      return true;
+  }
 
-  const Mark &mark() const { return mark_; }
-
-private:
-  DISALLOW_MOVE_COPY_AND_ASSIGN(TextStream);
-
-  std::istream &istream_;
-  std::ios_base::iostate istream_except_mask_;
-  Mark mark_;
-};
+  return false;
+}
 
 }  // namespace util
-
-#endif  //  UTIL_TEXT_STREAM_H_
