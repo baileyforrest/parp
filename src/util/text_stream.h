@@ -32,8 +32,8 @@
 namespace util {
 
 class TextStream {
-public:
-  explicit TextStream(std::istream &istream, const std::string *file_name);
+ public:
+  TextStream(std::istream *istream, const std::string *file_name);
   ~TextStream();
 
   int Get();
@@ -42,10 +42,10 @@ public:
 
   const Mark &mark() const { return mark_; }
 
-private:
+ private:
   DISALLOW_MOVE_COPY_AND_ASSIGN(TextStream);
 
-  std::istream &istream_;
+  std::istream *istream_;
   std::ios_base::iostate istream_except_mask_;
   Mark mark_;
 };

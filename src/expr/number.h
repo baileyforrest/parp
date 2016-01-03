@@ -20,15 +20,15 @@
 #ifndef EXPR_NUMBER_H_
 #define EXPR_NUMBER_H_
 
-#include "expr/expr.h"
-
 #include <cstdint>
+
+#include "expr/expr.h"
 
 namespace expr {
 
 class Number : public Expr {
-public:
-  // TODO: Add support for more types
+ public:
+  // TODO(bcf): Add support for more types
   enum class Type {
     RATIONAL,
     FLOAT,
@@ -43,43 +43,43 @@ public:
 
   bool exact() const { return exact_; }
 
-protected:
-  explicit Number(Type num_type, bool exact)
+ protected:
+  Number(Type num_type, bool exact)
     : Expr(Expr::Type::LIT_NUM), num_type_(num_type), exact_(exact) {}
 
-private:
+ private:
   Type num_type_;
   bool exact_;
 };
 
-// TODO: Expand this to be arbitrary precision rational
+// TODO(bcf): Expand this to be arbitrary precision rational
 class Rational : public Number {
-public:
+ public:
   explicit Rational(int64_t val) : Number(Type::RATIONAL, true), val_(val) {}
   ~Rational() override {}
 
   // Override from Expr
   std::size_t size() const override { return sizeof(*this); }
 
-  // TODO: Temp function for testing
+  // TODO(bcf): Temp function for testing
   int64_t val() { return val_; }
 
-private:
+ private:
   int64_t val_;
 };
 
 class Float : public Number {
-public:
+ public:
   explicit Float(double val) : Number(Type::FLOAT, false), val_(val) {}
   ~Float() override {}
 
   // Override from Expr
   std::size_t size() const override { return sizeof(*this); }
 
-  // TODO: Temp function for testing
+  // TODO(bcf): Temp function for testing
   double val() { return val_; }
 
-private:
+ private:
   double val_;
 };
 

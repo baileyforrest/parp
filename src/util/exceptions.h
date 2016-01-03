@@ -17,8 +17,8 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UTIL_EXCEPTIONS_H
-#define UTIL_EXCEPTIONS_H
+#ifndef UTIL_EXCEPTIONS_H_
+#define UTIL_EXCEPTIONS_H_
 
 #include <exception>
 #include <string>
@@ -28,15 +28,14 @@
 namespace util {
 
 class SyntaxException : public std::exception {
-
-public:
+ public:
   SyntaxException(const std::string &msg, const util::Mark &mark);
   const char *what() const throw() override { return full_msg_.c_str(); }
 
-private:
+ private:
   std::string full_msg_;
 };
 
 }  // namespace util
 
-#endif  // UTIL_EXCEPTIONS_H
+#endif  // UTIL_EXCEPTIONS_H_

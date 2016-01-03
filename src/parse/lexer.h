@@ -34,23 +34,23 @@ namespace parse {
 // struct representing <token> in r5rs:7.1.1
 struct Token {
   enum class Type {
-    INVAL,       // Invalid token
-    TOK_EOF,     // EOF token
+    INVAL,        // Invalid token
+    TOK_EOF,      // EOF token
 
-    ID,          // identifier
-    BOOL,        // boolean
-    NUMBER,      // number
-    CHAR,        // character
-    STRING,      // string
+    ID,           // identifier
+    BOOL,         // boolean
+    NUMBER,       // number
+    CHAR,         // character
+    STRING,       // string
 
-    LPAREN,      // (
-    RPAREN,      // )
-    POUND_PAREN, // #(
-    QUOTE,       // '
-    BACKTICK,    // `
-    COMMA,       // ,
-    COMMA_AT,    // ,@
-    DOT,         // .
+    LPAREN,       // (
+    RPAREN,       // )
+    POUND_PAREN,  // #(
+    QUOTE,        // '
+    BACKTICK,     // `
+    COMMA,        // ,
+    COMMA_AT,     // ,@
+    DOT,          // .
   };
 
   Type type;
@@ -67,13 +67,13 @@ struct Token {
 std::ostream& operator<<(std::ostream& stream, Token::Type type);
 
 class Lexer {
-public:
+ public:
   explicit Lexer(util::TextStream &stream) : stream_(stream) {}
   ~Lexer() = default;
 
   const Token &NextToken();
 
-private:
+ private:
   DISALLOW_MOVE_COPY_AND_ASSIGN(Lexer);
   void GetUntilDelim();
   void LexId();

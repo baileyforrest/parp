@@ -24,24 +24,24 @@
 
 namespace util {
 
-TextStream::TextStream(std::istream &istream, const std::string *file_name)
+TextStream::TextStream(std::istream *istream, const std::string *file_name)
   : istream_(istream),
-    istream_except_mask_(istream_.exceptions()) {
+    istream_except_mask_(istream_->exceptions()) {
   // Enable all the exceptions on istream
-  istream_.exceptions(std::istream::badbit | std::istream::failbit);
+  istream_->exceptions(std::istream::badbit | std::istream::failbit);
   mark_ = { file_name, 1, 1 };
 }
 
 TextStream::~TextStream() {
   // Restore istream except mask
-  istream_.exceptions(istream_except_mask_);
+  istream_->exceptions(istream_except_mask_);
 }
 
 int TextStream::Get() {
   assert(!Eof());
   int c;
   try {
-    c = istream_.get();
+    c = istream_->get();
   } catch (std::ios_base::failure &fail) {
     std::cerr << "I/O error reading " << mark_ << std::endl;
     throw;
@@ -58,12 +58,13 @@ int TextStream::Get() {
 
 int TextStream::Peek() const {
   assert(!Eof());
-  return istream_.peek();
+  return istream_->peek();
 }
 
 bool TextStream::Eof() const {
   // Next character may be EOF before eof bit is set
-  return istream_.eof() || istream_.peek() == std::istream::traits_type::eof();
+  return istream_->eof() ||
+      istream_->peek() == std::istream::traits_type::eof();
 }
 
 }  // namespace util

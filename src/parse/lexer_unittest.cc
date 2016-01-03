@@ -17,9 +17,10 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// TODO: Add tests for invalid tokens
+// TODO(bcf): Add tests for invalid tokens
 
 #include <sstream>
+#include <vector>
 
 #include "gtest/gtest.h"
 
@@ -36,10 +37,10 @@ struct TokTest {
 
 namespace {
 
-void VerifyTokens(Lexer &lexer, const TokTest *expected) {
-  for (;expected->tok.type != Token::Type::INVAL; ++expected) {
+void VerifyTokens(Lexer *lexer, const TokTest *expected) {
+  for (; expected->tok.type != Token::Type::INVAL; ++expected) {
     const auto &expect = expected->tok;
-    const auto &got = lexer.NextToken();
+    const auto &got = lexer->NextToken();
     EXPECT_EQ(expect.type, got.type);
     EXPECT_EQ(expect.mark, got.mark);
 
@@ -67,7 +68,7 @@ void VerifyTokens(Lexer &lexer, const TokTest *expected) {
     }
   }
 
-  EXPECT_EQ(Token::Type::TOK_EOF, lexer.NextToken().type);
+  EXPECT_EQ(Token::Type::TOK_EOF, lexer->NextToken().type);
 }
 
 }  // namespace
@@ -121,10 +122,10 @@ TEST(LexerTest, Basic) {
   };
 
   std::istringstream s(kStr);
-  util::TextStream stream(s, &kFilename);
+  util::TextStream stream(&s, &kFilename);
   Lexer lexer{stream};
 
-  VerifyTokens(lexer, kExpected);
+  VerifyTokens(&lexer, kExpected);
 }
 
 TEST(LexerTest, Empty) {
@@ -137,10 +138,10 @@ TEST(LexerTest, Empty) {
   };
 
   std::istringstream s(kStr);
-  util::TextStream stream(s, &kFilename);
+  util::TextStream stream(&s, &kFilename);
   Lexer lexer{stream};
 
-  VerifyTokens(lexer, kExpected);
+  VerifyTokens(&lexer, kExpected);
 }
 
 TEST(LexerTest, NoTrailingNewine) {
@@ -155,10 +156,10 @@ TEST(LexerTest, NoTrailingNewine) {
   };
 
   std::istringstream s(kStr);
-  util::TextStream stream(s, &kFilename);
+  util::TextStream stream(&s, &kFilename);
   Lexer lexer{stream};
 
-  VerifyTokens(lexer, kExpected);
+  VerifyTokens(&lexer, kExpected);
 }
 
 TEST(LexerTest, IdTest) {
@@ -226,10 +227,10 @@ TEST(LexerTest, IdTest) {
   };
 
   std::istringstream s(kStr);
-  util::TextStream stream(s, &kFilename);
+  util::TextStream stream(&s, &kFilename);
   Lexer lexer{stream};
 
-  VerifyTokens(lexer, kExpected);
+  VerifyTokens(&lexer, kExpected);
 }
 
 TEST(LexerTest, BoolTest) {
@@ -251,10 +252,10 @@ TEST(LexerTest, BoolTest) {
   };
 
   std::istringstream s(kStr);
-  util::TextStream stream(s, &kFilename);
+  util::TextStream stream(&s, &kFilename);
   Lexer lexer{stream};
 
-  VerifyTokens(lexer, kExpected);
+  VerifyTokens(&lexer, kExpected);
 }
 
 TEST(LexerTest, NumTest) {
@@ -349,10 +350,10 @@ TEST(LexerTest, NumTest) {
   };
 
   std::istringstream s(kStr);
-  util::TextStream stream(s, &kFilename);
+  util::TextStream stream(&s, &kFilename);
   Lexer lexer{stream};
 
-  VerifyTokens(lexer, kExpected);
+  VerifyTokens(&lexer, kExpected);
 }
 
 TEST(LexerTest, CharTest) {
@@ -384,15 +385,16 @@ TEST(LexerTest, CharTest) {
     };
     expected.push_back(expect);
   }
-  TokTest terminator = {{ Token::Type::INVAL, { &kFilename, -1, -1 }, {}, }, "" };
+  TokTest terminator =
+      {{ Token::Type::INVAL, { &kFilename, -1, -1 }, {}, }, "" };
   expected.push_back(terminator);
 
   std::istringstream s(input);
-  util::TextStream stream(s, &kFilename);
+  util::TextStream stream(&s, &kFilename);
   Lexer lexer{stream};
 
 
-  VerifyTokens(lexer, expected.data());
+  VerifyTokens(&lexer, expected.data());
 }
 
 TEST(LexerTest, StringTest) {
@@ -424,10 +426,10 @@ TEST(LexerTest, StringTest) {
   };
 
   std::istringstream s(kStr);
-  util::TextStream stream(s, &kFilename);
+  util::TextStream stream(&s, &kFilename);
   Lexer lexer{stream};
 
-  VerifyTokens(lexer, kExpected);
+  VerifyTokens(&lexer, kExpected);
 }
 
 }  // namespace parse

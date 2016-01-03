@@ -128,7 +128,7 @@ std::size_t Char::size() const {
 }
 
 String::~String() {
-};
+}
 
 String *String::GetAsString() {
   return this;
@@ -149,7 +149,7 @@ Apply::Apply(const std::vector<Expr *> &exprs)
 }
 
 Apply::~Apply() {
-};
+}
 
 Apply *Apply::GetAsApply() {
   return this;
@@ -160,14 +160,14 @@ std::size_t Apply::size() const {
 }
 
 Lambda::Lambda(const std::vector<Var *> &required_args, Var *variable_arg,
-    std::vector<Expr *> &body)
+    const std::vector<Expr *> &body)
   : Expr(Type::LAMBDA), required_args_(required_args),
   variable_arg_(variable_arg), body_(body) {
-  // TODO: assert Error checking on body.
+  // TODO(bcf): assert Error checking on body.
 }
 
 Lambda::~Lambda() {
-};
+}
 
 Lambda *Lambda::GetAsLambda() {
   return this;
@@ -195,7 +195,7 @@ std::size_t Assign::size() const {
 
 
 LetSyntax::~LetSyntax() {
-};
+}
 
 LetSyntax *LetSyntax::GetAsLetSyntax() {
   return this;

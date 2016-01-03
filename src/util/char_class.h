@@ -66,6 +66,6 @@ namespace util {
 
 bool IsDelim(int c);
 
-}  // namespace
+}  // namespace util
 
-#endif /* UTIL_CHAR_CLASS_H_ */
+#endif  // UTIL_CHAR_CLASS_H_

@@ -103,7 +103,7 @@ void Lexer::LexChar() {
     lexbuf_ = "\\\n";
   }
 
-  if (lexbuf_.size() != 2) { // 1 for \, one for the character
+  if (lexbuf_.size() != 2) {  // 1 for \, one for the character
     std::string msg = "Invalid character literal: " + lexbuf_;
     throw util::SyntaxException(msg, token_.mark);
   }
@@ -135,11 +135,11 @@ const Token &Lexer::NextToken() {
 
   // Handle spaces and comments
   while (!stream_.Eof()) {
-    while (!stream_.Eof() && std::isspace(stream_.Peek())) { // Skip spaces
+    while (!stream_.Eof() && std::isspace(stream_.Peek())) {  // Skip spaces
       stream_.Get();
     }
 
-    if (stream_.Eof() || stream_.Peek() != ';') { // Non comment character
+    if (stream_.Eof() || stream_.Peek() != ';') {  // Non comment character
       break;
     }
 
