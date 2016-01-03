@@ -17,13 +17,17 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <util/exceptions.h>
+#include "util/exceptions.h"
+
+#include <sstream>
 
 namespace util {
 
 SyntaxException::SyntaxException(const std::string &msg,
     const util::Mark &mark) {
-  full_msg_ = mark.Format() + ": " + msg;
+  std::ostringstream ss;
+  ss << mark << ": " + msg;
+  full_msg_ = ss.str();
 }
 
 }  // namespace util

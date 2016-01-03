@@ -38,7 +38,8 @@ EXE_OBJECTS = $(EXE_SOURCES:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
 COMMON_SOURCES := \
 	parse/lexer.cc \
 	util/exceptions.cc \
-	util/mark.cc
+	util/mark.cc \
+	util/text_stream.cc
 
 COMMON_SOURCES := $(addprefix $(SRC_DIR)/, $(COMMON_SOURCES))
 COMMON_OBJECTS = $(COMMON_SOURCES:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)

@@ -23,8 +23,12 @@
 
 namespace util {
 
-std::string Mark::Format() const {
-  return path + ":" + std::to_string(line) + ":" + std::to_string(col);
+std::ostream& operator<<(std::ostream& stream, Mark const& mark) {
+  return stream << *mark.path << ":" << mark.line << ":" << mark.col;
+}
+
+bool operator==(const Mark &lhs, const Mark &rhs) {
+  return lhs.line == rhs.line && lhs.col == rhs.col && *lhs.path == *rhs.path;
 }
 
 }  // namespace util

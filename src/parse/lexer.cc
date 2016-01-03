@@ -48,46 +48,41 @@ bool IsDelim(int c) {
 
 }  // namespace
 
-Lexer::Lexer(std::istream &istream, const std::string &mark_path)
-  : istream_(istream),
-    istream_except_mask_(istream_.exceptions()) {
-  // Enable all the exceptions on istream
-  istream_.exceptions(std::istream::badbit | std::istream::failbit);
-  token_.mark.path = mark_path;
-}
+std::ostream& operator<<(std::ostream& stream, Token::Type type) {
+#define CASE_TYPE(type) \
+  case Token::Type::type: stream << "Token::Type::" #type; break
 
-Lexer::~Lexer() {
-  // Restore istream except mask
-  istream_.exceptions(istream_except_mask_);
-}
-
-// We don't need the same logic on unget, because we'll only care about the
-// mark's value in the front of the token.
-int Lexer::Get() {
-  int c;
-  try {
-    c = istream_.get();
-  } catch (std::ios_base::failure &fail) {
-    std::cerr << "I/O error reading " << mark_.Format();
-    throw;
-  }
-  if (c == '\n') {
-    ++mark_.line;
-    mark_.col = 1;
-  } else {
-    ++mark_.col;
+  switch (type) {
+    CASE_TYPE(INVAL);
+    CASE_TYPE(TOK_EOF);
+    CASE_TYPE(ID);
+    CASE_TYPE(BOOL);
+    CASE_TYPE(NUMBER);
+    CASE_TYPE(CHAR);
+    CASE_TYPE(STRING);
+    CASE_TYPE(LPAREN);
+    CASE_TYPE(RPAREN);
+    CASE_TYPE(POUND_PAREN);
+    CASE_TYPE(QUOTE);
+    CASE_TYPE(BACKTICK);
+    CASE_TYPE(COMMA);
+    CASE_TYPE(COMMA_AT);
+    CASE_TYPE(DOT);
+    default:
+      assert(false);
   }
 
-  return c;
+  return stream;
+#undef CASE_TYPE
 }
 
 void Lexer::GetUntilDelim() {
-  while (!Eof()) {
-    int next = Peek();
+  while (!stream_.Eof()) {
+    int next = stream_.Peek();
     if (IsDelim(next)) {
       break;
     }
-    lexbuf_.push_back(Get());
+    lexbuf_.push_back(stream_.Get());
   }
 }
 
@@ -119,34 +114,34 @@ void Lexer::LexNum() {
 }
 
 void Lexer::LexChar() {
-  assert(Peek() == '\\');
+  assert(stream_.Peek() == '\\');
   GetUntilDelim();
 
   if (lexbuf_ == "space") {
-    lexbuf_ = "#\\ ";
+    lexbuf_ = "\\ ";
   } else if (lexbuf_ == "newline") {
-    lexbuf_ = "#\\\n";
+    lexbuf_ = "\\\n";
   }
 
-  if (lexbuf_.size() != 3) { // 2 for #\, one for the character
-    std::string msg = "Invalid identifier: " + lexbuf_;
+  if (lexbuf_.size() != 2) { // 1 for \, one for the character
+    std::string msg = "Invalid character literal: " + lexbuf_;
     throw util::SyntaxException(msg, token_.mark);
   }
 
   token_.type = Token::Type::CHAR;
-  token_.char_val = lexbuf_[2];
+  token_.char_val = lexbuf_[1];
 }
 
 // Lex string after getting '"'
 void Lexer::LexString() {
-  for (int c; (c = Get()) != '"' && !Eof();) {
+  for (int c; !stream_.Eof() && (c = stream_.Get()) != '"';) {
     // Handle escape
     if (c == '\\') {
-      c = Get();
+      c = stream_.Get();
     }
     lexbuf_.push_back(c);
   }
-  if (Eof()) {
+  if (stream_.Eof()) {
     throw util::SyntaxException("Unterminated string literal", token_.mark);
   }
 
@@ -158,31 +153,31 @@ const Token &Lexer::NextToken() {
   token_.type = Token::Type::INVAL;
   lexbuf_.clear();
 
-  // Skip spaces
-  while(std::isspace(Peek())) {
-    Get();
-  }
-
-  // Set the location of the token.
-  token_.mark.line = mark_.line;
-  token_.mark.col = mark_.col;
-
-  int c = Get();
-
-  // Handle comment
-  if (c == ';') {
-    while ((c = Get()) != '\n' && !Eof()) {
-      continue;
+  // Handle spaces and comments
+  while (!stream_.Eof()) {
+    while (!stream_.Eof() && std::isspace(stream_.Peek())) { // Skip spaces
+      stream_.Get();
     }
 
-    // Skip the newline too
-    Get();
+    if (stream_.Eof() || stream_.Peek() != ';') { // Non comment character
+      break;
+    }
+
+    // Handle comment
+    while (!stream_.Eof() && stream_.Get() != '\n') {
+      continue;
+    }
+    // Newline is skipped in top of loop
   }
 
-  if (Eof()) {
+  if (stream_.Eof()) {
     token_.type = Token::Type::TOK_EOF;
     return token_;
   }
+
+  // Set the location of the token.
+  token_.mark = stream_.mark();
+  int c = stream_.Get();
 
   switch (c) {
     case '(':
@@ -198,20 +193,20 @@ const Token &Lexer::NextToken() {
       token_.type = Token::Type::BACKTICK;
       break;
     case ',':
-      if (Peek() == '@') {
-        Get();
+      if (stream_.Peek() == '@') {
+        stream_.Get();
         token_.type = Token::Type::COMMA_AT;
       } else {
         token_.type = Token::Type::COMMA;
       }
       break;
     case '.':
-      if (IsDelim(Peek())) {
+      if (IsDelim(stream_.Peek())) {
         token_.type = Token::Type::DOT;
         break;
       }
       lexbuf_.push_back(c);
-      if (std::isdigit(Peek())) {
+      if (std::isdigit(stream_.Peek())) {
         LexNum();
       }
       LexId();
@@ -225,10 +220,10 @@ const Token &Lexer::NextToken() {
       break;
 
     case '#':
-      switch (Peek()) {
+      switch (stream_.Peek()) {
         case 't':
         case 'f':
-          c = Get();
+          c = stream_.Get();
           token_.type = Token::Type::BOOL;
           token_.bool_val = c == 't';
           break;
@@ -237,18 +232,37 @@ const Token &Lexer::NextToken() {
           break;
         case 'b': case 'o': case 'd': case 'x':
         case 'e': case 'i':
+          lexbuf_.push_back(c);
           LexNum();
           break;
         default:
           std::string msg = std::string("Invalid token: ") + '#' +
-            static_cast<char>(Peek());
+            static_cast<char>(stream_.Peek());
           throw util::SyntaxException(msg, token_.mark);
       }
+      break;
+
+    case '+':
+    case '-':
+      if (IsDelim(stream_.Peek())) {
+        lexbuf_.push_back(c);
+        token_.type = Token::Type::ID;
+        token_.id_val = &lexbuf_;
+        break;
+      }
+
+      // FALL THROUGH
+    case ASCII_DIGIT:
+      lexbuf_.push_back(c);
+      LexNum();
       break;
 
     case '"':
       LexString();
       break;
+    default:
+      GetUntilDelim();
+      throw util::SyntaxException("Invalid token: " + lexbuf_, token_.mark);
   }
 
   assert(token_.type != Token::Type::INVAL);

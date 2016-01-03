@@ -21,11 +21,13 @@
 #define PARSE_LEXER_H_
 
 #include <istream>
+#include <ostream>
 #include <string>
 
 #include "expr/number.h"
 #include "util/macros.h"
 #include "util/mark.h"
+#include "util/text_stream.h"
 
 namespace parse {
 
@@ -62,18 +64,17 @@ struct Token {
   };
 };
 
+std::ostream& operator<<(std::ostream& stream, Token::Type type);
+
 class Lexer {
 public:
-  Lexer(std::istream &istream, const std::string &mark_path);
-  ~Lexer();
+  explicit Lexer(util::TextStream &stream) : stream_(stream) {}
+  ~Lexer() = default;
 
   const Token &NextToken();
 
 private:
   DISALLOW_MOVE_COPY_AND_ASSIGN(Lexer);
-  int Get();
-  int Peek() { return istream_.peek(); }
-  int Eof() { return istream_.eof(); }
   void GetUntilDelim();
   void LexId();
   void LexNum();
@@ -82,10 +83,7 @@ private:
 
   Token token_;
   std::string lexbuf_;
-  util::Mark mark_;
-
-  std::istream &istream_;
-  std::ios_base::iostate istream_except_mask_;
+  util::TextStream &stream_;
 };
 
 }  // namespace parse
