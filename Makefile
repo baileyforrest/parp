@@ -37,6 +37,7 @@ EXE_OBJECTS = $(EXE_SOURCES:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
 
 COMMON_SOURCES := \
 	parse/lexer.cc \
+	expr/expr.cc \
 	util/char_class.cc \
 	util/exceptions.cc \
 	util/mark.cc \

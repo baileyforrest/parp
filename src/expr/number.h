@@ -34,15 +34,32 @@ public:
     FLOAT,
   };
 
-  virtual Type type() const = 0;
-  virtual bool Exact() const = 0;
+  ~Number() override {};
+
+  // Override from Expr
+  Number *GetAsNumber() override { return this; }
+
+  Type num_type() const { return num_type_; }
+
+  bool exact() const { return exact_; }
+
+protected:
+  explicit Number(Type num_type, bool exact)
+    : Expr(Expr::Type::LIT_NUM), num_type_(num_type), exact_(exact) {}
+
+private:
+  Type num_type_;
+  bool exact_;
 };
 
 // TODO: Expand this to be arbitrary precision rational
 class Rational : public Number {
 public:
-  Type type() const override { return Type::RATIONAL; }
-  bool Exact() const override { return true; }
+  explicit Rational(int64_t val) : Number(Type::RATIONAL, true), val_(val) {}
+  ~Rational() override {}
+
+  // Override from Expr
+  std::size_t size() const override { return sizeof(*this); }
 
   // TODO: Temp function for testing
   int64_t val() { return val_; }
@@ -53,8 +70,11 @@ private:
 
 class Float : public Number {
 public:
-  Type type() const override { return Type::FLOAT; }
-  bool Exact() const override { return false; }
+  explicit Float(double val) : Number(Type::FLOAT, false), val_(val) {}
+  ~Float() override {}
+
+  // Override from Expr
+  std::size_t size() const override { return sizeof(*this); }
 
   // TODO: Temp function for testing
   double val() { return val_; }
