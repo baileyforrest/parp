@@ -17,16 +17,16 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef EXPR_NUMBER_H_
-#define EXPR_NUMBER_H_
+#ifndef DATUM_NUMBER_H_
+#define DATUM_NUMBER_H_
 
 #include <cstdint>
 
-#include "expr/expr.h"
+#include "datum/datum.h"
 
-namespace expr {
+namespace datum {
 
-class Number : public Expr {
+class Number : public Datum {
  public:
   // TODO(bcf): Add support for more types
   enum class Type {
@@ -36,7 +36,7 @@ class Number : public Expr {
 
   ~Number() override {};
 
-  // Override from Expr
+  // Override from Datum
   Number *GetAsNumber() override { return this; }
 
   Type num_type() const { return num_type_; }
@@ -45,7 +45,7 @@ class Number : public Expr {
 
  protected:
   Number(Type num_type, bool exact)
-    : Expr(Expr::Type::LIT_NUM), num_type_(num_type), exact_(exact) {}
+    : Datum(Datum::Type::NUMBER), num_type_(num_type), exact_(exact) {}
 
  private:
   Type num_type_;
@@ -58,7 +58,7 @@ class Rational : public Number {
   explicit Rational(int64_t val) : Number(Type::RATIONAL, true), val_(val) {}
   ~Rational() override {}
 
-  // Override from Expr
+  // Override from Datum
 
   // TODO(bcf): Temp function for testing
   int64_t val() { return val_; }
@@ -72,7 +72,7 @@ class Float : public Number {
   explicit Float(double val) : Number(Type::FLOAT, false), val_(val) {}
   ~Float() override {}
 
-  // Override from Expr
+  // Override from Datum
 
   // TODO(bcf): Temp function for testing
   double val() { return val_; }
@@ -83,4 +83,4 @@ class Float : public Number {
 
 }  // namespace expr
 
-#endif  // EXPR_NUMBER_H_
+#endif  // DATUM_NUMBER_H_

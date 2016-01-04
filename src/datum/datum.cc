@@ -17,99 +17,78 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "expr/expr.h"
+#include "datum/datum.h"
 
 #include <cassert>
 
-namespace expr {
+namespace datum {
 
-Var *Expr::GetAsVar() {
+Bool *Datum::GetAsBool() {
   assert(false);
   return nullptr;
 }
 
-Literal *Expr::GetAsLiteral() {
+Number *Datum::GetAsNumber() {
   assert(false);
   return nullptr;
 }
 
-
-Apply *Expr::GetAsApply() {
+Char *Datum::GetAsChar() {
   assert(false);
   return nullptr;
 }
 
-Lambda *Expr::GetAsLambda() {
+String *Datum::GetAsString() {
   assert(false);
   return nullptr;
 }
 
-Cond *Expr::GetAsCond() {
+Symbol *Datum::GetAsSymbol() {
   assert(false);
   return nullptr;
 }
 
-Assign *Expr::GetAsAssign() {
+Pair *Datum::GetAsPair() {
   assert(false);
   return nullptr;
 }
 
-LetSyntax *Expr::GetAsLetSyntax() {
+Vector *Datum::GetAsVector() {
   assert(false);
   return nullptr;
 }
 
-Var::~Var() {
-}
-
-Var *Var::GetAsVar() {
+Bool *Bool::GetAsBool() {
   return this;
 }
 
-Apply::Apply(const std::vector<Expr *> &exprs)
-  : Expr(Type::APPLY) {
-  assert(exprs.size() > 0);
-  op_ = exprs[0];
-  args_.reserve(exprs.size() - 1);
-  for (std::size_t i = 1; i < exprs.size(); ++i) {
-    args_.push_back(exprs[i]);
-  }
-}
-
-Apply::~Apply() {
-}
-
-Apply *Apply::GetAsApply() {
+Char *Char::GetAsChar() {
   return this;
 }
 
-Lambda::Lambda(const std::vector<Var *> &required_args, Var *variable_arg,
-    const std::vector<Expr *> &body)
-  : Expr(Type::LAMBDA), required_args_(required_args),
-  variable_arg_(variable_arg), body_(body) {
-  // TODO(bcf): assert Error checking on body.
+String::~String() {
 }
 
-Lambda::~Lambda() {
-}
-
-Lambda *Lambda::GetAsLambda() {
+String *String::GetAsString() {
   return this;
 }
 
-Cond *Cond::GetAsCond() {
+Symbol::~Symbol() {
+}
+
+Symbol *Symbol::GetAsSymbol() {
   return this;
 }
 
-Assign *Assign::GetAsAssign() {
+Pair *Pair::GetAsPair() {
   return this;
 }
 
-LetSyntax::~LetSyntax() {
+Vector::~Vector() {
 }
 
-LetSyntax *LetSyntax::GetAsLetSyntax() {
+Vector *Vector::GetAsVector() {
   return this;
 }
 
-}  // namespace expr
+}  // namespace datum

@@ -30,14 +30,12 @@
 #include <string>
 #include <vector>
 
+#include "datum/datum.h"
+
 namespace expr {
 
 class Var;
-class Quote;
-class Bool;
-class Number;
-class Char;
-class String;
+class Literal;
 class Apply;
 class Lambda;
 class Cond;
@@ -48,12 +46,7 @@ class Expr {
  public:
   enum class Type {
     VAR,           // Variable
-    LIT_QUOTE,     // (quote e)
-    LIT_BOOL,      // #t, #f
-    LIT_NUM,       // number
-    LIT_CHAR,      // character
-    LIT_STRING,    // string
-    LIT_SYMBOL,    // symbol
+    LITERAL,       // literal
     APPLY,         // procure call/macro use
     LAMBDA,        // (lambda <formals> <body>)
     COND,          // (if <test> <consequent> <alternate>)
@@ -66,11 +59,7 @@ class Expr {
   Type type() const { return type_; }
 
   virtual Var *GetAsVar();
-  virtual Quote *GetAsQuote();
-  virtual Bool *GetAsBool();
-  virtual Number *GetAsNumber();
-  virtual Char *GetAsChar();
-  virtual String *GetAsString();
+  virtual Literal *GetAsLiteral();
   virtual Apply *GetAsApply();
   virtual Lambda *GetAsLambda();
   virtual Cond *GetAsCond();
@@ -98,60 +87,18 @@ class Var : public Expr {
   const std::string name_;
 };
 
-class Quote : public Expr {
+class Literal : public Expr {
  public:
-  explicit Quote(Expr *expr) : Expr(Type::LIT_QUOTE), expr_(expr) {}
-  ~Quote() override {}
+  explicit Literal(Expr *expr) : Expr(Type::LITERAL), expr_(expr) {}
+  ~Literal() override {}
 
   // Override from Expr
-  Quote *GetAsQuote() override;
+  Literal *GetAsLiteral() override;
 
   const Expr *expr() const { return expr_; }
 
  private:
   Expr *expr_;
-};
-
-class Bool : public Expr {
- public:
-  explicit Bool(bool val) : Expr(Type::LIT_BOOL), val_(val) {}
-  ~Bool() override {}
-
-  // Override from Expr
-  Bool *GetAsBool() override;
-
-  bool val() const { return val_; }
-
- private:
-  bool val_;
-};
-
-class Char : public Expr {
- public:
-  explicit Char(char val) : Expr(Type::LIT_CHAR), val_(val) {}
-  ~Char() override {}
-
-  // Override from Expr
-  Char *GetAsChar() override;
-
-  char val() const { return val_; }
-
- private:
-  char val_;
-};
-
-class String : public Expr {
- public:
-  explicit String(const std::string &val) : Expr(Type::LIT_STRING), val_(val) {}
-  ~String() override;
-
-  // Override from Expr
-  String *GetAsString() override;
-
-  const std::string &val() const { return val_; }
-
- private:
-  std::string val_;
 };
 
 class Apply : public Expr {
@@ -212,7 +159,7 @@ class Cond : public Expr {
 class Assign : public Expr {
  public:
   Assign(Var *var, Expr *expr)
-    : Expr(Type::LIT_STRING), var_(var), expr_(expr) {}
+    : Expr(Type::ASSIGN), var_(var), expr_(expr) {}
   ~Assign() override {}
 
   // Override from Expr

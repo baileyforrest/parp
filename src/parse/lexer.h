@@ -24,7 +24,6 @@
 #include <ostream>
 #include <string>
 
-#include "expr/number.h"
 #include "util/macros.h"
 #include "util/mark.h"
 #include "util/text_stream.h"
