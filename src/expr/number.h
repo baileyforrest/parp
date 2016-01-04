@@ -17,16 +17,16 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef DATUM_NUMBER_H_
-#define DATUM_NUMBER_H_
+#ifndef EXPR_NUMBER_H_
+#define EXPR_NUMBER_H_
 
 #include <cstdint>
 
-#include "datum/datum.h"
+#include "expr/expr.h"
 
-namespace datum {
+namespace expr {
 
-class Number : public Datum {
+class Number : public Expr {
  public:
   // TODO(bcf): Add support for more types
   enum class Type {
@@ -36,7 +36,7 @@ class Number : public Datum {
 
   ~Number() override {};
 
-  // Override from Datum
+  // Override from Expr
   Number *GetAsNumber() override { return this; }
 
   Type num_type() const { return num_type_; }
@@ -45,7 +45,7 @@ class Number : public Datum {
 
  protected:
   Number(Type num_type, bool exact)
-    : Datum(Datum::Type::NUMBER), num_type_(num_type), exact_(exact) {}
+    : Expr(Expr::Type::NUMBER), num_type_(num_type), exact_(exact) {}
 
  private:
   Type num_type_;
@@ -53,34 +53,36 @@ class Number : public Datum {
 };
 
 // TODO(bcf): Expand this to be arbitrary precision rational
-class Rational : public Number {
+class NumRational : public Number {
  public:
-  explicit Rational(int64_t val) : Number(Type::RATIONAL, true), val_(val) {}
-  ~Rational() override {}
+  static NumRational *Create(int64_t val);
+  ~NumRational() override {}
 
-  // Override from Datum
+  // Override from Expr
 
   // TODO(bcf): Temp function for testing
   int64_t val() { return val_; }
 
  private:
+  explicit NumRational(int64_t val) : Number(Type::RATIONAL, true), val_(val) {}
   int64_t val_;
 };
 
-class Float : public Number {
+class NumFloat : public Number {
  public:
-  explicit Float(double val) : Number(Type::FLOAT, false), val_(val) {}
-  ~Float() override {}
+  static NumFloat *Create(double val);
+  ~NumFloat() override {}
 
-  // Override from Datum
+  // Override from Expr
 
   // TODO(bcf): Temp function for testing
   double val() { return val_; }
 
  private:
+  explicit NumFloat(double val) : Number(Type::FLOAT, false), val_(val) {}
   double val_;
 };
 
 }  // namespace expr
 
-#endif  // DATUM_NUMBER_H_
+#endif  // EXPR_NUMBER_H_

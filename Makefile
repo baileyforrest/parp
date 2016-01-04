@@ -36,8 +36,9 @@ EXE_SOURCES := $(addprefix $(SRC_DIR)/, $(EXE_SOURCES))
 EXE_OBJS = $(EXE_SOURCES:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
 
 COMMON_SOURCES := \
-	datum/datum.cc \
 	expr/expr.cc \
+	expr/number.cc \
+	gc/gc.cc \
 	parse/lexer.cc \
 	util/char_class.cc \
 	util/exceptions.cc \

@@ -30,10 +30,17 @@
 #include <string>
 #include <vector>
 
-#include "datum/datum.h"
+#include "gc/gc.h"
 
 namespace expr {
 
+class Bool;
+class Number;
+class Char;
+class String;
+class Symbol;
+class Pair;
+class Vector;
 class Var;
 class Literal;
 class Apply;
@@ -42,9 +49,18 @@ class Cond;
 class Assign;
 class LetSyntax;
 
-class Expr {
+class Expr : public gc::Collectable{
  public:
   enum class Type {
+    // Expr values
+    BOOL,
+    NUMBER,
+    CHAR,
+    STRING,
+    SYMBOL,
+    PAIR,
+    VECTOR,
+
     VAR,           // Variable
     LITERAL,       // literal
     APPLY,         // procure call/macro use
@@ -57,7 +73,15 @@ class Expr {
   virtual ~Expr() {}
 
   Type type() const { return type_; }
+  bool IsDatum() const;
 
+  virtual Bool *GetAsBool();
+  virtual Number *GetAsNumber();
+  virtual Char *GetAsChar();
+  virtual String *GetAsString();
+  virtual Symbol *GetAsSymbol();
+  virtual Pair *GetAsPair();
+  virtual Vector *GetAsVector();
   virtual Var *GetAsVar();
   virtual Literal *GetAsLiteral();
   virtual Apply *GetAsApply();
@@ -72,6 +96,100 @@ class Expr {
  private:
   Type type_;
 };
+
+class Bool : public Expr {
+ public:
+  static Bool *Create(bool val);
+  ~Bool() override {}
+
+  // Override from Expr
+  Bool *GetAsBool() override;
+
+  bool val() const { return val_; }
+
+ private:
+  explicit Bool(bool val) : Expr(Type::BOOL), val_(val) {}
+  bool val_;
+};
+
+class Char : public Expr {
+ public:
+  static Char *Create(char val);
+  ~Char() override {}
+
+  // Override from Expr
+  Char *GetAsChar() override;
+
+  char val() const { return val_; }
+
+ private:
+  explicit Char(char val) : Expr(Type::CHAR), val_(val) {}
+  char val_;
+};
+
+class String : public Expr {
+ public:
+  static String *Create(const std::string &val);
+  ~String() override;
+
+  // Override from Expr
+  String *GetAsString() override;
+
+  const std::string &val() const { return val_; }
+
+ private:
+  explicit String(const std::string &val) : Expr(Type::STRING), val_(val) {}
+  std::string val_;
+};
+
+class Symbol : public Expr {
+ public:
+  static Symbol *Create(const std::string &val);
+  ~Symbol() override;
+
+  // Override from Expr
+  Symbol *GetAsSymbol() override;
+
+  const std::string &val() const { return val_; }
+
+ private:
+  explicit Symbol(const std::string &val) : Expr(Type::STRING), val_(val) {}
+  std::string val_;
+};
+
+class Pair : public Expr {
+ public:
+  static Pair *Create(Expr *car, Expr *cdr);
+  ~Pair() override {}
+
+  // Override from Expr
+  Pair *GetAsPair() override;
+
+  const Expr *car() { return car_; }
+  const Expr *cdr() { return cdr_; }
+
+ private:
+  Pair(Expr *car, Expr *cdr) : Expr(Type::STRING), car_(car), cdr_(cdr) {}
+  Expr *car_;
+  Expr *cdr_;
+};
+
+class Vector : public Expr {
+ public:
+  static Vector *Create(const std::vector<Expr *> &vals);
+  ~Vector() override;
+
+  // Override from Expr
+  Vector *GetAsVector() override;
+
+  const std::vector<Expr *> &vals() const { return vals_; }
+
+ private:
+  explicit Vector(const std::vector<Expr *> &vals)
+    : Expr(Type::STRING), vals_(vals) {}
+  std::vector<Expr *> vals_;
+};
+
 
 class Var : public Expr {
  public:
