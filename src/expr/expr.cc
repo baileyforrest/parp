@@ -78,20 +78,6 @@ LetSyntax *Expr::GetAsLetSyntax() {
   return nullptr;
 }
 
-Empty *Expr::GetAsEmpty() {
-  assert(false);
-  return nullptr;
-}
-
-Moved *Expr::GetAsMoved() {
-  assert(false);
-  return nullptr;
-}
-
-
-void Expr::Mark() {
-}
-
 Var::~Var() {
 }
 
@@ -99,32 +85,16 @@ Var *Var::GetAsVar() {
   return this;
 }
 
-std::size_t Var::size() const {
-  return sizeof(*this);
-}
-
 Quote *Quote::GetAsQuote() {
   return this;
-}
-
-std::size_t Quote::size() const {
-  return sizeof(*this);
 }
 
 Bool *Bool::GetAsBool() {
   return this;
 }
 
-std::size_t Bool::size() const {
-  return sizeof(*this);
-}
-
 Char *Char::GetAsChar() {
   return this;
-}
-
-std::size_t Char::size() const {
-  return sizeof(*this);
 }
 
 String::~String() {
@@ -132,10 +102,6 @@ String::~String() {
 
 String *String::GetAsString() {
   return this;
-}
-
-std::size_t String::size() const {
-  return sizeof(*this);
 }
 
 Apply::Apply(const std::vector<Expr *> &exprs)
@@ -155,10 +121,6 @@ Apply *Apply::GetAsApply() {
   return this;
 }
 
-std::size_t Apply::size() const {
-  return sizeof(*this);
-}
-
 Lambda::Lambda(const std::vector<Var *> &required_args, Var *variable_arg,
     const std::vector<Expr *> &body)
   : Expr(Type::LAMBDA), required_args_(required_args),
@@ -173,52 +135,19 @@ Lambda *Lambda::GetAsLambda() {
   return this;
 }
 
-std::size_t Lambda::size() const {
-  return sizeof(*this);
-}
-
 Cond *Cond::GetAsCond() {
   return this;
-}
-
-std::size_t Cond::size() const {
-  return sizeof(*this);
 }
 
 Assign *Assign::GetAsAssign() {
   return this;
 }
 
-std::size_t Assign::size() const {
-  return sizeof(*this);
-}
-
-
 LetSyntax::~LetSyntax() {
 }
 
 LetSyntax *LetSyntax::GetAsLetSyntax() {
   return this;
-}
-
-std::size_t LetSyntax::size() const {
-  return sizeof(*this);
-}
-
-Empty *Empty::GetAsEmpty() {
-  return this;
-}
-
-std::size_t Empty::size() const {
-  return size_;
-}
-
-Moved *Moved::GetAsMoved() {
-  return this;
-}
-
-std::size_t Moved::size() const {
-  return sizeof(*this);
 }
 
 }  // namespace expr

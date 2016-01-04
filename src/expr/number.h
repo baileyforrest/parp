@@ -59,7 +59,6 @@ class Rational : public Number {
   ~Rational() override {}
 
   // Override from Expr
-  std::size_t size() const override { return sizeof(*this); }
 
   // TODO(bcf): Temp function for testing
   int64_t val() { return val_; }
@@ -74,7 +73,6 @@ class Float : public Number {
   ~Float() override {}
 
   // Override from Expr
-  std::size_t size() const override { return sizeof(*this); }
 
   // TODO(bcf): Temp function for testing
   double val() { return val_; }
