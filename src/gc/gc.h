@@ -42,6 +42,7 @@ class Gc {
   static Gc &Get();
   void *Alloc(std::size_t size,
       std::function<Collectable *(void *)> creator);
+  void Purge();
 
  private:
   Gc() = default;

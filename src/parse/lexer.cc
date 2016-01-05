@@ -20,6 +20,7 @@
 #include "parse/lexer.h"
 
 #include <cassert>
+#include <cstddef>
 #include <ios>
 #include <iostream>
 
@@ -27,6 +28,209 @@
 #include "util/exceptions.h"
 
 namespace parse {
+
+namespace {
+
+const std::string kInvalNumPrefix = "Invalid number literal";
+
+struct LexNumState {
+  LexNumState(const std::string &str, const util::Mark &mark)
+    : str(str), it(str.begin()), mark(mark), has_exact(false), exact(true),
+      has_radix(false), radix(10), real(nullptr), imag(nullptr) {}
+
+  const std::string &str;
+  std::string::const_iterator it;
+  const util::Mark &mark;
+  bool has_exact;
+  bool exact;
+  bool has_radix;
+  int radix;
+  bool has_exp;
+  expr::Number *real;
+  expr::Number *imag;
+
+  bool Eof() { return it == str.end(); }
+};
+
+void LexNumPrefix(LexNumState *state) {
+  state->radix = 10;
+
+  while (!state->Eof() && *state->it == '#') {
+    ++state->it;
+    if (state->Eof()) {
+      const std::string msg = kInvalNumPrefix + state->str + ". Trailing '#'";
+      throw util::SyntaxException(msg, state->mark);
+    }
+    char c = *(state->it++);
+    switch (c) {
+      case EXACT_SPECIFIER:
+        if (state->has_exact) {
+          const std::string msg = kInvalNumPrefix + state->str +
+            ". Multiple exactness specifiers";
+          throw util::SyntaxException(msg, state->mark);
+        }
+        state->has_exact = true;
+        switch (c) {
+          case 'i':
+          case 'I':
+            state->exact = false;
+            break;
+          case 'e':
+          case 'E':
+            state->exact = true;
+            break;
+        }
+        break;
+      case RADIX_SPECIFIER:
+        if (state->has_radix) {
+          const std::string msg = kInvalNumPrefix + state->str +
+            ". Multiple radix specifiers";
+          throw util::SyntaxException(msg, state->mark);
+        }
+        state->has_radix = true;
+        switch (c) {
+          case 'b':
+          case 'B':
+            state->radix = 2;
+            break;
+          case 'o':
+          case 'O':
+            state->radix = 8;
+            break;
+          case 'd':
+          case 'D':
+            // Radix already set
+            break;
+          case 'x':
+          case 'X':
+            state->radix = 16;
+            break;
+        }
+        break;
+      default:
+        const std::string msg = kInvalNumPrefix + state->str +
+          "Unknown prefix: '#'" + c;
+        throw util::SyntaxException(msg, state->mark);
+    }
+  }
+}
+
+void ExtractDigitStr(LexNumState *state, std::string *out, bool *has_dot) {
+  if (!state->Eof() && (*state->it == '+' || *state->it == '-')) {
+    out->push_back(*(state->it++));
+  }
+  if (state->Eof()) {
+    const std::string msg = kInvalNumPrefix + state->str + ". No digits";
+    throw util::SyntaxException(msg, state->mark);
+  }
+
+  for (; !state->Eof(); ++state->it) {
+    char c = *state->it;
+    bool hex_char = false;
+
+    switch (c) {
+      case 'e': case 'E': case 'f': case 'F': case 'd': case 'D':
+        hex_char = true;
+      case 's': case 'S':  case 'l': case 'L':
+        if (state->radix == 10) {
+          if (!state->has_exact)
+            state->exact = false;
+          c = 'e';
+          break;
+        }
+        if (!hex_char)
+          return;
+
+        // FALL THROUGH
+
+      case 'a': case 'A': case 'b': case 'B': case 'c': case 'C':
+        if (state->radix < 16) {
+          const std::string msg = kInvalNumPrefix + state->str +
+            ". Invalid digit for non hex number: " + *state->it;
+          throw util::SyntaxException(msg, state->mark);
+        }
+
+        // FALL THROUGH
+      case '9':
+      case '8':
+        if (state->radix <= 8) {
+          const std::string msg = kInvalNumPrefix + state->str +
+            ". Invalid digit for non decimal number: " + *state->it;
+          throw util::SyntaxException(msg, state->mark);
+        }
+      case '7':
+      case '6':
+      case '5':
+      case '4':
+      case '3':
+      case '2':
+        if (state->radix <= 2) {
+          const std::string msg = kInvalNumPrefix + state->str +
+            ". Invalid digit for non binary number: " + *state->it;
+          throw util::SyntaxException(msg, state->mark);
+        }
+      case '1':
+      case '0':
+        break;
+      case '#':
+        if (!state->has_exact)
+          state->exact = false;
+
+        c = '0';
+        break;
+      case '.':
+        if (!state->has_exact)
+          state->exact = false;
+        *has_dot = true;
+        break;
+
+      default:
+        return;
+    }
+
+    out->push_back(c);
+  }
+}
+
+void LexReal(LexNumState *state, expr::Number **output) {
+  bool neum_has_dot;
+  std::string neum_str;
+  ExtractDigitStr(state, &neum_str, &neum_has_dot);
+  if (state->Eof() || *state->it != '/') {
+    try {
+      if (state->exact) {
+        *output = expr::NumReal::Create(neum_str, state->radix);
+      } else {
+        *output = expr::NumFloat::Create(neum_str, state->radix);
+      }
+    } catch (std::exception &e) {
+      const std::string msg = kInvalNumPrefix + state->str +
+         + " " + e.what();
+      throw util::SyntaxException(msg, state->mark);
+    }
+    return;
+  }
+  if (neum_has_dot) {
+    const std::string msg = kInvalNumPrefix + state->str +
+      ". Decimal point in neumerator of rational";
+    throw util::SyntaxException(msg, state->mark);
+  }
+
+  bool denom_has_dot;
+  std::string denom_str;
+  ExtractDigitStr(state, &denom_str, &denom_has_dot);
+  if (denom_has_dot) {
+    const std::string msg = kInvalNumPrefix + state->str +
+      ". Decimal point in denominator of rational";
+    throw util::SyntaxException(msg, state->mark);
+  }
+
+  // TODO(bcf): Remove when rational numbers supported
+  throw util::SyntaxException("Rational numbers not supported", state->mark);
+}
+
+
+}  // namespace
 
 std::ostream& operator<<(std::ostream& stream, Token::Type type) {
 #define CASE_TYPE(type) \
@@ -84,13 +288,54 @@ void Lexer::LexId() {
   }
 
   token_.type = Token::Type::ID;
-  token_.id_val = &lexbuf_;
+  token_.expr = expr::Symbol::Create(lexbuf_);
 }
 
 void Lexer::LexNum() {
   GetUntilDelim();
-  token_.type = Token::Type::NUMBER;
-  token_.num_str = &lexbuf_;
+  LexNumState state(lexbuf_, token_.mark);
+  LexNumPrefix(&state);
+
+  if (!state.Eof() && (*state.it == '+' || *state.it == '-') &&
+      state.it + 1 != state.str.end() && (*(state.it + 1) == 'i')) {
+    // TODO(bcf): Remove when complex supported
+    throw util::SyntaxException("No support for complex numbers", token_.mark);
+  }
+
+  LexReal(&state, &state.real);
+  if (state.Eof() || util::IsDelim(*state.it)) {
+    token_.type = Token::Type::NUMBER;
+    token_.expr = state.real;
+    return;
+  }
+
+  switch (*state.it) {
+    case 'i':
+    case 'I':
+      state.imag = state.real;
+      state.real = nullptr;
+      break;
+    case '@':
+      ++state.it;
+      LexReal(&state, &state.imag);
+      break;
+    case '+':
+    case '-':
+      LexReal(&state, &state.imag);
+      if (state.Eof() || (*state.it != 'i' && *state.it != 'I')) {
+        throw util::SyntaxException("Expected 'i' in complex literal",
+            token_.mark);
+      }
+      ++state.it;
+      break;
+    default:
+      throw util::SyntaxException(
+          std::string("Unexpected junk on number literal: ") +
+          *state.it, token_.mark);
+  }
+
+  // TODO(bcf): Remove when complex supported
+  throw util::SyntaxException("No support for complex numbers", token_.mark);
 }
 
 void Lexer::LexChar() {
@@ -109,7 +354,7 @@ void Lexer::LexChar() {
   }
 
   token_.type = Token::Type::CHAR;
-  token_.char_val = lexbuf_[1];
+  token_.expr = expr::Char::Create(lexbuf_[1]);
 }
 
 // Lex string after getting '"'
@@ -126,7 +371,7 @@ void Lexer::LexString() {
   }
 
   token_.type = Token::Type::STRING;
-  token_.str_val = &lexbuf_;
+  token_.expr = expr::String::Create(lexbuf_, true);
 }
 
 const Token &Lexer::NextToken() {
@@ -205,7 +450,7 @@ const Token &Lexer::NextToken() {
         case 't': case 'T': case 'f': case 'F':
           c = stream_.Get();
           token_.type = Token::Type::BOOL;
-          token_.bool_val = (c == 't' || c == 'T');
+          token_.expr = expr::Bool::Create(c == 't' || c == 'T');
           break;
         case '\\':
           LexChar();
@@ -227,7 +472,7 @@ const Token &Lexer::NextToken() {
       if (util::IsDelim(stream_.Peek())) {
         lexbuf_.push_back(c);
         token_.type = Token::Type::ID;
-        token_.id_val = &lexbuf_;
+        token_.expr = expr::Symbol::Create(lexbuf_);
         break;
       }
 

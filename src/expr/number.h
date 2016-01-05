@@ -22,9 +22,14 @@
 
 #include <cstdint>
 
+#include <string>
+
 #include "expr/expr.h"
 
 namespace expr {
+
+class NumReal;
+class NumFloat;
 
 class Number : public Expr {
  public:
@@ -37,49 +42,69 @@ class Number : public Expr {
   ~Number() override {};
 
   // Override from Expr
-  Number *GetAsNumber() override { return this; }
+  const Number *GetAsNumber() const override;
+
+  virtual const NumReal *GetAsNumReal() const;
+  virtual const NumFloat *GetAsNumFloat() const;
 
   Type num_type() const { return num_type_; }
-
   bool exact() const { return exact_; }
 
  protected:
   Number(Type num_type, bool exact)
-    : Expr(Expr::Type::NUMBER), num_type_(num_type), exact_(exact) {}
+    : Expr(Expr::Type::NUMBER, true), num_type_(num_type), exact_(exact) {}
 
  private:
+  // Override from Expr
+  bool EqvImpl(const Expr *other) const override;
+
+  virtual bool NumEqv(const Number *other) const = 0;
+
   Type num_type_;
   bool exact_;
 };
 
 // TODO(bcf): Expand this to be arbitrary precision rational
-class NumRational : public Number {
+class NumReal : public Number {
  public:
-  static NumRational *Create(int64_t val);
-  ~NumRational() override {}
+  static NumReal *Create(int64_t val);
+  static NumReal *Create(const std::string &str, int radix);
+  ~NumReal() override {}
 
-  // Override from Expr
+  // Override from Number
+  const NumReal *GetAsNumReal() const override;
 
   // TODO(bcf): Temp function for testing
-  int64_t val() { return val_; }
+  int64_t val() const { return val_; }
 
  private:
-  explicit NumRational(int64_t val) : Number(Type::RATIONAL, true), val_(val) {}
+  explicit NumReal(int64_t val) : Number(Type::RATIONAL, true), val_(val) {}
+
+  // Override from Number
+  bool NumEqv(const Number *other) const override;
+
   int64_t val_;
 };
 
 class NumFloat : public Number {
  public:
   static NumFloat *Create(double val);
+  static NumFloat *Create(const std::string &str, int radix);
   ~NumFloat() override {}
 
-  // Override from Expr
+  // Override from Number
+  const NumFloat *GetAsNumFloat() const override;
+
 
   // TODO(bcf): Temp function for testing
-  double val() { return val_; }
+  double val() const { return val_; }
 
  private:
   explicit NumFloat(double val) : Number(Type::FLOAT, false), val_(val) {}
+
+  // Override from Number
+  bool NumEqv(const Number *other) const override;
+
   double val_;
 };
 

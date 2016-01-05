@@ -45,7 +45,7 @@ flags = [
 
   # For gtest
   '-isystem',
-  'src/gtest/include',
+  'lib/gtest/include',
   '-pthread',
 ]
 

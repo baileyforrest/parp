@@ -54,13 +54,12 @@ case '8': case '9'
     ASCII_LETTER: case SPECIAL_INITIAL: case ASCII_DIGIT: \
     case '+': case '-': case '.': case '@'
 
-#define HEX_DIGIT                                                       \
-    ASCII_DIGIT:                                                        \
-    case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':         \
-    case 'A': case 'B': case 'C': case 'D': case 'E': case 'F'
+#define RADIX_SPECIFIER \
+    'b': case 'B': case 'o': case 'O': case 'd': case 'D': case 'x': case 'X'
 
-#define OCT_DIGIT                                                       \
-    '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7'
+#define EXACT_SPECIFIER \
+    'i': case 'I': case 'e': case 'E'
+
 
 namespace util {
 

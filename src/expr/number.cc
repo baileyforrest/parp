@@ -19,14 +19,73 @@
 
 #include "expr/number.h"
 
+#include <cassert>
+#include <stdexcept>
+#include <string>
+
 namespace expr {
 
+namespace {
+
+/**
+ *Wraps stoll throwing an exception if the whole string isn't consumed.
+ */
+int64_t stoi64_whole(const std::string &str, int radix) {
+  std::size_t pos;
+  int64_t i = std::stoll(str, &pos, radix);
+  if (pos != str.size())
+    throw std::invalid_argument(
+        "Invalid trailing characters: " + str.substr(pos));
+
+  return i;
+}
+
+}  // namespace
+
+const Number *Number::GetAsNumber() const {
+  return this;
+}
+
+const NumReal *Number::GetAsNumReal() const {
+  assert(false);
+  return nullptr;
+}
+
+const NumFloat *Number::GetAsNumFloat() const {
+  assert(false);
+  return nullptr;
+}
+
+const NumReal *NumReal::GetAsNumReal() const {
+  return this;
+}
+
+bool Number::EqvImpl(const Expr *other) const {
+  auto as_num = other->GetAsNumber();
+  return this->num_type() == as_num->num_type() &&
+    this->NumEqv(as_num);
+}
+
 // static
-NumRational *NumRational::Create(int64_t val) {
-  return static_cast<NumRational *>(
-      gc::Gc::Get().Alloc(sizeof(NumRational), [val](void *addr) {
-        return new(addr) NumRational(val);
+NumReal *NumReal::Create(int64_t val) {
+  return static_cast<NumReal *>(
+      gc::Gc::Get().Alloc(sizeof(NumReal), [val](void *addr) {
+        return new(addr) NumReal(val);
       }));
+}
+
+// static
+NumReal *NumReal::Create(const std::string &str, int radix) {
+  return NumReal::Create(static_cast<int64_t>(stoi64_whole(str, radix)));
+}
+
+
+bool NumReal::NumEqv(const Number *other) const {
+  return this->val() == other->GetAsNumReal()->val();
+}
+
+const NumFloat *NumFloat::GetAsNumFloat() const {
+  return this;
 }
 
 // static
@@ -36,5 +95,26 @@ NumFloat *NumFloat::Create(double val) {
         return new(addr) NumFloat(val);
       }));
 }
+
+// static
+NumFloat *NumFloat::Create(const std::string &str, int radix) {
+  double d;
+  if (radix == 10) {
+    std::size_t pos;
+    d = stod(str, &pos);
+    if (pos != str.size())
+      throw std::invalid_argument(
+          "Invalid trailing characters: " + str.substr(pos));
+  } else {
+    d = stoi64_whole(str, radix);
+  }
+
+  return NumFloat::Create(d);
+}
+
+bool NumFloat::NumEqv(const Number *other) const {
+  return this->val() == other->GetAsNumFloat()->val();
+}
+
 
 }  // namespace expr

@@ -24,10 +24,7 @@
 namespace gc {
 
 Gc::~Gc() {
-  for (const auto &pair : allocs_) {
-    pair.first->~Collectable();
-    std::free(pair.second);
-  }
+  Purge();
 }
 
 // static
@@ -42,6 +39,14 @@ void *Gc::Alloc(std::size_t size,
   allocs_.emplace_back(creator(addr), addr);
 
   return addr;
+}
+
+void Gc::Purge() {
+  for (const auto &pair : allocs_) {
+    pair.first->~Collectable();
+    std::free(pair.second);
+  }
+  allocs_.clear();
 }
 
 }  // namespace gc

@@ -24,6 +24,8 @@
 #include <ostream>
 #include <string>
 
+#include "expr/number.h"
+
 #include "util/macros.h"
 #include "util/mark.h"
 #include "util/text_stream.h"
@@ -54,13 +56,7 @@ struct Token {
 
   Type type;
   util::Mark mark;
-  union {
-    const std::string *id_val;
-    bool bool_val;
-    const std::string *num_str;
-    char char_val;
-    const std::string *str_val;
-  };
+  expr::Expr *expr;
 };
 
 std::ostream& operator<<(std::ostream& stream, Token::Type type);
@@ -74,6 +70,7 @@ class Lexer {
 
  private:
   DISALLOW_MOVE_COPY_AND_ASSIGN(Lexer);
+
   void GetUntilDelim();
   void LexId();
   void LexNum();

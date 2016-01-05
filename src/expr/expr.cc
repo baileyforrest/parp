@@ -38,17 +38,40 @@ bool Expr::IsDatum() const {
   }
 }
 
-Bool *Expr::GetAsBool() {
+bool Expr::Eqv(const Expr *other) const {
+  return this->Eq(other) ||
+    (this->type() == other->type() && this->EqvImpl(other));
+}
+
+bool Expr::Equal(const Expr *other) const {
+  return this->Eq(other) ||
+    (this->type() == other->type() && this->EqualImpl(other));
+}
+
+bool Expr::EqvImpl(const Expr *other) const {
+  return this->Eq(other);
+}
+
+bool Expr::EqualImpl(const Expr *other) const {
+  return this->Eqv(other);
+}
+
+const Bool *Expr::GetAsBool() const {
   assert(false);
   return nullptr;
 }
 
-Number *Expr::GetAsNumber() {
+const Number *Expr::GetAsNumber() const {
   assert(false);
   return nullptr;
 }
 
-Char *Expr::GetAsChar() {
+const Char *Expr::GetAsChar() const {
+  assert(false);
+  return nullptr;
+}
+
+const String *Expr::GetAsString() const {
   assert(false);
   return nullptr;
 }
@@ -58,7 +81,12 @@ String *Expr::GetAsString() {
   return nullptr;
 }
 
-Symbol *Expr::GetAsSymbol() {
+const Symbol *Expr::GetAsSymbol() const {
+  assert(false);
+  return nullptr;
+}
+
+const Pair *Expr::GetAsPair() const {
   assert(false);
   return nullptr;
 }
@@ -68,46 +96,49 @@ Pair *Expr::GetAsPair() {
   return nullptr;
 }
 
+const Vector *Expr::GetAsVector() const {
+  assert(false);
+  return nullptr;
+}
+
 Vector *Expr::GetAsVector() {
   assert(false);
   return nullptr;
 }
 
-
-Var *Expr::GetAsVar() {
+const Var *Expr::GetAsVar() const {
   assert(false);
   return nullptr;
 }
 
-Literal *Expr::GetAsLiteral() {
+const Apply *Expr::GetAsApply() const {
   assert(false);
   return nullptr;
 }
 
-
-Apply *Expr::GetAsApply() {
+const Lambda *Expr::GetAsLambda() const {
   assert(false);
   return nullptr;
 }
 
-Lambda *Expr::GetAsLambda() {
+const Cond *Expr::GetAsCond() const {
   assert(false);
   return nullptr;
 }
 
-Cond *Expr::GetAsCond() {
+const Assign *Expr::GetAsAssign() const {
   assert(false);
   return nullptr;
 }
 
-Assign *Expr::GetAsAssign() {
+const LetSyntax *Expr::GetAsLetSyntax() const {
   assert(false);
   return nullptr;
 }
 
-LetSyntax *Expr::GetAsLetSyntax() {
-  assert(false);
-  return nullptr;
+bool Evals::EqvImpl(const Expr *other) const {
+  (void)other;
+  assert(false && "The evaluation of this expr should be compared instead");
 }
 
 // static
@@ -118,8 +149,12 @@ Bool *Bool::Create(bool val) {
       }));
 }
 
-Bool *Bool::GetAsBool() {
+const Bool *Bool::GetAsBool() const {
   return this;
+}
+
+bool Bool::EqvImpl(const Expr *other) const {
+  return this->val() == other->GetAsBool()->val();
 }
 
 // static
@@ -130,23 +165,35 @@ Char *Char::Create(char val) {
       }));
 }
 
-Char *Char::GetAsChar() {
+const Char *Char::GetAsChar() const {
   return this;
 }
 
+bool Char::EqvImpl(const Expr *other) const {
+  return this->val() == other->GetAsChar()->val();
+}
+
 // static
-String *String::Create(const std::string &val) {
+String *String::Create(const std::string &val, bool readonly) {
   return static_cast<String *>(
-      gc::Gc::Get().Alloc(sizeof(String), [val](void *addr) {
-        return new(addr) String(val);
+      gc::Gc::Get().Alloc(sizeof(String), [val, readonly](void *addr) {
+        return new(addr) String(val, readonly);
       }));
 }
 
 String::~String() {
 }
 
+const String *String::GetAsString() const {
+  return this;
+}
+
 String *String::GetAsString() {
   return this;
+}
+
+bool String::EqualImpl(const Expr *other) const {
+  return this->val() == other->GetAsString()->val();
 }
 
 // static
@@ -160,47 +207,86 @@ Symbol *Symbol::Create(const std::string &val) {
 Symbol::~Symbol() {
 }
 
-Symbol *Symbol::GetAsSymbol() {
+const Symbol *Symbol::GetAsSymbol() const {
   return this;
 }
 
+bool Symbol::EqvImpl(const Expr *other) const {
+  return this->val() == other->GetAsSymbol()->val();
+}
+
 // static
-Pair *Pair::Create(Expr *car, Expr *cdr) {
+Pair *Pair::Create(Expr *car, Expr *cdr, bool readonly) {
   return static_cast<Pair *>(
-      gc::Gc::Get().Alloc(sizeof(Pair), [car, cdr](void *addr) {
-        return new(addr) Pair(car, cdr);
+      gc::Gc::Get().Alloc(sizeof(Pair), [car, cdr, readonly](void *addr) {
+        return new(addr) Pair(car, cdr, readonly);
       }));
+}
+
+const Pair *Pair::GetAsPair() const {
+  return this;
 }
 
 Pair *Pair::GetAsPair() {
   return this;
 }
 
+bool Pair::EqvImpl(const Expr *other) const {
+  return this->car() == other->GetAsPair()->car() &&
+    this->cdr() == other->GetAsPair()->cdr();
+}
+
+bool Pair::EqualImpl(const Expr *other) const {
+  return this->car()->Equal(other->GetAsPair()->car()) &&
+    this->cdr()->Equal(other->GetAsPair()->cdr());
+}
+
 // static
-Vector *Vector::Create(const std::vector<Expr *> &vals) {
+Vector *Vector::Create(const std::vector<Expr *> &vals, bool readonly) {
   return static_cast<Vector *>(
-      gc::Gc::Get().Alloc(sizeof(Vector), [vals](void *addr) {
-        return new(addr) Vector(vals);
+      gc::Gc::Get().Alloc(sizeof(Vector), [vals, readonly](void *addr) {
+        return new(addr) Vector(vals, readonly);
       }));
 }
 
 Vector::~Vector() {
 }
 
+const Vector *Vector::GetAsVector() const {
+  return this;
+}
+
 Vector *Vector::GetAsVector() {
   return this;
 }
 
+bool Vector::EqvImpl(const Expr *other) const {
+  return this->vals() == other->GetAsVector()->vals();
+}
+
+bool Vector::EqualImpl(const Expr *other) const {
+  const auto &v1 = this->vals();
+  const auto &v2 = other->GetAsVector()->vals();
+  if (v1.size() != v2.size())
+    return false;
+
+  for (auto i1 = v1.begin(), i2 = v2.begin(); i1 != v1.end(); ++i1, ++i2) {
+    if (!(*i1)->Equal(*i2))
+      return false;
+  }
+
+  return true;
+}
 
 Var::~Var() {
 }
 
-Var *Var::GetAsVar() {
+const Var *Var::GetAsVar() const {
   return this;
 }
 
 Apply::Apply(const std::vector<Expr *> &exprs)
-  : Expr(Type::APPLY) {
+  : Evals(Type::APPLY, true) {
   assert(exprs.size() > 0);
   op_ = exprs[0];
   args_.reserve(exprs.size() - 1);
@@ -209,39 +295,82 @@ Apply::Apply(const std::vector<Expr *> &exprs)
   }
 }
 
+// static
+Apply *Apply::Create(const std::vector<Expr *> &exprs) {
+  return static_cast<Apply *>(
+      gc::Gc::Get().Alloc(sizeof(Apply), [exprs](void *addr) {
+        return new(addr) Apply(exprs);
+      }));
+}
+
 Apply::~Apply() {
 }
 
-Apply *Apply::GetAsApply() {
+const Apply *Apply::GetAsApply() const {
   return this;
 }
 
 Lambda::Lambda(const std::vector<Var *> &required_args, Var *variable_arg,
     const std::vector<Expr *> &body)
-  : Expr(Type::LAMBDA), required_args_(required_args),
+  : Expr(Type::LAMBDA, true), required_args_(required_args),
   variable_arg_(variable_arg), body_(body) {
   // TODO(bcf): assert Error checking on body.
+}
+
+// static
+Lambda *Lambda::Create(const std::vector<Var *> &required_args,
+    Var *variable_arg, const std::vector<Expr *> &body) {
+  return static_cast<Lambda *>(
+      gc::Gc::Get().Alloc(sizeof(Lambda),
+        [required_args, variable_arg, body](void *addr) {
+          return new(addr) Lambda(required_args, variable_arg, body);
+      }));
 }
 
 Lambda::~Lambda() {
 }
 
-Lambda *Lambda::GetAsLambda() {
+const Lambda *Lambda::GetAsLambda() const {
   return this;
 }
 
-Cond *Cond::GetAsCond() {
+// static
+Cond *Cond::Create(Expr *test, Expr *true_expr, Expr *false_expr) {
+  return static_cast<Cond *>(
+      gc::Gc::Get().Alloc(sizeof(Cond),
+        [test, true_expr, false_expr](void *addr) {
+          return new(addr) Cond(test, true_expr, false_expr);
+      }));
+}
+
+const Cond *Cond::GetAsCond() const {
   return this;
 }
 
-Assign *Assign::GetAsAssign() {
+// static
+Assign *Assign::Create(Var *var, Expr *expr) {
+  return static_cast<Assign *>(
+      gc::Gc::Get().Alloc(sizeof(Assign), [var, expr](void *addr) {
+        return new(addr) Assign(var, expr);
+      }));
+}
+
+const Assign *Assign::GetAsAssign() const {
   return this;
+}
+
+// static
+LetSyntax *LetSyntax::Create() {
+  return static_cast<LetSyntax *>(
+      gc::Gc::Get().Alloc(sizeof(LetSyntax), [](void *addr) {
+        return new(addr) LetSyntax();
+      }));
 }
 
 LetSyntax::~LetSyntax() {
 }
 
-LetSyntax *LetSyntax::GetAsLetSyntax() {
+const LetSyntax *LetSyntax::GetAsLetSyntax() const {
   return this;
 }
 

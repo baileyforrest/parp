@@ -42,7 +42,6 @@ class Symbol;
 class Pair;
 class Vector;
 class Var;
-class Literal;
 class Apply;
 class Lambda;
 class Cond;
@@ -51,7 +50,7 @@ class LetSyntax;
 
 class Expr : public gc::Collectable{
  public:
-  enum class Type {
+  enum class Type : char {
     // Expr values
     BOOL,
     NUMBER,
@@ -62,7 +61,6 @@ class Expr : public gc::Collectable{
     VECTOR,
 
     VAR,           // Variable
-    LITERAL,       // literal
     APPLY,         // procure call/macro use
     LAMBDA,        // (lambda <formals> <body>)
     COND,          // (if <test> <consequent> <alternate>)
@@ -73,28 +71,48 @@ class Expr : public gc::Collectable{
   virtual ~Expr() {}
 
   Type type() const { return type_; }
+  bool readonly() const { return readonly_; }
   bool IsDatum() const;
 
-  virtual Bool *GetAsBool();
-  virtual Number *GetAsNumber();
-  virtual Char *GetAsChar();
+  bool Eq(const Expr *other) const { return other == this; }
+  bool Eqv(const Expr *other) const;
+  bool Equal(const Expr *other) const;
+
+  virtual const Bool *GetAsBool() const;
+  virtual const Number *GetAsNumber() const;
+  virtual const Char *GetAsChar() const;
+  virtual const String *GetAsString() const;
   virtual String *GetAsString();
-  virtual Symbol *GetAsSymbol();
+  virtual const Symbol *GetAsSymbol() const;
+  virtual const Pair *GetAsPair() const;
   virtual Pair *GetAsPair();
+  virtual const Vector *GetAsVector() const;
   virtual Vector *GetAsVector();
-  virtual Var *GetAsVar();
-  virtual Literal *GetAsLiteral();
-  virtual Apply *GetAsApply();
-  virtual Lambda *GetAsLambda();
-  virtual Cond *GetAsCond();
-  virtual Assign *GetAsAssign();
-  virtual LetSyntax *GetAsLetSyntax();
+  virtual const Var *GetAsVar() const;
+  virtual const Apply *GetAsApply() const;
+  virtual const Lambda *GetAsLambda() const;
+  virtual const Cond *GetAsCond() const;
+  virtual const Assign *GetAsAssign() const;
+  virtual const LetSyntax *GetAsLetSyntax() const;
 
  protected:
-  explicit Expr(Type type) : type_(type) {}
+  Expr(Type type, bool readonly) : type_(type), readonly_(readonly) {}
 
  private:
+  virtual bool EqvImpl(const Expr *other) const;
+  virtual bool EqualImpl(const Expr *other) const;
+
   Type type_;
+  bool readonly_;
+};
+
+// Class for expressions which don't evaluate to itself
+class Evals : public Expr {
+ protected:
+  Evals(Type type, bool readonly) : Expr(type, readonly) {}
+
+ private:
+  bool EqvImpl(const Expr *other) const override;
 };
 
 class Bool : public Expr {
@@ -103,12 +121,16 @@ class Bool : public Expr {
   ~Bool() override {}
 
   // Override from Expr
-  Bool *GetAsBool() override;
+  const Bool *GetAsBool() const override;
 
   bool val() const { return val_; }
 
  private:
-  explicit Bool(bool val) : Expr(Type::BOOL), val_(val) {}
+  explicit Bool(bool val) : Expr(Type::BOOL, true), val_(val) {}
+
+  // Override from Expr
+  bool EqvImpl(const Expr *other) const override;
+
   bool val_;
 };
 
@@ -118,27 +140,37 @@ class Char : public Expr {
   ~Char() override {}
 
   // Override from Expr
-  Char *GetAsChar() override;
+  const Char *GetAsChar() const override;
 
   char val() const { return val_; }
 
  private:
-  explicit Char(char val) : Expr(Type::CHAR), val_(val) {}
+  explicit Char(char val) : Expr(Type::CHAR, true), val_(val) {}
+
+  // Override from Expr
+  bool EqvImpl(const Expr *other) const override;
+
   char val_;
 };
 
 class String : public Expr {
  public:
-  static String *Create(const std::string &val);
+  static String *Create(const std::string &val, bool readonly);
   ~String() override;
 
   // Override from Expr
+  const String *GetAsString() const override;
   String *GetAsString() override;
 
   const std::string &val() const { return val_; }
 
  private:
-  explicit String(const std::string &val) : Expr(Type::STRING), val_(val) {}
+  String(const std::string &val, bool readonly)
+    : Expr(Type::STRING, readonly), val_(val) {}
+
+  // Override from Expr
+  bool EqualImpl(const Expr *other) const override;
+
   std::string val_;
 };
 
@@ -148,145 +180,162 @@ class Symbol : public Expr {
   ~Symbol() override;
 
   // Override from Expr
-  Symbol *GetAsSymbol() override;
+  const Symbol *GetAsSymbol() const override;
 
   const std::string &val() const { return val_; }
 
  private:
-  explicit Symbol(const std::string &val) : Expr(Type::STRING), val_(val) {}
+  explicit Symbol(const std::string &val)
+    : Expr(Type::SYMBOL, true), val_(val) {}
+
+  // Override from Expr
+  bool EqvImpl(const Expr *other) const override;
+
   std::string val_;
 };
 
 class Pair : public Expr {
  public:
-  static Pair *Create(Expr *car, Expr *cdr);
+  static Pair *Create(Expr *car, Expr *cdr, bool readonly);
   ~Pair() override {}
 
   // Override from Expr
+  const Pair *GetAsPair() const override;
   Pair *GetAsPair() override;
 
-  const Expr *car() { return car_; }
-  const Expr *cdr() { return cdr_; }
+  const Expr *car() const { return car_; }
+  const Expr *cdr() const { return cdr_; }
+  void set_car(Expr *expr) { car_ = expr; }
+  void set_cdr(Expr *expr) { cdr_ = expr; }
 
  private:
-  Pair(Expr *car, Expr *cdr) : Expr(Type::STRING), car_(car), cdr_(cdr) {}
+  Pair(Expr *car, Expr *cdr, bool readonly)
+    : Expr(Type::PAIR, readonly), car_(car), cdr_(cdr) {}
+
+  // Override from Expr
+  bool EqvImpl(const Expr *other) const override;
+  bool EqualImpl(const Expr *other) const override;
+
   Expr *car_;
   Expr *cdr_;
 };
 
 class Vector : public Expr {
  public:
-  static Vector *Create(const std::vector<Expr *> &vals);
+  static Vector *Create(const std::vector<Expr *> &vals, bool readonly);
   ~Vector() override;
 
   // Override from Expr
+  const Vector *GetAsVector() const override;
   Vector *GetAsVector() override;
 
   const std::vector<Expr *> &vals() const { return vals_; }
 
  private:
-  explicit Vector(const std::vector<Expr *> &vals)
-    : Expr(Type::STRING), vals_(vals) {}
+  Vector(const std::vector<Expr *> &vals, bool readonly)
+    : Expr(Type::VECTOR, readonly), vals_(vals) {}
+
+  // Override from Expr
+  bool EqvImpl(const Expr *other) const override;
+  bool EqualImpl(const Expr *other) const override;
+
   std::vector<Expr *> vals_;
 };
 
 
-class Var : public Expr {
+class Var : public Evals {
  public:
-  explicit Var(const std::string &name) : Expr(Type::VAR), name_(name) {}
+  Var *Create(const std::string &name);
   ~Var() override;
 
   // Override from Expr
-  Var *GetAsVar() override;
+  const Var *GetAsVar() const override;
 
   const std::string &name() const { return name_; }
 
  private:
+  explicit Var(const std::string &name) : Evals(Type::VAR, true), name_(name) {}
+
   const std::string name_;
 };
 
-class Literal : public Expr {
+class Apply : public Evals {
  public:
-  explicit Literal(Expr *expr) : Expr(Type::LITERAL), expr_(expr) {}
-  ~Literal() override {}
-
-  // Override from Expr
-  Literal *GetAsLiteral() override;
-
-  const Expr *expr() const { return expr_; }
-
- private:
-  Expr *expr_;
-};
-
-class Apply : public Expr {
- public:
-  explicit Apply(const std::vector<Expr *> &exprs);
+  Apply *Create(const std::vector<Expr *> &exprs);
   ~Apply() override;
 
   // Override from Expr
-  Apply *GetAsApply() override;
+  const Apply *GetAsApply() const override;
 
   const Expr *op() const { return op_; }
   const std::vector<Expr *> &args() const { return args_; }
 
  private:
+  explicit Apply(const std::vector<Expr *> &exprs);
+
   Expr *op_;
   std::vector<Expr *> args_;
 };
 
 class Lambda : public Expr {
  public:
-  explicit Lambda(const std::vector<Var *> &required_args, Var *variable_arg,
+  Lambda *Create(const std::vector<Var *> &required_args, Var *variable_arg,
       const std::vector<Expr *> &body);
   ~Lambda() override;
 
   // Override from Expr
-  Lambda *GetAsLambda() override;
+  const Lambda *GetAsLambda() const override;
 
   const std::vector<Var *> required_args() const { return required_args_; }
   const Var *variable_arg() const { return variable_arg_; }
   const std::vector<Expr *> body() const { return body_; }
 
  private:
+  explicit Lambda(const std::vector<Var *> &required_args, Var *variable_arg,
+      const std::vector<Expr *> &body);
+
   std::vector<Var *> required_args_;
   Var *variable_arg_;
   std::vector<Expr *> body_;
 };
 
-class Cond : public Expr {
+class Cond : public Evals {
  public:
-  Cond(Expr *test, Expr *true_expr, Expr *false_expr)
-    : Expr(Type::COND), test_(test), true_expr_(true_expr),
-      false_expr_(false_expr) {}
+  Cond *Create(Expr *test, Expr *true_expr, Expr *false_expr);
   ~Cond() override {}
 
   // Override from Expr
-  Cond *GetAsCond() override;
+  const Cond *GetAsCond() const override;
 
   const Expr *test() const { return test_; }
   const Expr *true_expr() const { return true_expr_; }
   const Expr *false_expr() const { return false_expr_; }
 
  private:
+  Cond(Expr *test, Expr *true_expr, Expr *false_expr)
+    : Evals(Type::COND, true), test_(test), true_expr_(true_expr),
+      false_expr_(false_expr) {}
+
   Expr *test_;
   Expr *true_expr_;
   Expr *false_expr_;
 };
 
-class Assign : public Expr {
+class Assign : public Evals {
  public:
-  Assign(Var *var, Expr *expr)
-    : Expr(Type::ASSIGN), var_(var), expr_(expr) {}
+  Assign *Create(Var *var, Expr *expr);
   ~Assign() override {}
 
   // Override from Expr
-  Assign *GetAsAssign() override;
+  const Assign *GetAsAssign() const override;
 
   const Var *var() const { return var_; }
   const Expr *expr() const { return expr_; }
 
  private:
+  Assign(Var *var, Expr *expr)
+    : Evals(Type::ASSIGN, true), var_(var), expr_(expr) {}
+
   Var *var_;
   Expr *expr_;
 };
@@ -294,13 +343,14 @@ class Assign : public Expr {
 // TODO(bcf): Complete this
 class LetSyntax : public Expr {
  public:
-  LetSyntax() : Expr(Type::LET_SYNTAX) {}
+  LetSyntax *Create();
   ~LetSyntax() override;
 
   // Override from Expr
-  LetSyntax *GetAsLetSyntax() override;
+  const LetSyntax *GetAsLetSyntax() const override;
 
  private:
+  LetSyntax() : Expr(Type::LET_SYNTAX, true) {}
 };
 
 }  // namespace expr
