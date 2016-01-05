@@ -27,6 +27,7 @@
 #define EXPR_EXPR_H_
 
 #include <cstddef>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -78,6 +79,8 @@ class Expr : public gc::Collectable{
   bool Eqv(const Expr *other) const;
   bool Equal(const Expr *other) const;
 
+  virtual std::ostream &AppendStream(std::ostream &stream) const = 0;
+
   virtual const Bool *GetAsBool() const;
   virtual const Number *GetAsNumber() const;
   virtual const Char *GetAsChar() const;
@@ -106,6 +109,10 @@ class Expr : public gc::Collectable{
   bool readonly_;
 };
 
+inline std::ostream& operator<<(std::ostream& stream, const Expr *expr) {
+  return expr->AppendStream(stream);
+}
+
 // Class for expressions which don't evaluate to itself
 class Evals : public Expr {
  protected:
@@ -122,6 +129,7 @@ class Bool : public Expr {
 
   // Override from Expr
   const Bool *GetAsBool() const override;
+  std::ostream &AppendStream(std::ostream &stream) const override;
 
   bool val() const { return val_; }
 
@@ -141,6 +149,7 @@ class Char : public Expr {
 
   // Override from Expr
   const Char *GetAsChar() const override;
+  std::ostream &AppendStream(std::ostream &stream) const override;
 
   char val() const { return val_; }
 
@@ -161,6 +170,7 @@ class String : public Expr {
   // Override from Expr
   const String *GetAsString() const override;
   String *GetAsString() override;
+  std::ostream &AppendStream(std::ostream &stream) const override;
 
   const std::string &val() const { return val_; }
 
@@ -181,6 +191,7 @@ class Symbol : public Expr {
 
   // Override from Expr
   const Symbol *GetAsSymbol() const override;
+  std::ostream &AppendStream(std::ostream &stream) const override;
 
   const std::string &val() const { return val_; }
 
@@ -202,6 +213,7 @@ class Pair : public Expr {
   // Override from Expr
   const Pair *GetAsPair() const override;
   Pair *GetAsPair() override;
+  std::ostream &AppendStream(std::ostream &stream) const override;
 
   const Expr *car() const { return car_; }
   const Expr *cdr() const { return cdr_; }
@@ -228,6 +240,7 @@ class Vector : public Expr {
   // Override from Expr
   const Vector *GetAsVector() const override;
   Vector *GetAsVector() override;
+  std::ostream &AppendStream(std::ostream &stream) const override;
 
   const std::vector<Expr *> &vals() const { return vals_; }
 
@@ -250,6 +263,7 @@ class Var : public Evals {
 
   // Override from Expr
   const Var *GetAsVar() const override;
+  std::ostream &AppendStream(std::ostream &stream) const override;
 
   const std::string &name() const { return name_; }
 
@@ -266,6 +280,7 @@ class Apply : public Evals {
 
   // Override from Expr
   const Apply *GetAsApply() const override;
+  std::ostream &AppendStream(std::ostream &stream) const override;
 
   const Expr *op() const { return op_; }
   const std::vector<Expr *> &args() const { return args_; }
@@ -285,6 +300,7 @@ class Lambda : public Expr {
 
   // Override from Expr
   const Lambda *GetAsLambda() const override;
+  std::ostream &AppendStream(std::ostream &stream) const override;
 
   const std::vector<Var *> required_args() const { return required_args_; }
   const Var *variable_arg() const { return variable_arg_; }
@@ -306,6 +322,7 @@ class Cond : public Evals {
 
   // Override from Expr
   const Cond *GetAsCond() const override;
+  std::ostream &AppendStream(std::ostream &stream) const override;
 
   const Expr *test() const { return test_; }
   const Expr *true_expr() const { return true_expr_; }
@@ -328,6 +345,7 @@ class Assign : public Evals {
 
   // Override from Expr
   const Assign *GetAsAssign() const override;
+  std::ostream &AppendStream(std::ostream &stream) const override;
 
   const Var *var() const { return var_; }
   const Expr *expr() const { return expr_; }
@@ -348,6 +366,7 @@ class LetSyntax : public Expr {
 
   // Override from Expr
   const LetSyntax *GetAsLetSyntax() const override;
+  std::ostream &AppendStream(std::ostream &stream) const override;
 
  private:
   LetSyntax() : Expr(Type::LET_SYNTAX, true) {}

@@ -232,6 +232,22 @@ void LexReal(LexNumState *state, expr::Number **output) {
 
 }  // namespace
 
+bool operator==(const Token &lhs, const Token &rhs) {
+  if (lhs.type != rhs.type || lhs.mark != rhs.mark)
+    return false;
+
+  switch (lhs.type) {
+    case Token::Type::ID:
+    case Token::Type::BOOL:
+    case Token::Type::NUMBER:
+    case Token::Type::CHAR:
+    case Token::Type::STRING:
+      return lhs.expr->Equal(rhs.expr);
+    default:
+      return true;
+  }
+}
+
 std::ostream& operator<<(std::ostream& stream, Token::Type type) {
 #define CASE_TYPE(type) \
   case Token::Type::type: stream << "Token::Type::" #type; break
@@ -258,6 +274,24 @@ std::ostream& operator<<(std::ostream& stream, Token::Type type) {
 
   return stream;
 #undef CASE_TYPE
+}
+
+std::ostream& operator<<(std::ostream& stream, const Token &token) {
+  stream << "Token{" << token.type << ", " << token.mark << ", ";
+
+  switch (token.type) {
+    case Token::Type::ID:
+    case Token::Type::BOOL:
+    case Token::Type::NUMBER:
+    case Token::Type::CHAR:
+    case Token::Type::STRING:
+      stream << token.expr;
+      break;
+    default:
+      stream << "{}";
+  }
+
+  return stream << "}";
 }
 
 void Lexer::GetUntilDelim() {

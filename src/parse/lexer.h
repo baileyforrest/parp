@@ -59,7 +59,13 @@ struct Token {
   expr::Expr *expr;
 };
 
+bool operator==(const Token &lhs, const Token &rhs);
+inline bool operator!=(const Token &lhs, const Token &rhs) {
+  return !(lhs == rhs);
+}
+
 std::ostream& operator<<(std::ostream& stream, Token::Type type);
+std::ostream& operator<<(std::ostream& stream, const Token &type);
 
 class Lexer {
  public:

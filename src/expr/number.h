@@ -71,6 +71,9 @@ class NumReal : public Number {
   static NumReal *Create(const std::string &str, int radix);
   ~NumReal() override {}
 
+  // Override from Expr
+  std::ostream &AppendStream(std::ostream &stream) const override;
+
   // Override from Number
   const NumReal *GetAsNumReal() const override;
 
@@ -92,9 +95,11 @@ class NumFloat : public Number {
   static NumFloat *Create(const std::string &str, int radix);
   ~NumFloat() override {}
 
+  // Override from Expr
+  std::ostream &AppendStream(std::ostream &stream) const override;
+
   // Override from Number
   const NumFloat *GetAsNumFloat() const override;
-
 
   // TODO(bcf): Temp function for testing
   double val() const { return val_; }

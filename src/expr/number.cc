@@ -62,8 +62,8 @@ const NumReal *NumReal::GetAsNumReal() const {
 
 bool Number::EqvImpl(const Expr *other) const {
   auto as_num = other->GetAsNumber();
-  return this->num_type() == as_num->num_type() &&
-    this->NumEqv(as_num);
+  return num_type() == as_num->num_type() &&
+    NumEqv(as_num);
 }
 
 // static
@@ -79,9 +79,12 @@ NumReal *NumReal::Create(const std::string &str, int radix) {
   return NumReal::Create(static_cast<int64_t>(stoi64_whole(str, radix)));
 }
 
+std::ostream &NumReal::AppendStream(std::ostream &stream) const {
+  return stream << val();
+}
 
 bool NumReal::NumEqv(const Number *other) const {
-  return this->val() == other->GetAsNumReal()->val();
+  return val() == other->GetAsNumReal()->val();
 }
 
 const NumFloat *NumFloat::GetAsNumFloat() const {
@@ -112,8 +115,12 @@ NumFloat *NumFloat::Create(const std::string &str, int radix) {
   return NumFloat::Create(d);
 }
 
+std::ostream &NumFloat::AppendStream(std::ostream &stream) const {
+  return stream << val();
+}
+
 bool NumFloat::NumEqv(const Number *other) const {
-  return this->val() == other->GetAsNumFloat()->val();
+  return val() == other->GetAsNumFloat()->val();
 }
 
 

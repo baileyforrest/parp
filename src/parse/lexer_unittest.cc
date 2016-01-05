@@ -34,24 +34,7 @@ namespace {
 
 void VerifyTokens(Lexer *lexer, const std::vector<Token> &expected) {
   for (const auto &expect : expected) {
-    const auto &got = lexer->NextToken();
-    EXPECT_EQ(expect.type, got.type);
-    EXPECT_EQ(expect.mark, got.mark);
-
-    if (expect.type != got.type) {
-      continue;
-    }
-    switch (expect.type) {
-      case Token::Type::ID:
-      case Token::Type::BOOL:
-      case Token::Type::NUMBER:
-      case Token::Type::CHAR:
-      case Token::Type::STRING:
-        EXPECT_TRUE(expect.expr->Equal(got.expr));
-        break;
-      default:
-        break;
-    }
+    EXPECT_EQ(expect, lexer->NextToken());
   }
 
   EXPECT_EQ(Token::Type::TOK_EOF, lexer->NextToken().type);

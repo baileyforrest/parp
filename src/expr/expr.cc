@@ -39,21 +39,21 @@ bool Expr::IsDatum() const {
 }
 
 bool Expr::Eqv(const Expr *other) const {
-  return this->Eq(other) ||
-    (this->type() == other->type() && this->EqvImpl(other));
+  return Eq(other) ||
+    (type() == other->type() && EqvImpl(other));
 }
 
 bool Expr::Equal(const Expr *other) const {
-  return this->Eq(other) ||
-    (this->type() == other->type() && this->EqualImpl(other));
+  return Eq(other) ||
+    (type() == other->type() && EqualImpl(other));
 }
 
 bool Expr::EqvImpl(const Expr *other) const {
-  return this->Eq(other);
+  return Eq(other);
 }
 
 bool Expr::EqualImpl(const Expr *other) const {
-  return this->Eqv(other);
+  return Eqv(other);
 }
 
 const Bool *Expr::GetAsBool() const {
@@ -153,8 +153,12 @@ const Bool *Bool::GetAsBool() const {
   return this;
 }
 
+std::ostream &Bool::AppendStream(std::ostream &stream) const {
+  return val() ? (stream << "#t") : (stream << "#f");
+}
+
 bool Bool::EqvImpl(const Expr *other) const {
-  return this->val() == other->GetAsBool()->val();
+  return val() == other->GetAsBool()->val();
 }
 
 // static
@@ -169,8 +173,19 @@ const Char *Char::GetAsChar() const {
   return this;
 }
 
+std::ostream &Char::AppendStream(std::ostream &stream) const {
+  switch (val()) {
+    case ' ':
+      return stream << "#\\space";
+    case '\n':
+      return stream << "#\\newline";
+    default:
+      return stream << "#\\" << val();
+  }
+}
+
 bool Char::EqvImpl(const Expr *other) const {
-  return this->val() == other->GetAsChar()->val();
+  return val() == other->GetAsChar()->val();
 }
 
 // static
@@ -188,12 +203,16 @@ const String *String::GetAsString() const {
   return this;
 }
 
+std::ostream &String::AppendStream(std::ostream &stream) const {
+  return stream << "\"" << val() << "\"";
+}
+
 String *String::GetAsString() {
   return this;
 }
 
 bool String::EqualImpl(const Expr *other) const {
-  return this->val() == other->GetAsString()->val();
+  return val() == other->GetAsString()->val();
 }
 
 // static
@@ -211,8 +230,12 @@ const Symbol *Symbol::GetAsSymbol() const {
   return this;
 }
 
+std::ostream &Symbol::AppendStream(std::ostream &stream) const {
+  return stream << val();
+}
+
 bool Symbol::EqvImpl(const Expr *other) const {
-  return this->val() == other->GetAsSymbol()->val();
+  return val() == other->GetAsSymbol()->val();
 }
 
 // static
@@ -231,14 +254,19 @@ Pair *Pair::GetAsPair() {
   return this;
 }
 
+// TODO(bcf): Check if its a list, if so print as (a b c ...)
+std::ostream &Pair::AppendStream(std::ostream &stream) const {
+  return stream << "(" << car() << " . " << cdr() << ")";
+}
+
 bool Pair::EqvImpl(const Expr *other) const {
-  return this->car() == other->GetAsPair()->car() &&
-    this->cdr() == other->GetAsPair()->cdr();
+  return car() == other->GetAsPair()->car() &&
+    cdr() == other->GetAsPair()->cdr();
 }
 
 bool Pair::EqualImpl(const Expr *other) const {
-  return this->car()->Equal(other->GetAsPair()->car()) &&
-    this->cdr()->Equal(other->GetAsPair()->cdr());
+  return car()->Equal(other->GetAsPair()->car()) &&
+    cdr()->Equal(other->GetAsPair()->cdr());
 }
 
 // static
@@ -260,12 +288,21 @@ Vector *Vector::GetAsVector() {
   return this;
 }
 
+std::ostream &Vector::AppendStream(std::ostream &stream) const {
+  stream << "#(";
+
+  for (auto e : vals())
+    stream << e << " ";
+
+  return stream << ")";
+}
+
 bool Vector::EqvImpl(const Expr *other) const {
-  return this->vals() == other->GetAsVector()->vals();
+  return vals() == other->GetAsVector()->vals();
 }
 
 bool Vector::EqualImpl(const Expr *other) const {
-  const auto &v1 = this->vals();
+  const auto &v1 = vals();
   const auto &v2 = other->GetAsVector()->vals();
   if (v1.size() != v2.size())
     return false;
@@ -283,6 +320,10 @@ Var::~Var() {
 
 const Var *Var::GetAsVar() const {
   return this;
+}
+
+std::ostream &Var::AppendStream(std::ostream &stream) const {
+  return stream << name();
 }
 
 Apply::Apply(const std::vector<Expr *> &exprs)
@@ -310,6 +351,15 @@ const Apply *Apply::GetAsApply() const {
   return this;
 }
 
+std::ostream &Apply::AppendStream(std::ostream &stream) const {
+  stream << "(" << op();
+
+  for (auto arg : args())
+    stream << arg << " ";
+
+  return stream << ")";
+}
+
 Lambda::Lambda(const std::vector<Var *> &required_args, Var *variable_arg,
     const std::vector<Expr *> &body)
   : Expr(Type::LAMBDA, true), required_args_(required_args),
@@ -334,6 +384,28 @@ const Lambda *Lambda::GetAsLambda() const {
   return this;
 }
 
+std::ostream &Lambda::AppendStream(std::ostream &stream) const {
+  stream << "(lambda ";
+  if (required_args().size() == 0 &&
+      variable_arg() != nullptr) {
+    stream << variable_arg();
+  } else {
+    stream << "(";
+    for (auto arg : required_args())
+      stream << arg << " ";
+
+    if (variable_arg() != nullptr) {
+      stream << ". " << variable_arg();
+    }
+    stream << ")";
+  }
+
+  for (auto e : body())
+    stream << e;
+
+  return stream << ")";
+}
+
 // static
 Cond *Cond::Create(Expr *test, Expr *true_expr, Expr *false_expr) {
   return static_cast<Cond *>(
@@ -347,6 +419,15 @@ const Cond *Cond::GetAsCond() const {
   return this;
 }
 
+std::ostream &Cond::AppendStream(std::ostream &stream) const {
+  stream << "(if " << test() << " " << true_expr();
+
+  if (false_expr() != nullptr)
+    stream << " " << false_expr();
+
+  return stream << ")";
+}
+
 // static
 Assign *Assign::Create(Var *var, Expr *expr) {
   return static_cast<Assign *>(
@@ -357,6 +438,10 @@ Assign *Assign::Create(Var *var, Expr *expr) {
 
 const Assign *Assign::GetAsAssign() const {
   return this;
+}
+
+std::ostream &Assign::AppendStream(std::ostream &stream) const {
+  return stream << "(set! " << var() << " " << expr() << ")";
 }
 
 // static
@@ -372,6 +457,10 @@ LetSyntax::~LetSyntax() {
 
 const LetSyntax *LetSyntax::GetAsLetSyntax() const {
   return this;
+}
+
+std::ostream &LetSyntax::AppendStream(std::ostream &stream) const {
+  return stream;
 }
 
 }  // namespace expr
