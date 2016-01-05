@@ -31,71 +31,116 @@ namespace parse {
 
 namespace {
 
-const std::string kInvalNumPrefix = "Invalid number literal";
+class NumLexer {
+ public:
+  NumLexer(const std::string &str, const util::Mark &mark)
+    : mark_(mark), str_(str), it_(str.begin()) {}
 
-struct LexNumState {
-  LexNumState(const std::string &str, const util::Mark &mark)
-    : str(str), it(str.begin()), mark(mark), has_exact(false), exact(true),
-      has_radix(false), radix(10), real(nullptr), imag(nullptr) {}
+  expr::Number *LexNum();
 
-  const std::string &str;
-  std::string::const_iterator it;
-  const util::Mark &mark;
-  bool has_exact;
-  bool exact;
-  bool has_radix;
-  int radix;
-  bool has_exp;
-  expr::Number *real;
-  expr::Number *imag;
+ private:
+  bool Eof() { return it_ == str_.end(); }
+  void ThrowException(const std::string &msg) {
+    const std::string full_msg =
+      "Invalid number literal \"" + str_ + "\":" + msg;
+    throw util::SyntaxException(full_msg, mark_);
+  }
 
-  bool Eof() { return it == str.end(); }
+  void ParsePrefix();
+  std::string ExtractDigitStr(bool *has_dot);
+  expr::Number *ParseReal();
+
+  const util::Mark &mark_;
+  const std::string &str_;
+  std::string::const_iterator it_;
+
+  bool has_exact_ = false;
+  bool exact_ = true;
+  bool has_radix_ = false;
+  int radix_ = 10;
+  bool has_exp_ = false;
 };
 
-void LexNumPrefix(LexNumState *state) {
-  state->radix = 10;
+expr::Number *NumLexer::LexNum() {
+  ParsePrefix();
 
-  while (!state->Eof() && *state->it == '#') {
-    ++state->it;
-    if (state->Eof()) {
-      const std::string msg = kInvalNumPrefix + state->str + ". Trailing '#'";
-      throw util::SyntaxException(msg, state->mark);
-    }
-    char c = *(state->it++);
+  if (!Eof() && (*it_ == '+' || *it_ == '-') &&
+      it_ + 1 != str_.end() && (*(it_ + 1) == 'i')) {
+    // TODO(bcf): Remove when complex supported
+    ThrowException("No support for complex numbers");
+  }
+
+  expr::Number *real_part = ParseReal();
+  if (Eof())
+    return real_part;
+
+  expr::Number *imag_part = nullptr;
+
+  switch (*it_) {
+    case 'i':
+    case 'I':
+      imag_part = real_part;
+      real_part = nullptr;
+      break;
+    case '@':
+      ++it_;
+      imag_part = ParseReal();
+      break;
+    case '+':
+    case '-':
+      imag_part = ParseReal();
+      if (Eof() || (*it_ != 'i' && *it_ != 'I'))
+        ThrowException("Expected 'i' in complex literal");
+      ++it_;
+      break;
+    default:
+      ThrowException(
+          std::string("Unexpected junk on number literal: ") + *it_);
+  }
+
+  // TODO(bcf): Remove when complex supported
+  (void)imag_part;
+  ThrowException("No support for complex numbers");
+  return nullptr;
+}
+
+void NumLexer::ParsePrefix() {
+  while (!Eof() && *it_ == '#') {
+    ++it_;
+    if (Eof())
+      ThrowException("Trailing '#'");
+
+    char c = *(it_++);
     switch (c) {
       case EXACT_SPECIFIER:
-        if (state->has_exact) {
-          const std::string msg = kInvalNumPrefix + state->str +
-            ". Multiple exactness specifiers";
-          throw util::SyntaxException(msg, state->mark);
-        }
-        state->has_exact = true;
+        if (has_exact_)
+          ThrowException("Multiple exactness specifiers");
+
+        has_exact_ = true;
         switch (c) {
           case 'i':
           case 'I':
-            state->exact = false;
+            exact_ = false;
             break;
           case 'e':
           case 'E':
-            state->exact = true;
+            exact_ = true;
             break;
         }
         break;
       case RADIX_SPECIFIER:
-        if (state->has_radix) {
-          const std::string msg = kInvalNumPrefix + state->str +
-            ". Multiple radix specifiers";
-          throw util::SyntaxException(msg, state->mark);
-        }
-        state->has_radix = true;
+        if (has_radix_)
+          ThrowException("Multiple radix_ specifiers");
+
+        has_radix_ = true;
         switch (c) {
           case 'b':
           case 'B':
-            state->radix = 2;
+            radix_ = 2;
             break;
           case 'o':
           case 'O':
-            state->radix = 8;
+            radix_ = 8;
             break;
           case 'd':
           case 'D':
@@ -103,132 +148,119 @@ void LexNumPrefix(LexNumState *state) {
             break;
           case 'x':
           case 'X':
-            state->radix = 16;
+            radix_ = 16;
             break;
         }
         break;
       default:
-        const std::string msg = kInvalNumPrefix + state->str +
-          "Unknown prefix: '#'" + c;
-        throw util::SyntaxException(msg, state->mark);
+        ThrowException(std::string("Unknown prefix: '#'") + c);
     }
   }
 }
 
-void ExtractDigitStr(LexNumState *state, std::string *out, bool *has_dot) {
-  if (!state->Eof() && (*state->it == '+' || *state->it == '-')) {
-    out->push_back(*(state->it++));
-  }
-  if (state->Eof()) {
-    const std::string msg = kInvalNumPrefix + state->str + ". No digits";
-    throw util::SyntaxException(msg, state->mark);
-  }
+std::string NumLexer::ExtractDigitStr(bool *has_dot) {
+  std::string out;
 
-  for (; !state->Eof(); ++state->it) {
-    char c = *state->it;
+  if (!Eof() && (*it_ == '+' || *it_ == '-'))
+    out.push_back(*(it_++));
+
+  if (Eof())
+    ThrowException("No digits");
+
+  for (; !Eof(); ++it_) {
+    char c = *it_;
     bool hex_char = false;
 
     switch (c) {
       case 'e': case 'E': case 'f': case 'F': case 'd': case 'D':
         hex_char = true;
       case 's': case 'S':  case 'l': case 'L':
-        if (state->radix == 10) {
-          if (!state->has_exact)
-            state->exact = false;
+        if (radix_ == 10) {
+          if (!has_exact_)
+            exact_ = false;
           c = 'e';
           break;
         }
         if (!hex_char)
-          return;
+          return out;
 
         // FALL THROUGH
 
       case 'a': case 'A': case 'b': case 'B': case 'c': case 'C':
-        if (state->radix < 16) {
-          const std::string msg = kInvalNumPrefix + state->str +
-            ". Invalid digit for non hex number: " + *state->it;
-          throw util::SyntaxException(msg, state->mark);
-        }
+        if (radix_ < 16)
+          ThrowException(
+              std::string("Invalid digit for non hex number: ") + *it_);
 
         // FALL THROUGH
       case '9':
       case '8':
-        if (state->radix <= 8) {
-          const std::string msg = kInvalNumPrefix + state->str +
-            ". Invalid digit for non decimal number: " + *state->it;
-          throw util::SyntaxException(msg, state->mark);
-        }
+        if (radix_ <= 8)
+          ThrowException(
+              std::string("Invalid digit for non decimal number: ") + *it_);
+
       case '7':
       case '6':
       case '5':
       case '4':
       case '3':
       case '2':
-        if (state->radix <= 2) {
-          const std::string msg = kInvalNumPrefix + state->str +
-            ". Invalid digit for non binary number: " + *state->it;
-          throw util::SyntaxException(msg, state->mark);
-        }
+        if (radix_ <= 2)
+          ThrowException(
+              std::string("Invalid digit for non binary number: ") + *it_);
+
       case '1':
       case '0':
         break;
       case '#':
-        if (!state->has_exact)
-          state->exact = false;
+        if (!has_exact_)
+          exact_ = false;
 
         c = '0';
         break;
       case '.':
-        if (!state->has_exact)
-          state->exact = false;
+        if (!has_exact_)
+          exact_ = false;
         *has_dot = true;
         break;
 
       default:
-        return;
+        return out;
     }
 
-    out->push_back(c);
+    out.push_back(c);
   }
+
+  return out;
 }
 
-void LexReal(LexNumState *state, expr::Number **output) {
+expr::Number *NumLexer::ParseReal() {
   bool neum_has_dot;
-  std::string neum_str;
-  ExtractDigitStr(state, &neum_str, &neum_has_dot);
-  if (state->Eof() || *state->it != '/') {
+  std::string neum_str = ExtractDigitStr(&neum_has_dot);
+  if (Eof() || *it_ != '/') {
     try {
-      if (state->exact) {
-        *output = expr::NumReal::Create(neum_str, state->radix);
+      if (exact_) {
+        return expr::NumReal::Create(neum_str, radix_);
       } else {
-        *output = expr::NumFloat::Create(neum_str, state->radix);
+        return expr::NumFloat::Create(neum_str, radix_);
       }
     } catch (std::exception &e) {
-      const std::string msg = kInvalNumPrefix + state->str +
-         + " " + e.what();
-      throw util::SyntaxException(msg, state->mark);
+      ThrowException(e.what());
     }
-    return;
   }
-  if (neum_has_dot) {
-    const std::string msg = kInvalNumPrefix + state->str +
-      ". Decimal point in neumerator of rational";
-    throw util::SyntaxException(msg, state->mark);
-  }
+  if (neum_has_dot)
+    ThrowException("Decimal point in neumerator of rational");
+  ++it_;
 
   bool denom_has_dot;
-  std::string denom_str;
-  ExtractDigitStr(state, &denom_str, &denom_has_dot);
-  if (denom_has_dot) {
-    const std::string msg = kInvalNumPrefix + state->str +
-      ". Decimal point in denominator of rational";
-    throw util::SyntaxException(msg, state->mark);
-  }
+  std::string denom_str = ExtractDigitStr(&denom_has_dot);
+
+  if (denom_has_dot)
+    ThrowException("Decimal point in denominator of rational");
 
   // TODO(bcf): Remove when rational numbers supported
-  throw util::SyntaxException("Rational numbers not supported", state->mark);
+  ThrowException("Rational numbers not supported");
+  return nullptr;
 }
-
 
 }  // namespace
 
@@ -327,49 +359,10 @@ void Lexer::LexId() {
 
 void Lexer::LexNum() {
   GetUntilDelim();
-  LexNumState state(lexbuf_, token_.mark);
-  LexNumPrefix(&state);
+  NumLexer num_lexer(lexbuf_, token_.mark);
 
-  if (!state.Eof() && (*state.it == '+' || *state.it == '-') &&
-      state.it + 1 != state.str.end() && (*(state.it + 1) == 'i')) {
-    // TODO(bcf): Remove when complex supported
-    throw util::SyntaxException("No support for complex numbers", token_.mark);
-  }
-
-  LexReal(&state, &state.real);
-  if (state.Eof() || util::IsDelim(*state.it)) {
-    token_.type = Token::Type::NUMBER;
-    token_.expr = state.real;
-    return;
-  }
-
-  switch (*state.it) {
-    case 'i':
-    case 'I':
-      state.imag = state.real;
-      state.real = nullptr;
-      break;
-    case '@':
-      ++state.it;
-      LexReal(&state, &state.imag);
-      break;
-    case '+':
-    case '-':
-      LexReal(&state, &state.imag);
-      if (state.Eof() || (*state.it != 'i' && *state.it != 'I')) {
-        throw util::SyntaxException("Expected 'i' in complex literal",
-            token_.mark);
-      }
-      ++state.it;
-      break;
-    default:
-      throw util::SyntaxException(
-          std::string("Unexpected junk on number literal: ") +
-          *state.it, token_.mark);
-  }
-
-  // TODO(bcf): Remove when complex supported
-  throw util::SyntaxException("No support for complex numbers", token_.mark);
+  token_.type = Token::Type::NUMBER;
+  token_.expr = num_lexer.LexNum();
 }
 
 void Lexer::LexChar() {
