@@ -362,7 +362,7 @@ std::ostream& operator<<(std::ostream& stream, const Token &token) {
     case Token::Type::NUMBER:
     case Token::Type::CHAR:
     case Token::Type::STRING:
-      stream << token.expr;
+      stream << *token.expr;
       break;
     default:
       stream << "{}";
