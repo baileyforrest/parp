@@ -27,10 +27,14 @@
 #include "parse/lexer.h"
 #include "util/char_class.h"
 #include "util/text_stream.h"
+#include "test/util.h"
 
 namespace parse {
 
 namespace {
+
+class LexerTest : public test::TestBase {
+};
 
 void VerifyTokens(Lexer *lexer, const std::vector<Token> &expected) {
   for (const auto &expect : expected) {
@@ -42,7 +46,7 @@ void VerifyTokens(Lexer *lexer, const std::vector<Token> &expected) {
 
 }  // namespace
 
-TEST(LexerTest, Basic) {
+TEST_F(LexerTest, Basic) {
   const char *kStr =
     "  ;;; The FACT procedure computes the factorial\n"
     "  ;;; of a non-negative integer.\n"
@@ -95,7 +99,7 @@ TEST(LexerTest, Basic) {
   VerifyTokens(&lexer, kExpected);
 }
 
-TEST(LexerTest, Empty) {
+TEST_F(LexerTest, Empty) {
   const char *kStr = "";
 
   const std::string kFilename = "foo";
@@ -108,7 +112,7 @@ TEST(LexerTest, Empty) {
   VerifyTokens(&lexer, kExpected);
 }
 
-TEST(LexerTest, NoTrailingNewine) {
+TEST_F(LexerTest, NoTrailingNewine) {
   const char *kStr = "abc";
 
   const std::string kFilename = "foo";
@@ -124,7 +128,7 @@ TEST(LexerTest, NoTrailingNewine) {
   VerifyTokens(&lexer, kExpected);
 }
 
-TEST(LexerTest, IdTest) {
+TEST_F(LexerTest, IdTest) {
   const char *kStr =
     "abc\n"
 
@@ -193,7 +197,7 @@ TEST(LexerTest, IdTest) {
   VerifyTokens(&lexer, kExpected);
 }
 
-TEST(LexerTest, BoolTest) {
+TEST_F(LexerTest, BoolTest) {
   const char *kStr =
     "#t\n"
     "#f\n"
@@ -216,7 +220,7 @@ TEST(LexerTest, BoolTest) {
   VerifyTokens(&lexer, kExpected);
 }
 
-TEST(LexerTest, NumTest) {
+TEST_F(LexerTest, NumTest) {
   const char *kStr =
     "#b1\n"
     "#o1\n"
@@ -308,7 +312,7 @@ TEST(LexerTest, NumTest) {
   VerifyTokens(&lexer, kExpected);
 }
 
-TEST(LexerTest, CharTest) {
+TEST_F(LexerTest, CharTest) {
   std::string input;
   const int kAsciiChars = 127;
   for (int i = 0, line = 0; i < kAsciiChars; ++i) {
@@ -344,7 +348,7 @@ TEST(LexerTest, CharTest) {
   VerifyTokens(&lexer, expected);
 }
 
-TEST(LexerTest, StringTest) {
+TEST_F(LexerTest, StringTest) {
   const char *kStr =
     "\"abc\"\n"
     "\"\\abc\"\n"

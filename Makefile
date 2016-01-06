@@ -50,8 +50,8 @@ COMMON_OBJS = $(COMMON_SOURCES:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
 
 # All test sources must be suffixed with _unittest
 TEST_SOURCES := \
-	main_unittest.cc \
-	parse/lexer_unittest.cc
+	parse/lexer_unittest.cc \
+	test/main_unittest.cc
 
 TEST_SOURCES := $(addprefix $(SRC_DIR)/, $(TEST_SOURCES))
 TEST_OBJS = $(TEST_SOURCES:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
