@@ -40,6 +40,7 @@ COMMON_SOURCES := \
 	expr/number.cc \
 	gc/gc.cc \
 	parse/lexer.cc \
+	parse/parse.cc \
 	util/char_class.cc \
 	util/exceptions.cc \
 	util/mark.cc \
@@ -51,6 +52,7 @@ COMMON_OBJS = $(COMMON_SOURCES:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
 # All test sources must be suffixed with _unittest
 TEST_SOURCES := \
 	parse/lexer_unittest.cc \
+	parse/parse_unittest.cc \
 	test/main_unittest.cc
 
 TEST_SOURCES := $(addprefix $(SRC_DIR)/, $(TEST_SOURCES))

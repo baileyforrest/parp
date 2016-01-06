@@ -113,19 +113,38 @@ TEST_F(LexerTest, Empty) {
 }
 
 TEST_F(LexerTest, NoTrailingNewine) {
-  const char *kStr = "abc";
-
   const std::string kFilename = "foo";
+  const struct {
+    const char *str;
+    std::vector<Token> expected;
+  } kTests[] = {
+    { "abc",
+      { { Token::Type::ID, { &kFilename, 1, 1 }, expr::Symbol::Create("abc") } }
+    },
 
-  const std::vector<Token> kExpected = {
-    { Token::Type::ID, { &kFilename, 1, 1 }, expr::Symbol::Create("abc") },
+    { "#t\n",
+      { { Token::Type::BOOL, { &kFilename, 1, 1 }, expr::Bool::Create(true) } }
+    },
+    { "1\n",
+      { { Token::Type::NUMBER,
+          { &kFilename, 1, 1 }, expr::NumReal::Create(1) } }
+    },
+    { "#\\c\n",
+      { { Token::Type::CHAR, { &kFilename, 1, 1 }, expr::Char::Create('c') } }
+    },
+    { "\"def\"",
+      { { Token::Type::STRING,
+          { &kFilename, 1, 1 }, expr::String::Create("def") } }
+    },
   };
 
-  std::istringstream s(kStr);
-  util::TextStream stream(&s, &kFilename);
-  Lexer lexer{stream};
+  for (const auto &test : kTests) {
+    std::istringstream s(test.str);
+    util::TextStream stream(&s, &kFilename);
+    Lexer lexer{stream};
 
-  VerifyTokens(&lexer, kExpected);
+    VerifyTokens(&lexer, test.expected);
+  }
 }
 
 TEST_F(LexerTest, IdTest) {
@@ -348,6 +367,25 @@ TEST_F(LexerTest, CharTest) {
   VerifyTokens(&lexer, expected);
 }
 
+TEST_F(LexerTest, CharTestSpaceNewline) {
+  const char *kStr =
+    "#\\space\n"
+    "#\\newline\n";
+
+  const std::string kFilename = "foo";
+
+  const std::vector<Token> kExpected = {
+    { Token::Type::CHAR, { &kFilename, 1, 1 }, expr::Char::Create(' ') },
+    { Token::Type::CHAR, { &kFilename, 2, 1 }, expr::Char::Create('\n') },
+  };
+
+  std::istringstream s(kStr);
+  util::TextStream stream(&s, &kFilename);
+  Lexer lexer{stream};
+
+  VerifyTokens(&lexer, kExpected);
+}
+
 TEST_F(LexerTest, StringTest) {
   const char *kStr =
     "\"abc\"\n"
@@ -364,23 +402,23 @@ TEST_F(LexerTest, StringTest) {
 
   const std::vector<Token> kExpected = {
     { Token::Type::STRING, { &kFilename, 1, 1 },
-      expr::String::Create("abc", true) },
+      expr::String::Create("abc") },
     { Token::Type::STRING, { &kFilename, 2, 1 },
-      expr::String::Create("abc", true) },
+      expr::String::Create("abc") },
     { Token::Type::STRING, { &kFilename, 3, 1 },
-      expr::String::Create("abc", true) },
+      expr::String::Create("abc") },
     { Token::Type::STRING, { &kFilename, 4, 1 },
-      expr::String::Create("\\abc", true) },
+      expr::String::Create("\\abc") },
     { Token::Type::STRING, { &kFilename, 5, 1 },
-      expr::String::Create("\"abc", true) },
+      expr::String::Create("\"abc") },
     { Token::Type::STRING, { &kFilename, 6, 1 },
-      expr::String::Create("foo\\abc", true) },
+      expr::String::Create("foo\\abc") },
     { Token::Type::STRING, { &kFilename, 7, 1 },
-      expr::String::Create("foo\"abc", true) },
+      expr::String::Create("foo\"abc") },
     { Token::Type::STRING, { &kFilename, 8, 1 },
-      expr::String::Create("abc\\", true) },
+      expr::String::Create("abc\\") },
     { Token::Type::STRING, { &kFilename, 9, 1 },
-      expr::String::Create("abc\"", true) },
+      expr::String::Create("abc\"") },
   };
 
   std::istringstream s(kStr);
@@ -389,5 +427,37 @@ TEST_F(LexerTest, StringTest) {
 
   VerifyTokens(&lexer, kExpected);
 }
+
+TEST_F(LexerTest, OtherTest) {
+  const char *kStr =
+    "(\n"
+    ")\n"
+    "#(\n"
+    "'\n"
+    "`\n"
+    ",\n"
+    ",@\n"
+    ".\n";
+
+  const std::string kFilename = "foo";
+
+  const std::vector<Token> kExpected = {
+    { Token::Type::LPAREN,      { &kFilename, 1, 1 }, nullptr },
+    { Token::Type::RPAREN,      { &kFilename, 2, 1 }, nullptr },
+    { Token::Type::POUND_PAREN, { &kFilename, 3, 1 }, nullptr },
+    { Token::Type::QUOTE,       { &kFilename, 4, 1 }, nullptr },
+    { Token::Type::BACKTICK,    { &kFilename, 5, 1 }, nullptr },
+    { Token::Type::COMMA,       { &kFilename, 6, 1 }, nullptr },
+    { Token::Type::COMMA_AT,    { &kFilename, 7, 1 }, nullptr },
+    { Token::Type::DOT,         { &kFilename, 8, 1 }, nullptr },
+  };
+
+  std::istringstream s(kStr);
+  util::TextStream stream(&s, &kFilename);
+  Lexer lexer{stream};
+
+  VerifyTokens(&lexer, kExpected);
+}
+
 
 }  // namespace parse

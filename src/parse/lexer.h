@@ -57,6 +57,9 @@ struct Token {
   Type type;
   util::Mark mark;
   expr::Expr *expr;
+
+  std::ostream &PrettyPrint(
+      std::ostream &stream) const;  // NOLINT(runtime/references)
 };
 
 bool operator==(const Token &lhs, const Token &rhs);

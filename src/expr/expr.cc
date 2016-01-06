@@ -56,6 +56,11 @@ bool Expr::EqualImpl(const Expr *other) const {
   return Eqv(other);
 }
 
+const EmptyList *Expr::GetAsEmptyList() const {
+  assert(false);
+  return nullptr;
+}
+
 const Bool *Expr::GetAsBool() const {
   assert(false);
   return nullptr;
@@ -139,6 +144,19 @@ const LetSyntax *Expr::GetAsLetSyntax() const {
 bool Evals::EqvImpl(const Expr *other) const {
   (void)other;
   assert(false && "The evaluation of this expr should be compared instead");
+}
+
+EmptyList *EmptyList::Create() {
+  static EmptyList empty_list;
+  return &empty_list;
+}
+
+const EmptyList *EmptyList::GetAsEmptyList() const {
+  return this;
+}
+
+std::ostream &EmptyList::AppendStream(std::ostream &stream) const {
+  return stream << "'()";
 }
 
 // static
@@ -256,7 +274,7 @@ Pair *Pair::GetAsPair() {
 
 // TODO(bcf): Check if its a list, if so print as (a b c ...)
 std::ostream &Pair::AppendStream(std::ostream &stream) const {
-  return stream << "(" << car() << " . " << cdr() << ")";
+  return stream << "(" << *car() << " . " << *cdr() << ")";
 }
 
 bool Pair::EqvImpl(const Expr *other) const {
@@ -292,7 +310,7 @@ std::ostream &Vector::AppendStream(std::ostream &stream) const {
   stream << "#(";
 
   for (auto e : vals())
-    stream << e << " ";
+    stream << *e << " ";
 
   return stream << ")";
 }
@@ -352,10 +370,10 @@ const Apply *Apply::GetAsApply() const {
 }
 
 std::ostream &Apply::AppendStream(std::ostream &stream) const {
-  stream << "(" << op();
+  stream << "(" << *op();
 
   for (auto arg : args())
-    stream << arg << " ";
+    stream << *arg << " ";
 
   return stream << ")";
 }
@@ -388,20 +406,20 @@ std::ostream &Lambda::AppendStream(std::ostream &stream) const {
   stream << "(lambda ";
   if (required_args().size() == 0 &&
       variable_arg() != nullptr) {
-    stream << variable_arg();
+    stream << *variable_arg();
   } else {
     stream << "(";
     for (auto arg : required_args())
-      stream << arg << " ";
+      stream << *arg << " ";
 
     if (variable_arg() != nullptr) {
-      stream << ". " << variable_arg();
+      stream << ". " << *variable_arg();
     }
     stream << ")";
   }
 
   for (auto e : body())
-    stream << e;
+    stream << *e;
 
   return stream << ")";
 }
@@ -420,10 +438,10 @@ const Cond *Cond::GetAsCond() const {
 }
 
 std::ostream &Cond::AppendStream(std::ostream &stream) const {
-  stream << "(if " << test() << " " << true_expr();
+  stream << "(if " << *test() << " " << *true_expr();
 
   if (false_expr() != nullptr)
-    stream << " " << false_expr();
+    stream << " " << *false_expr();
 
   return stream << ")";
 }
@@ -441,7 +459,7 @@ const Assign *Assign::GetAsAssign() const {
 }
 
 std::ostream &Assign::AppendStream(std::ostream &stream) const {
-  return stream << "(set! " << var() << " " << expr() << ")";
+  return stream << "(set! " << *var() << " " << *expr() << ")";
 }
 
 // static

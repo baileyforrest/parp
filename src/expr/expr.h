@@ -35,6 +35,7 @@
 
 namespace expr {
 
+class EmptyList;
 class Bool;
 class Number;
 class Char;
@@ -53,6 +54,7 @@ class Expr : public gc::Collectable{
  public:
   enum class Type : char {
     // Expr values
+    EMPTY_LIST,
     BOOL,
     NUMBER,
     CHAR,
@@ -79,8 +81,10 @@ class Expr : public gc::Collectable{
   bool Eqv(const Expr *other) const;
   bool Equal(const Expr *other) const;
 
-  virtual std::ostream &AppendStream(std::ostream &stream) const = 0;
+  virtual std::ostream &AppendStream(
+      std::ostream &stream) const = 0;  // NOLINT(runtime/references)
 
+  virtual const EmptyList *GetAsEmptyList() const;
   virtual const Bool *GetAsBool() const;
   virtual const Number *GetAsNumber() const;
   virtual const Char *GetAsChar() const;
@@ -109,8 +113,12 @@ class Expr : public gc::Collectable{
   bool readonly_;
 };
 
-inline std::ostream& operator<<(std::ostream& stream, const Expr *expr) {
-  return expr->AppendStream(stream);
+inline std::ostream& operator<<(std::ostream& stream, const Expr &expr) {
+  return expr.AppendStream(stream);
+}
+
+inline bool operator==(const Expr &lhs, const Expr &rhs) {
+  return lhs.Equal(&rhs);
 }
 
 // Class for expressions which don't evaluate to itself
@@ -121,6 +129,22 @@ class Evals : public Expr {
  private:
   bool EqvImpl(const Expr *other) const override;
 };
+
+class EmptyList : public Expr {
+ public:
+  static EmptyList *Create();
+  ~EmptyList() override {}
+
+  // Override from Expr
+  const EmptyList *GetAsEmptyList() const override;
+  std::ostream &AppendStream(std::ostream &stream) const override;
+
+ private:
+  EmptyList() : Expr(Type::EMPTY_LIST, true) {}
+};
+
+// Alias for EmptyList::Create
+inline EmptyList *Nil() { return EmptyList::Create(); }
 
 class Bool : public Expr {
  public:
@@ -164,7 +188,7 @@ class Char : public Expr {
 
 class String : public Expr {
  public:
-  static String *Create(const std::string &val, bool readonly);
+  static String *Create(const std::string &val, bool readonly = true);
   ~String() override;
 
   // Override from Expr
@@ -207,7 +231,7 @@ class Symbol : public Expr {
 
 class Pair : public Expr {
  public:
-  static Pair *Create(Expr *car, Expr *cdr, bool readonly);
+  static Pair *Create(Expr *car, Expr *cdr, bool readonly = true);
   ~Pair() override {}
 
   // Override from Expr
@@ -232,9 +256,12 @@ class Pair : public Expr {
   Expr *cdr_;
 };
 
+// Alias for Pair::Create
+inline Pair *Cons(Expr *e1, Expr *e2) { return Pair::Create(e1, e2); }
+
 class Vector : public Expr {
  public:
-  static Vector *Create(const std::vector<Expr *> &vals, bool readonly);
+  static Vector *Create(const std::vector<Expr *> &vals, bool readonly = true);
   ~Vector() override;
 
   // Override from Expr

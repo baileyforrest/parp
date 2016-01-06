@@ -17,35 +17,23 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TEST_UTIL_H_
-#define TEST_UTIL_H_
+#ifndef PARSE_PARSE_H_
+#define PARSE_PARSE_H_
 
-#include "gtest/gtest.h"
-#include "gc/gc.h"
+#include <string>
+#include <vector>
 
-namespace test {
+#include "util/text_stream.h"
+#include "expr/expr.h"
 
-class TestBase : public testing::Test {
- protected:
-  void SetUp() final {
-    // Clear all objects from heap
-    gc::Gc::Get().Purge();
+namespace parse {
 
-    TestSetUp();
-  }
+using ExprVec = std::vector<expr::Expr *>;
 
-  void TearDown() final {
-    TestTearDown();
+// Implementation of read procedure. Parses |stream| into datum
+ExprVec Read(util::TextStream &stream);  // NOLINT(runtime/references)
+ExprVec Read(const std::string &str, const std::string &filename = "string");
 
-    // Clear all objects from heap
-    gc::Gc::Get().Purge();
-  }
+}  // namespace parse
 
-  // Test fixtures should override these instead.
-  virtual void TestSetUp() {}
-  virtual void TestTearDown() {}
-};
-
-}  // namespace test
-
-#endif  // TEST_UTIL_H_
+#endif  //  PARSE_PARSE_H_

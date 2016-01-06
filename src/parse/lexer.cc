@@ -264,6 +264,51 @@ expr::Number *NumLexer::ParseReal() {
 
 }  // namespace
 
+std::ostream &Token::PrettyPrint(std::ostream &stream) const {
+  switch (type) {
+    case Token::Type::TOK_EOF:
+      stream << "EOF";
+      break;
+
+    case Token::Type::ID:
+    case Token::Type::BOOL:
+    case Token::Type::NUMBER:
+    case Token::Type::CHAR:
+    case Token::Type::STRING:
+      stream << expr;
+      break;
+
+    case Token::Type::LPAREN:
+      stream << "(";
+      break;
+    case Token::Type::RPAREN:
+      stream << ")";
+      break;
+    case Token::Type::POUND_PAREN:
+      stream << "#(";
+      break;
+    case Token::Type::QUOTE:
+      stream << "'";
+      break;
+    case Token::Type::BACKTICK:
+      stream << "`";
+      break;
+    case Token::Type::COMMA:
+      stream << ",";
+      break;
+    case Token::Type::COMMA_AT:
+      stream << ",@";
+      break;
+    case Token::Type::DOT:
+      stream << ".";
+      break;
+    default:
+      assert(false);
+  }
+
+  return stream;
+}
+
 bool operator==(const Token &lhs, const Token &rhs) {
   if (lhs.type != rhs.type || lhs.mark != rhs.mark)
     return false;
@@ -369,9 +414,9 @@ void Lexer::LexChar() {
   assert(stream_.Peek() == '\\');
   GetUntilDelim();
 
-  if (lexbuf_ == "space") {
+  if (lexbuf_ == "\\space") {
     lexbuf_ = "\\ ";
-  } else if (lexbuf_ == "newline") {
+  } else if (lexbuf_ == "\\newline") {
     lexbuf_ = "\\\n";
   }
 
@@ -386,15 +431,17 @@ void Lexer::LexChar() {
 
 // Lex string after getting '"'
 void Lexer::LexString() {
-  for (int c; !stream_.Eof() && (c = stream_.Get()) != '"';) {
-    // Handle escape
-    if (c == '\\') {
+  while (true) {
+    if (stream_.Eof())
+      throw util::SyntaxException("Unterminated string literal", token_.mark);
+    int c = stream_.Get();
+    if (c == '"')
+      break;
+
+    if (c == '\\')  // Handle escape
       c = stream_.Get();
-    }
+
     lexbuf_.push_back(c);
-  }
-  if (stream_.Eof()) {
-    throw util::SyntaxException("Unterminated string literal", token_.mark);
   }
 
   token_.type = Token::Type::STRING;
@@ -403,6 +450,7 @@ void Lexer::LexString() {
 
 const Token &Lexer::NextToken() {
   token_.type = Token::Type::INVAL;
+  token_.expr = nullptr;
   lexbuf_.clear();
 
   // Handle spaces and comments
@@ -486,6 +534,10 @@ const Token &Lexer::NextToken() {
         case 'e': case 'i':
           lexbuf_.push_back(c);
           LexNum();
+          break;
+        case '(':
+          stream_.Get();  // Consume the (
+          token_.type = Token::Type::POUND_PAREN;
           break;
         default:
           std::string msg = std::string("Invalid token: ") + '#' +
