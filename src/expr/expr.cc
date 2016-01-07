@@ -20,6 +20,9 @@
 #include "expr/expr.h"
 
 #include <cassert>
+#include <sstream>
+
+#include "util/exceptions.h"
 
 namespace expr {
 
@@ -137,6 +140,16 @@ const Assign *Expr::GetAsAssign() const {
 }
 
 const LetSyntax *Expr::GetAsLetSyntax() const {
+  assert(false);
+  return nullptr;
+}
+
+const Env *Expr::GetAsEnv() const {
+  assert(false);
+  return nullptr;
+}
+
+Env *Expr::GetAsEnv() {
   assert(false);
   return nullptr;
 }
@@ -274,7 +287,7 @@ Pair *Pair::GetAsPair() {
 
 // TODO(bcf): Check if its a list, if so print as (a b c ...)
 std::ostream &Pair::AppendStream(std::ostream &stream) const {
-  return stream << "(" << *car() << " . " << *cdr() << ")";
+  return stream << "(" << car() << " . " << cdr() << ")";
 }
 
 bool Pair::EqvImpl(const Expr *other) const {
@@ -310,7 +323,7 @@ std::ostream &Vector::AppendStream(std::ostream &stream) const {
   stream << "#(";
 
   for (auto e : vals())
-    stream << *e << " ";
+    stream << e << " ";
 
   return stream << ")";
 }
@@ -331,6 +344,14 @@ bool Vector::EqualImpl(const Expr *other) const {
   }
 
   return true;
+}
+
+// static
+Var *Var::Create(const std::string &name) {
+  return static_cast<Var *>(
+      gc::Gc::Get().Alloc(sizeof(Var), [name](void *addr) {
+        return new(addr) Var(name);
+      }));
 }
 
 Var::~Var() {
@@ -370,10 +391,10 @@ const Apply *Apply::GetAsApply() const {
 }
 
 std::ostream &Apply::AppendStream(std::ostream &stream) const {
-  stream << "(" << *op();
+  stream << "(" << op();
 
   for (auto arg : args())
-    stream << *arg << " ";
+    stream << arg << " ";
 
   return stream << ")";
 }
@@ -406,20 +427,20 @@ std::ostream &Lambda::AppendStream(std::ostream &stream) const {
   stream << "(lambda ";
   if (required_args().size() == 0 &&
       variable_arg() != nullptr) {
-    stream << *variable_arg();
+    stream << variable_arg();
   } else {
     stream << "(";
     for (auto arg : required_args())
-      stream << *arg << " ";
+      stream << arg << " ";
 
     if (variable_arg() != nullptr) {
-      stream << ". " << *variable_arg();
+      stream << ". " << variable_arg();
     }
     stream << ")";
   }
 
   for (auto e : body())
-    stream << *e;
+    stream << e;
 
   return stream << ")";
 }
@@ -438,10 +459,10 @@ const Cond *Cond::GetAsCond() const {
 }
 
 std::ostream &Cond::AppendStream(std::ostream &stream) const {
-  stream << "(if " << *test() << " " << *true_expr();
+  stream << "(if " << test() << " " << true_expr();
 
   if (false_expr() != nullptr)
-    stream << " " << *false_expr();
+    stream << " " << false_expr();
 
   return stream << ")";
 }
@@ -459,7 +480,7 @@ const Assign *Assign::GetAsAssign() const {
 }
 
 std::ostream &Assign::AppendStream(std::ostream &stream) const {
-  return stream << "(set! " << *var() << " " << *expr() << ")";
+  return stream << "(set! " << var() << " " << expr() << ")";
 }
 
 // static
@@ -479,6 +500,80 @@ const LetSyntax *LetSyntax::GetAsLetSyntax() const {
 
 std::ostream &LetSyntax::AppendStream(std::ostream &stream) const {
   return stream;
+}
+
+// static
+Env *Env::Create(const std::vector<std::pair<Var *, Expr *> > &vars,
+    Env *enclosing, bool readonly) {
+  return static_cast<Env *>(
+      gc::Gc::Get().Alloc(sizeof(Env), [vars, enclosing, readonly](void *addr) {
+        return new(addr) Env(vars, enclosing, readonly);
+      }));
+}
+
+Env::~Env() {
+}
+
+const Env *Env::GetAsEnv() const {
+  return this;
+}
+
+Env *Env::GetAsEnv() {
+  return this;
+}
+
+std::ostream &Env::AppendStream(std::ostream &stream) const {
+  stream << "{";
+  for (const auto &pair : map_)
+    stream << "(" << pair.first << ", " << pair.second << ")";
+
+  return stream << "}";
+}
+
+
+void Env::ThrowUnboundException(const Var *var) const {
+  std::ostringstream os;
+  os << var;
+  throw util::RuntimeException(
+      "Attempt to reference unbound variable" + os.str());
+}
+
+std::size_t Env::VarHash::operator()(const Var *var) const {
+    std::hash<std::string> hash;
+    return hash(var->name());
+}
+
+Expr *Env::Lookup(const Var *var) const {
+  auto env = this;
+  while (env != nullptr) {
+    auto search = env->map_.find(var);
+    if (search != env->map_.end())
+      return search->second;
+
+    env = env->enclosing_;
+  }
+
+  ThrowUnboundException(var);
+  return nullptr;
+}
+
+void Env::DefineVar(const Var *var, Expr *expr) {
+  map_[var] = expr;
+}
+
+void Env::SetVar(const Var *var, Expr *expr) {
+  auto env = this;
+  while (env != nullptr) {
+    auto search = env->map_.find(var);
+    if (search != env->map_.end()) {
+      search->second = expr;
+      return;
+    }
+
+    env = env->enclosing_;
+  }
+
+  ThrowUnboundException(var);
 }
 
 }  // namespace expr

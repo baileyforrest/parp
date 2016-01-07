@@ -36,6 +36,17 @@ class SyntaxException : public std::exception {
   std::string full_msg_;
 };
 
+// TODO(bcf): Add marks for this
+class RuntimeException : public std::exception {
+ public:
+  explicit RuntimeException(const std::string &msg) : full_msg_(msg) {}
+
+  const char *what() const throw() override { return full_msg_.c_str(); }
+
+ private:
+  std::string full_msg_;
+};
+
 }  // namespace util
 
 #endif  // UTIL_EXCEPTIONS_H_

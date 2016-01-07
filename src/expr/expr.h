@@ -29,6 +29,8 @@
 #include <cstddef>
 #include <iostream>
 #include <string>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "gc/gc.h"
@@ -43,6 +45,7 @@ class String;
 class Symbol;
 class Pair;
 class Vector;
+class Env;
 class Var;
 class Apply;
 class Lambda;
@@ -69,6 +72,8 @@ class Expr : public gc::Collectable{
     COND,          // (if <test> <consequent> <alternate>)
     ASSIGN,        // (!set <variable> <expression>)
     LET_SYNTAX,    // (let{rec}-syntax (<syntax spec>*) <body>)
+
+    ENV,           // Environment
   };
 
   virtual ~Expr() {}
@@ -101,6 +106,8 @@ class Expr : public gc::Collectable{
   virtual const Cond *GetAsCond() const;
   virtual const Assign *GetAsAssign() const;
   virtual const LetSyntax *GetAsLetSyntax() const;
+  virtual const Env *GetAsEnv() const;
+  virtual Env *GetAsEnv();
 
  protected:
   Expr(Type type, bool readonly) : type_(type), readonly_(readonly) {}
@@ -115,6 +122,10 @@ class Expr : public gc::Collectable{
 
 inline std::ostream& operator<<(std::ostream& stream, const Expr &expr) {
   return expr.AppendStream(stream);
+}
+
+inline std::ostream& operator<<(std::ostream& stream, const Expr *expr) {
+  return stream << *expr;
 }
 
 inline bool operator==(const Expr &lhs, const Expr &rhs) {
@@ -282,7 +293,6 @@ class Vector : public Expr {
   std::vector<Expr *> vals_;
 };
 
-
 class Var : public Evals {
  public:
   Var *Create(const std::string &name);
@@ -397,6 +407,44 @@ class LetSyntax : public Expr {
 
  private:
   LetSyntax() : Expr(Type::LET_SYNTAX, true) {}
+};
+
+class Env : public Expr {
+ public:
+  Env *Create(const std::vector<std::pair<Var *, Expr *> > &vars,
+      Env *enclosing, bool readonly = false);
+  ~Env() override;
+
+  // Override from Expr
+  const Env *GetAsEnv() const override;
+  Env *GetAsEnv() override;
+  std::ostream &AppendStream(std::ostream &stream) const override;
+
+  Expr *Lookup(const Var *var) const;
+  const Env *enclosing() const { return enclosing_; }
+  void DefineVar(const Var *var, Expr *expr);
+  void SetVar(const Var *var, Expr *expr);
+
+ private:
+  void ThrowUnboundException(const Var *var) const;
+  explicit Env(const std::vector<std::pair<Var *, Expr *> > &vars,
+      Env *enclosing, bool readonly)
+    : Expr(Type::ENV, readonly),
+      enclosing_(enclosing),
+      map_(vars.begin(), vars.end()) {}
+
+  struct VarHash {
+    std::size_t operator()(const Var *var) const;
+  };
+
+  struct VarEqual {
+    bool operator()(const Var *lhs, const Var *rhs) const {
+      return lhs->Eqv(rhs);
+    }
+  };
+
+  Env *enclosing_;
+  std::unordered_map<const Var *, Expr *, VarHash, VarEqual> map_;
 };
 
 }  // namespace expr
