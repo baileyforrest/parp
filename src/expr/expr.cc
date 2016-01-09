@@ -154,12 +154,17 @@ Env *Expr::GetAsEnv() {
   return nullptr;
 }
 
+const Analyzed *Expr::GetAsAnalyzed() const {
+  assert(false);
+  return nullptr;
+}
+
 bool Evals::EqvImpl(const Expr *other) const {
   (void)other;
   assert(false && "The evaluation of this expr should be compared instead");
 }
 
-EmptyList *EmptyList::Create() {
+EmptyList *Nil() {
   static EmptyList empty_list;
   return &empty_list;
 }
@@ -170,14 +175,6 @@ const EmptyList *EmptyList::GetAsEmptyList() const {
 
 std::ostream &EmptyList::AppendStream(std::ostream &stream) const {
   return stream << "'()";
-}
-
-// static
-Bool *Bool::Create(bool val) {
-  return static_cast<Bool *>(
-      gc::Gc::Get().Alloc(sizeof(Bool), [val](void *addr) {
-        return new(addr) Bool(val);
-      }));
 }
 
 const Bool *Bool::GetAsBool() const {
@@ -191,6 +188,17 @@ std::ostream &Bool::AppendStream(std::ostream &stream) const {
 bool Bool::EqvImpl(const Expr *other) const {
   return val() == other->GetAsBool()->val();
 }
+
+Bool *True() {
+  static Bool true_val(true);
+  return &true_val;
+}
+
+Bool *False() {
+  static Bool false_val(false);
+  return &false_val;
+}
+
 
 // static
 Char *Char::Create(char val) {
@@ -298,6 +306,30 @@ bool Pair::EqvImpl(const Expr *other) const {
 bool Pair::EqualImpl(const Expr *other) const {
   return car()->Equal(other->GetAsPair()->car()) &&
     cdr()->Equal(other->GetAsPair()->cdr());
+}
+
+expr::Expr *Pair::Cr(const std::string &str) const {
+  expr::Expr *expr = nullptr;
+
+  for (auto cit = str.rbegin(); cit != str.rend(); ++cit) {
+    auto c = *cit;
+    switch (c) {
+      case 'a':
+      case 'd': {
+        auto cexpr = expr == nullptr ? this : expr;
+        if (cexpr->type() != Type::PAIR)
+          return nullptr;
+
+        auto pair = cexpr->GetAsPair();
+        expr = c == 'a' ? pair->car() : pair->cdr();
+        break;
+      }
+      default:
+        assert(false);
+    }
+  }
+
+  return expr;
 }
 
 // static
@@ -503,7 +535,7 @@ std::ostream &LetSyntax::AppendStream(std::ostream &stream) const {
 }
 
 // static
-Env *Env::Create(const std::vector<std::pair<Var *, Expr *> > &vars,
+Env *Env::Create(const std::vector<std::pair<Symbol *, Expr *> > &vars,
     Env *enclosing, bool readonly) {
   return static_cast<Env *>(
       gc::Gc::Get().Alloc(sizeof(Env), [vars, enclosing, readonly](void *addr) {
@@ -530,20 +562,19 @@ std::ostream &Env::AppendStream(std::ostream &stream) const {
   return stream << "}";
 }
 
-
-void Env::ThrowUnboundException(const Var *var) const {
+void Env::ThrowUnboundException(const Symbol *var) const {
   std::ostringstream os;
   os << var;
   throw util::RuntimeException(
       "Attempt to reference unbound variable" + os.str());
 }
 
-std::size_t Env::VarHash::operator()(const Var *var) const {
+std::size_t Env::VarHash::operator()(const Symbol *var) const {
     std::hash<std::string> hash;
-    return hash(var->name());
+    return hash(var->val());
 }
 
-Expr *Env::Lookup(const Var *var) const {
+Expr *Env::Lookup(const Symbol *var) const {
   auto env = this;
   while (env != nullptr) {
     auto search = env->map_.find(var);
@@ -557,11 +588,11 @@ Expr *Env::Lookup(const Var *var) const {
   return nullptr;
 }
 
-void Env::DefineVar(const Var *var, Expr *expr) {
+void Env::DefineVar(const Symbol *var, Expr *expr) {
   map_[var] = expr;
 }
 
-void Env::SetVar(const Var *var, Expr *expr) {
+void Env::SetVar(const Symbol *var, Expr *expr) {
   auto env = this;
   while (env != nullptr) {
     auto search = env->map_.find(var);
@@ -574,6 +605,27 @@ void Env::SetVar(const Var *var, Expr *expr) {
   }
 
   ThrowUnboundException(var);
+}
+
+// static
+Analyzed *Analyzed::Create(const std::function<Expr *(Env *)> &func,
+    const std::vector<Expr *> &refs) {
+  return static_cast<Analyzed *>(
+      gc::Gc::Get().Alloc(sizeof(Analyzed), [func, refs](void *addr) {
+        return new(addr) Analyzed(func, refs);
+      }));
+}
+
+Analyzed::~Analyzed() {
+}
+
+const Analyzed *Analyzed::GetAsAnalyzed() const {
+  return this;
+}
+
+// TODO(bcf): possibly hold ref to original expression? (Is memory worth it)
+std::ostream &Analyzed::AppendStream(std::ostream &stream) const {
+  return stream << "Analyzed expression";
 }
 
 }  // namespace expr

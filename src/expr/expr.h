@@ -27,6 +27,7 @@
 #define EXPR_EXPR_H_
 
 #include <cstddef>
+#include <functional>
 #include <iostream>
 #include <string>
 #include <unordered_map>
@@ -52,6 +53,7 @@ class Lambda;
 class Cond;
 class Assign;
 class LetSyntax;
+class Analyzed;
 
 class Expr : public gc::Collectable{
  public:
@@ -66,6 +68,7 @@ class Expr : public gc::Collectable{
     PAIR,
     VECTOR,
 
+    // TODO(bcf): remove if unused
     VAR,           // Variable
     APPLY,         // procure call/macro use
     LAMBDA,        // (lambda <formals> <body>)
@@ -74,6 +77,7 @@ class Expr : public gc::Collectable{
     LET_SYNTAX,    // (let{rec}-syntax (<syntax spec>*) <body>)
 
     ENV,           // Environment
+    ANALYZED,      // Analyzed expression
   };
 
   virtual ~Expr() {}
@@ -108,6 +112,7 @@ class Expr : public gc::Collectable{
   virtual const LetSyntax *GetAsLetSyntax() const;
   virtual const Env *GetAsEnv() const;
   virtual Env *GetAsEnv();
+  virtual const Analyzed *GetAsAnalyzed() const;
 
  protected:
   Expr(Type type, bool readonly) : type_(type), readonly_(readonly) {}
@@ -133,6 +138,7 @@ inline bool operator==(const Expr &lhs, const Expr &rhs) {
 }
 
 // Class for expressions which don't evaluate to itself
+// TODO(bcf): Remove if unnecessary
 class Evals : public Expr {
  protected:
   Evals(Type type, bool readonly) : Expr(type, readonly) {}
@@ -141,9 +147,9 @@ class Evals : public Expr {
   bool EqvImpl(const Expr *other) const override;
 };
 
+// TODO(bcf): Optimize for singletons
 class EmptyList : public Expr {
  public:
-  static EmptyList *Create();
   ~EmptyList() override {}
 
   // Override from Expr
@@ -152,14 +158,14 @@ class EmptyList : public Expr {
 
  private:
   EmptyList() : Expr(Type::EMPTY_LIST, true) {}
+  friend EmptyList *Nil();
 };
 
-// Alias for EmptyList::Create
-inline EmptyList *Nil() { return EmptyList::Create(); }
+EmptyList *Nil();
 
+// TODO(bcf): Optimize for singletons
 class Bool : public Expr {
  public:
-  static Bool *Create(bool val);
   ~Bool() override {}
 
   // Override from Expr
@@ -170,12 +176,17 @@ class Bool : public Expr {
 
  private:
   explicit Bool(bool val) : Expr(Type::BOOL, true), val_(val) {}
+  friend Bool *True();
+  friend Bool *False();
 
   // Override from Expr
   bool EqvImpl(const Expr *other) const override;
 
   bool val_;
 };
+
+Bool *True();
+Bool *False();
 
 class Char : public Expr {
  public:
@@ -250,10 +261,12 @@ class Pair : public Expr {
   Pair *GetAsPair() override;
   std::ostream &AppendStream(std::ostream &stream) const override;
 
-  const Expr *car() const { return car_; }
-  const Expr *cdr() const { return cdr_; }
+  Expr *car() const { return car_; }
+  Expr *cdr() const { return cdr_; }
   void set_car(Expr *expr) { car_ = expr; }
   void set_cdr(Expr *expr) { cdr_ = expr; }
+
+  expr::Expr *Cr(const std::string &str) const;
 
  private:
   Pair(Expr *car, Expr *cdr, bool readonly)
@@ -266,6 +279,16 @@ class Pair : public Expr {
   Expr *car_;
   Expr *cdr_;
 };
+
+template<typename T>
+Expr *ListFromIt(T it, T e) {
+  Expr *res = Nil();
+  for (; it != e; ++it) {
+    res = Cons(*it, res);
+  }
+
+  return res;
+}
 
 // Alias for Pair::Create
 inline Pair *Cons(Expr *e1, Expr *e2) { return Pair::Create(e1, e2); }
@@ -331,25 +354,29 @@ class Apply : public Evals {
 
 class Lambda : public Expr {
  public:
-  Lambda *Create(const std::vector<Var *> &required_args, Var *variable_arg,
-      const std::vector<Expr *> &body);
+  static Lambda *Create(const std::vector<const Symbol *> &required_args,
+      const Symbol *variable_arg, const Expr *body, Env *env);
   ~Lambda() override;
 
   // Override from Expr
   const Lambda *GetAsLambda() const override;
   std::ostream &AppendStream(std::ostream &stream) const override;
 
-  const std::vector<Var *> required_args() const { return required_args_; }
-  const Var *variable_arg() const { return variable_arg_; }
-  const std::vector<Expr *> body() const { return body_; }
+  const std::vector<const Symbol *> required_args() const {
+    return required_args_;
+  }
+  Symbol *variable_arg() const { return variable_arg_; }
+  Expr *body() const { return body_; }
+  Env *env() const { return env_; }
 
  private:
-  explicit Lambda(const std::vector<Var *> &required_args, Var *variable_arg,
-      const std::vector<Expr *> &body);
+  explicit Lambda(const std::vector<const Symbol *> &required_args,
+      const Symbol *variable_arg, const std::vector<Expr *> &body);
 
-  std::vector<Var *> required_args_;
-  Var *variable_arg_;
-  std::vector<Expr *> body_;
+  std::vector<const Symbol *> required_args_;
+  Symbol *variable_arg_;
+  Expr *body_;
+  Env *env_;;
 };
 
 class Cond : public Evals {
@@ -411,7 +438,7 @@ class LetSyntax : public Expr {
 
 class Env : public Expr {
  public:
-  Env *Create(const std::vector<std::pair<Var *, Expr *> > &vars,
+  static Env *Create(const std::vector<std::pair<const Symbol *, Expr *> > &vars,
       Env *enclosing, bool readonly = false);
   ~Env() override;
 
@@ -420,31 +447,52 @@ class Env : public Expr {
   Env *GetAsEnv() override;
   std::ostream &AppendStream(std::ostream &stream) const override;
 
-  Expr *Lookup(const Var *var) const;
+  Expr *Lookup(const Symbol *var) const;
   const Env *enclosing() const { return enclosing_; }
-  void DefineVar(const Var *var, Expr *expr);
-  void SetVar(const Var *var, Expr *expr);
+  void DefineVar(const Symbol *var, Expr *expr);
+  void SetVar(const Symbol *var, Expr *expr);
 
  private:
-  void ThrowUnboundException(const Var *var) const;
-  explicit Env(const std::vector<std::pair<Var *, Expr *> > &vars,
+  void ThrowUnboundException(const Symbol *var) const;
+  explicit Env(const std::vector<std::pair<const Symbol *, Expr *> > &vars,
       Env *enclosing, bool readonly)
     : Expr(Type::ENV, readonly),
       enclosing_(enclosing),
       map_(vars.begin(), vars.end()) {}
 
   struct VarHash {
-    std::size_t operator()(const Var *var) const;
+    std::size_t operator()(const Symbol *var) const;
   };
 
   struct VarEqual {
-    bool operator()(const Var *lhs, const Var *rhs) const {
+    bool operator()(const Symbol *lhs, const Symbol *rhs) const {
       return lhs->Eqv(rhs);
     }
   };
 
   Env *enclosing_;
-  std::unordered_map<const Var *, Expr *, VarHash, VarEqual> map_;
+  std::unordered_map<const Symbol *, Expr *, VarHash, VarEqual> map_;
+};
+
+using Evaluation = std::function<Expr *(Env *)>;
+
+class Analyzed : public Evals {
+ public:
+  static Analyzed *Create(const Evaluation &func,
+      const std::vector<Expr *> &refs);
+  ~Analyzed() override;
+
+  // Override from Expr
+  const Analyzed *GetAsAnalyzed() const override;
+  std::ostream &AppendStream(std::ostream &stream) const override;
+
+  const Evaluation &func() const { return func_; }
+
+ private:
+  Analyzed(const Evaluation &func, const std::vector<Expr *> &refs)
+    : Evals(Type::ANALYZED, true), func_(func), refs_(refs) {}
+  Evaluation func_;
+  std::vector<Expr *> refs_;
 };
 
 }  // namespace expr
