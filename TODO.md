@@ -13,3 +13,4 @@
     - noreturn
 + Move expr::Expr::Type to expr::Type
 + Intern symbols and literal strings
++ Don't use exceptions?

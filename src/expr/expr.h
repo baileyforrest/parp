@@ -23,9 +23,12 @@
 // TODO(bcf): Consider making everything immutable and associated performance
 // costs
 
+// TODO(bcf): Make sure things are inlined or not as appropriate.
+
 #ifndef EXPR_EXPR_H_
 #define EXPR_EXPR_H_
 
+#include <cassert>
 #include <cstddef>
 #include <functional>
 #include <iostream>
@@ -38,6 +41,8 @@
 
 namespace expr {
 
+// TODO(bcf): Make sure order of classas are consistent with Type enum and
+// declaration/definition.
 class EmptyList;
 class Bool;
 class Number;
@@ -80,9 +85,11 @@ class Expr : public gc::Collectable {
     ANALYZED,  // Analyzed expression
   };
 
-  virtual ~Expr() {}
+  virtual ~Expr() = default;
 
   Type type() const { return type_; }
+
+  // TODO(bcf): Remove readonly?
   bool readonly() const { return readonly_; }
   bool IsDatum() const;
 
@@ -129,13 +136,11 @@ inline std::ostream& operator<<(std::ostream& stream, const Expr& expr) {
   return expr.AppendStream(stream);
 }
 
-inline std::ostream& operator<<(std::ostream& stream, const Expr* expr) {
-  return stream << *expr;
-}
-
 inline bool operator==(const Expr& lhs, const Expr& rhs) {
   return lhs.Equal(&rhs);
 }
+
+// TODO(bcf): Pass args by value to constructs where appropriate.
 
 // Class for expressions which don't evaluate to itself
 // TODO(bcf): Remove if unnecessary
@@ -147,10 +152,9 @@ class Evals : public Expr {
   bool EqvImpl(const Expr* other) const override;
 };
 
-// TODO(bcf): Optimize for singletons
 class EmptyList : public Expr {
  public:
-  ~EmptyList() override {}
+  ~EmptyList() override = default;
 
   // Override from Expr
   const EmptyList* GetAsEmptyList() const override;
@@ -163,10 +167,9 @@ class EmptyList : public Expr {
 
 EmptyList* Nil();
 
-// TODO(bcf): Optimize for singletons
 class Bool : public Expr {
  public:
-  ~Bool() override {}
+  ~Bool() override = default;
 
   // Override from Expr
   const Bool* GetAsBool() const override;
@@ -191,7 +194,7 @@ Bool* False();
 class Char : public Expr {
  public:
   static Char* Create(char val);
-  ~Char() override {}
+  ~Char() override = default;
 
   // Override from Expr
   const Char* GetAsChar() const override;
@@ -254,7 +257,7 @@ class Symbol : public Expr {
 class Pair : public Expr {
  public:
   static Pair* Create(Expr* car, Expr* cdr, bool readonly = true);
-  ~Pair() override {}
+  ~Pair() override = default;
 
   // Override from Expr
   const Pair* GetAsPair() const override;
@@ -388,7 +391,7 @@ class Lambda : public Expr {
 class Cond : public Evals {
  public:
   Cond* Create(Expr* test, Expr* true_expr, Expr* false_expr);
-  ~Cond() override {}
+  ~Cond() override = default;
 
   // Override from Expr
   const Cond* GetAsCond() const override;
@@ -403,17 +406,21 @@ class Cond : public Evals {
       : Evals(Type::COND, true),
         test_(test),
         true_expr_(true_expr),
-        false_expr_(false_expr) {}
+        false_expr_(false_expr) {
+    assert(test);
+    assert(true_expr);
+  }
 
   Expr* test_;
   Expr* true_expr_;
   Expr* false_expr_;
 };
 
+// TODO(bcf): Should take a symbol instead of Var.
 class Assign : public Evals {
  public:
   Assign* Create(Var* var, Expr* expr);
-  ~Assign() override {}
+  ~Assign() override = default;
 
   // Override from Expr
   const Assign* GetAsAssign() const override;
@@ -446,7 +453,7 @@ class LetSyntax : public Expr {
 
 class Env : public Expr {
  public:
-  static Env* Create(const std::vector<std::pair<const Symbol*, Expr*> >& vars,
+  static Env* Create(const std::vector<std::pair<const Symbol*, Expr*>>& vars,
                      Env* enclosing,
                      bool readonly = false);
   ~Env() override;
@@ -463,13 +470,14 @@ class Env : public Expr {
 
  private:
   void ThrowUnboundException(const Symbol* var) const;
-  explicit Env(const std::vector<std::pair<const Symbol*, Expr*> >& vars,
+  explicit Env(const std::vector<std::pair<const Symbol*, Expr*>>& vars,
                Env* enclosing,
                bool readonly)
       : Expr(Type::ENV, readonly),
         enclosing_(enclosing),
         map_(vars.begin(), vars.end()) {}
 
+  // TODO(bcf): Rename Var -> Sym.
   struct VarHash {
     std::size_t operator()(const Symbol* var) const;
   };

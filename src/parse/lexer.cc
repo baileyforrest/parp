@@ -42,7 +42,7 @@ class NumLexer {
   bool Eof() { return it_ == str_.end(); }
   void ThrowException(const std::string& msg) {
     const std::string full_msg =
-        "Invalid number literal \"" + str_ + "\":" + msg;
+        "Invalid number literal \"" + str_ + "\": " + msg;
     throw util::SyntaxException(full_msg, mark_);
   }
 

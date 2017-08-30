@@ -48,24 +48,32 @@ TEST_F(ParserTest, ReadSimpleDatum) {
       "#\\c\n"
       "\"world\"\n";
 
+  // clang-format off
   const ExprVec kExpected = {
-      expr::Symbol::Create("hello"), expr::True(),
-      expr::NumReal::Create(1),      expr::Char::Create('c'),
+      expr::Symbol::Create("hello"),
+      expr::True(),
+      expr::NumReal::Create(1),
+      expr::Char::Create('c'),
       expr::String::Create("world"),
   };
+  // clang-format on
 
   VerifyExprs(kExpected, Read(kStr));
 }
 
 TEST_F(ParserTest, ReadVector) {
   const std::string kStr = "#(a b c d e)";
+  // clang-format off
   const ExprVec kExpected = {
       expr::Vector::Create({
-          expr::Symbol::Create("a"), expr::Symbol::Create("b"),
-          expr::Symbol::Create("c"), expr::Symbol::Create("d"),
+          expr::Symbol::Create("a"),
+          expr::Symbol::Create("b"),
+          expr::Symbol::Create("c"),
+          expr::Symbol::Create("d"),
           expr::Symbol::Create("e"),
       }),
   };
+  // clang-format on
 
   VerifyExprs(kExpected, Read(kStr));
 }

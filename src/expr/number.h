@@ -39,7 +39,7 @@ class Number : public Expr {
     FLOAT,
   };
 
-  ~Number() override{};
+  ~Number() override = default;
 
   // Override from Expr
   const Number* GetAsNumber() const override;
@@ -69,7 +69,7 @@ class NumReal : public Number {
  public:
   static NumReal* Create(int64_t val);
   static NumReal* Create(const std::string& str, int radix);
-  ~NumReal() override {}
+  ~NumReal() override = default;
 
   // Override from Expr
   std::ostream& AppendStream(std::ostream& stream) const override;
@@ -93,7 +93,7 @@ class NumFloat : public Number {
  public:
   static NumFloat* Create(double val);
   static NumFloat* Create(const std::string& str, int radix);
-  ~NumFloat() override {}
+  ~NumFloat() override = default;
 
   // Override from Expr
   std::ostream& AppendStream(std::ostream& stream) const override;

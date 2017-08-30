@@ -58,9 +58,7 @@ TEST_F(LexerTest, Basic) {
   const std::string kFilename = "foo";
 
   const std::vector<Token> kExpected = {
-      {
-          Token::Type::LPAREN, {&kFilename, 3, 3}, nullptr,
-      },
+      {Token::Type::LPAREN, {&kFilename, 3, 3}, nullptr},
       {Token::Type::ID, {&kFilename, 3, 4}, expr::Symbol::Create("define")},
       {Token::Type::ID, {&kFilename, 3, 11}, expr::Symbol::Create("fact")},
       {Token::Type::LPAREN, {&kFilename, 4, 4}, nullptr},
@@ -266,23 +264,24 @@ TEST_F(LexerTest, NumTest) {
       "1d2\n"
       "1l3\n";
 
-  /* TODO(bcf): Enable when these are supported.
-    "3/4\n"
+// TODO(bcf): Enable when these are supported.
+#if 0
+      "3/4\n"
 
-    "5@4\n"
-    "10+7i\n"
-    "10-7i\n"
+      "5@4\n"
+      "10+7i\n"
+      "10-7i\n"
 
-    "+13i\n"
-    "-14i\n"
+      "+13i\n"
+      "-14i\n"
 
-    "+i\n"
-    "-i\n"
+      "+i\n"
+      "-i\n"
 
-    "2e-10\n"
-    "2e+10\n"
-    "#i3###.##4e-27d@4##.#5e14\n";
-  */
+      "2e-10\n"
+      "2e+10\n"
+      "#i3###.##4e-27d@4##.#5e14\n";
+#endif
 
   const std::string kFilename = "foo";
 

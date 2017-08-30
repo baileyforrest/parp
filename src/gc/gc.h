@@ -31,7 +31,7 @@ namespace gc {
 
 class Collectable {
  public:
-  virtual ~Collectable() {}
+  virtual ~Collectable() = default;
 
   // TODO(bcf): define iterator for pointers to other collectables
 };

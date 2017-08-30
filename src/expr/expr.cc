@@ -180,11 +180,11 @@ const Bool* Bool::GetAsBool() const {
 }
 
 std::ostream& Bool::AppendStream(std::ostream& stream) const {
-  return val() ? (stream << "#t") : (stream << "#f");
+  return val_ ? (stream << "#t") : (stream << "#f");
 }
 
 bool Bool::EqvImpl(const Expr* other) const {
-  return val() == other->GetAsBool()->val();
+  return val_ == other->GetAsBool()->val_;
 }
 
 Bool* True() {
@@ -210,18 +210,18 @@ const Char* Char::GetAsChar() const {
 }
 
 std::ostream& Char::AppendStream(std::ostream& stream) const {
-  switch (val()) {
+  switch (val_) {
     case ' ':
       return stream << "#\\space";
     case '\n':
       return stream << "#\\newline";
     default:
-      return stream << "#\\" << val();
+      return stream << "#\\" << val_;
   }
 }
 
 bool Char::EqvImpl(const Expr* other) const {
-  return val() == other->GetAsChar()->val();
+  return val_ == other->GetAsChar()->val_;
 }
 
 // static
@@ -232,14 +232,14 @@ String* String::Create(const std::string& val, bool readonly) {
       }));
 }
 
-String::~String() {}
+String::~String() = default;
 
 const String* String::GetAsString() const {
   return this;
 }
 
 std::ostream& String::AppendStream(std::ostream& stream) const {
-  return stream << "\"" << val() << "\"";
+  return stream << "\"" << val_ << "\"";
 }
 
 String* String::GetAsString() {
@@ -247,7 +247,7 @@ String* String::GetAsString() {
 }
 
 bool String::EqualImpl(const Expr* other) const {
-  return val() == other->GetAsString()->val();
+  return val_ == other->GetAsString()->val_;
 }
 
 // static
@@ -258,18 +258,18 @@ Symbol* Symbol::Create(const std::string& val) {
       }));  // NOLINT(whitespace/newline)
 }
 
-Symbol::~Symbol() {}
+Symbol::~Symbol() = default;
 
 const Symbol* Symbol::GetAsSymbol() const {
   return this;
 }
 
 std::ostream& Symbol::AppendStream(std::ostream& stream) const {
-  return stream << val();
+  return stream << val_;
 }
 
 bool Symbol::EqvImpl(const Expr* other) const {
-  return val() == other->GetAsSymbol()->val();
+  return val_ == other->GetAsSymbol()->val_;
 }
 
 // static
@@ -290,17 +290,16 @@ Pair* Pair::GetAsPair() {
 
 // TODO(bcf): Check if its a list, if so print as (a b c ...)
 std::ostream& Pair::AppendStream(std::ostream& stream) const {
-  return stream << "(" << car() << " . " << cdr() << ")";
+  return stream << "(" << *car_ << " . " << *cdr_ << ")";
 }
 
 bool Pair::EqvImpl(const Expr* other) const {
-  return car() == other->GetAsPair()->car() &&
-         cdr() == other->GetAsPair()->cdr();
+  return car_ == other->GetAsPair()->car_ && cdr_ == other->GetAsPair()->cdr_;
 }
 
 bool Pair::EqualImpl(const Expr* other) const {
-  return car()->Equal(other->GetAsPair()->car()) &&
-         cdr()->Equal(other->GetAsPair()->cdr());
+  return car_->Equal(other->GetAsPair()->car_) &&
+         cdr_->Equal(other->GetAsPair()->cdr_);
 }
 
 expr::Expr* Pair::Cr(const std::string& str) const {
@@ -311,12 +310,12 @@ expr::Expr* Pair::Cr(const std::string& str) const {
     switch (c) {
       case 'a':
       case 'd': {
-        auto cexpr = expr == nullptr ? this : expr;
+        auto* cexpr = expr == nullptr ? this : expr;
         if (cexpr->type() != Type::PAIR)
           return nullptr;
 
-        auto pair = cexpr->GetAsPair();
-        expr = c == 'a' ? pair->car() : pair->cdr();
+        auto* pair = cexpr->GetAsPair();
+        expr = c == 'a' ? pair->car_ : pair->cdr_;
         break;
       }
       default:
@@ -335,7 +334,7 @@ Vector* Vector::Create(const std::vector<Expr*>& vals, bool readonly) {
       }));
 }
 
-Vector::~Vector() {}
+Vector::~Vector() = default;
 
 const Vector* Vector::GetAsVector() const {
   return this;
@@ -348,19 +347,19 @@ Vector* Vector::GetAsVector() {
 std::ostream& Vector::AppendStream(std::ostream& stream) const {
   stream << "#(";
 
-  for (auto e : vals())
-    stream << e << " ";
+  for (auto* e : vals_)
+    stream << *e << " ";
 
   return stream << ")";
 }
 
 bool Vector::EqvImpl(const Expr* other) const {
-  return vals() == other->GetAsVector()->vals();
+  return vals_ == other->GetAsVector()->vals_;
 }
 
 bool Vector::EqualImpl(const Expr* other) const {
-  const auto& v1 = vals();
-  const auto& v2 = other->GetAsVector()->vals();
+  const auto& v1 = vals_;
+  const auto& v2 = other->GetAsVector()->vals_;
   if (v1.size() != v2.size())
     return false;
 
@@ -379,14 +378,14 @@ Var* Var::Create(const std::string& name) {
   }));  // NOLINT(whitespace/newline)
 }
 
-Var::~Var() {}
+Var::~Var() = default;
 
 const Var* Var::GetAsVar() const {
   return this;
 }
 
 std::ostream& Var::AppendStream(std::ostream& stream) const {
-  return stream << name();
+  return stream << name_;
 }
 
 Apply::Apply(const std::vector<Expr*>& exprs) : Evals(Type::APPLY, true) {
@@ -406,17 +405,17 @@ Apply* Apply::Create(const std::vector<Expr*>& exprs) {
       }));  // NOLINT(whitespace/newline)
 }
 
-Apply::~Apply() {}
+Apply::~Apply() = default;
 
 const Apply* Apply::GetAsApply() const {
   return this;
 }
 
 std::ostream& Apply::AppendStream(std::ostream& stream) const {
-  stream << "(" << op();
+  stream << "(" << *op_;
 
-  for (auto arg : args())
-    stream << arg << " ";
+  for (auto* arg : args_)
+    stream << *arg << " ";
 
   return stream << ")";
 }
@@ -444,7 +443,7 @@ Lambda* Lambda::Create(const std::vector<const Symbol*>& required_args,
       }));
 }
 
-Lambda::~Lambda() {}
+Lambda::~Lambda() = default;
 
 const Lambda* Lambda::GetAsLambda() const {
   return this;
@@ -452,20 +451,20 @@ const Lambda* Lambda::GetAsLambda() const {
 
 std::ostream& Lambda::AppendStream(std::ostream& stream) const {
   stream << "(lambda ";
-  if (required_args().size() == 0 && variable_arg() != nullptr) {
-    stream << variable_arg();
+  if (required_args_.size() == 0 && variable_arg_ != nullptr) {
+    stream << *variable_arg_;
   } else {
     stream << "(";
-    for (auto arg : required_args())
-      stream << arg << " ";
+    for (auto* arg : required_args_)
+      stream << *arg << " ";
 
-    if (variable_arg() != nullptr) {
-      stream << ". " << variable_arg();
+    if (variable_arg_) {
+      stream << ". " << *variable_arg_;
     }
     stream << ")";
   }
 
-  stream << *body();
+  stream << *body_;
   return stream << ")";
 }
 
@@ -482,10 +481,11 @@ const Cond* Cond::GetAsCond() const {
 }
 
 std::ostream& Cond::AppendStream(std::ostream& stream) const {
-  stream << "(if " << test() << " " << true_expr();
+  stream << "(if " << *test_ << " " << *true_expr_;
 
-  if (false_expr() != nullptr)
-    stream << " " << false_expr();
+  if (false_expr_) {
+    stream << " " << *false_expr_;
+  }
 
   return stream << ")";
 }
@@ -503,7 +503,7 @@ const Assign* Assign::GetAsAssign() const {
 }
 
 std::ostream& Assign::AppendStream(std::ostream& stream) const {
-  return stream << "(set! " << var() << " " << expr() << ")";
+  return stream << "(set! " << *var_ << " " << *expr_ << ")";
 }
 
 // static
@@ -514,7 +514,7 @@ LetSyntax* LetSyntax::Create() {
       }));  // NOLINT(whitespace/newline)
 }
 
-LetSyntax::~LetSyntax() {}
+LetSyntax::~LetSyntax() = default;
 
 const LetSyntax* LetSyntax::GetAsLetSyntax() const {
   return this;
@@ -525,7 +525,7 @@ std::ostream& LetSyntax::AppendStream(std::ostream& stream) const {
 }
 
 // static
-Env* Env::Create(const std::vector<std::pair<const Symbol*, Expr*> >& vars,
+Env* Env::Create(const std::vector<std::pair<const Symbol*, Expr*>>& vars,
                  Env* enclosing,
                  bool readonly) {
   return static_cast<Env*>(
@@ -534,7 +534,7 @@ Env* Env::Create(const std::vector<std::pair<const Symbol*, Expr*> >& vars,
       }));
 }
 
-Env::~Env() {}
+Env::~Env() = default;
 
 const Env* Env::GetAsEnv() const {
   return this;
@@ -547,15 +547,15 @@ Env* Env::GetAsEnv() {
 std::ostream& Env::AppendStream(std::ostream& stream) const {
   stream << "{";
   for (const auto& pair : map_)
-    stream << "(" << pair.first << ", " << pair.second << ")";
+    stream << "(" << *pair.first << ", " << *pair.second << ")";
 
   return stream << "}";
 }
 
 void Env::ThrowUnboundException(const Symbol* var) const {
   std::ostringstream os;
-  os << var;
-  throw util::RuntimeException("Attempt to reference unbound variable" +
+  os << *var;
+  throw util::RuntimeException("Attempt to reference unbound variable: " +
                                os.str());
 }
 
@@ -565,7 +565,7 @@ std::size_t Env::VarHash::operator()(const Symbol* var) const {
 }
 
 Expr* Env::Lookup(const Symbol* var) const {
-  auto env = this;
+  auto* env = this;
   while (env != nullptr) {
     auto search = env->map_.find(var);
     if (search != env->map_.end())
@@ -574,6 +574,7 @@ Expr* Env::Lookup(const Symbol* var) const {
     env = env->enclosing_;
   }
 
+  // TODO(bcf): Should we throw here?
   ThrowUnboundException(var);
   return nullptr;
 }
@@ -583,7 +584,7 @@ void Env::DefineVar(const Symbol* var, Expr* expr) {
 }
 
 void Env::SetVar(const Symbol* var, Expr* expr) {
-  auto env = this;
+  auto* env = this;
   while (env != nullptr) {
     auto search = env->map_.find(var);
     if (search != env->map_.end()) {
@@ -594,6 +595,7 @@ void Env::SetVar(const Symbol* var, Expr* expr) {
     env = env->enclosing_;
   }
 
+  // TODO(bcf): Should we throw here?
   ThrowUnboundException(var);
 }
 
@@ -606,7 +608,7 @@ Analyzed* Analyzed::Create(const std::function<Expr*(Env*)>& func,
       }));  // NOLINT(whitespace/newline)
 }
 
-Analyzed::~Analyzed() {}
+Analyzed::~Analyzed() = default;
 
 const Analyzed* Analyzed::GetAsAnalyzed() const {
   return this;
