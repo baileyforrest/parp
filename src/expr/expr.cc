@@ -431,20 +431,21 @@ std::ostream &Apply::AppendStream(std::ostream &stream) const {
   return stream << ")";
 }
 
-Lambda::Lambda(const std::vector<Var *> &required_args, Var *variable_arg,
-    const std::vector<Expr *> &body)
+Lambda::Lambda(const std::vector<const Symbol *> &required_args,
+    const Symbol *variable_arg,
+    Expr* body, Env* env)
   : Expr(Type::LAMBDA, true), required_args_(required_args),
-  variable_arg_(variable_arg), body_(body) {
+  variable_arg_(variable_arg), body_(body), env_(env) {
   // TODO(bcf): assert Error checking on body.
 }
 
 // static
-Lambda *Lambda::Create(const std::vector<Var *> &required_args,
-    Var *variable_arg, const std::vector<Expr *> &body) {
+Lambda *Lambda::Create(const std::vector<const Symbol *> &required_args,
+      const Symbol *variable_arg, Expr *body, Env *env) {
   return static_cast<Lambda *>(
       gc::Gc::Get().Alloc(sizeof(Lambda),
-        [required_args, variable_arg, body](void *addr) {
-          return new(addr) Lambda(required_args, variable_arg, body);
+        [required_args, variable_arg, body, env](void *addr) {
+          return new(addr) Lambda(required_args, variable_arg, body, env);
       }));
 }
 
@@ -471,9 +472,7 @@ std::ostream &Lambda::AppendStream(std::ostream &stream) const {
     stream << ")";
   }
 
-  for (auto e : body())
-    stream << e;
-
+  stream << *body();
   return stream << ")";
 }
 
@@ -535,7 +534,7 @@ std::ostream &LetSyntax::AppendStream(std::ostream &stream) const {
 }
 
 // static
-Env *Env::Create(const std::vector<std::pair<Symbol *, Expr *> > &vars,
+Env *Env::Create(const std::vector<std::pair<const Symbol *, Expr *> > &vars,
     Env *enclosing, bool readonly) {
   return static_cast<Env *>(
       gc::Gc::Get().Alloc(sizeof(Env), [vars, enclosing, readonly](void *addr) {

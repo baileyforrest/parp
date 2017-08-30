@@ -21,6 +21,7 @@
 #define UTIL_UTIL_H_
 
 #include <sstream>
+#include <string>
 
 namespace util {
 

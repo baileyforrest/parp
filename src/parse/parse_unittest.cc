@@ -51,7 +51,7 @@ TEST_F(ParserTest, ReadSimpleDatum) {
 
   const ExprVec kExpected = {
     expr::Symbol::Create("hello"),
-    expr::Bool::Create(true),
+    expr::True(),
     expr::NumReal::Create(1),
     expr::Char::Create('c'),
     expr::String::Create("world"),

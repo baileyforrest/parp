@@ -123,7 +123,7 @@ TEST_F(LexerTest, NoTrailingNewine) {
     },
 
     { "#t\n",
-      { { Token::Type::BOOL, { &kFilename, 1, 1 }, expr::Bool::Create(true) } }
+      { { Token::Type::BOOL, { &kFilename, 1, 1 }, expr::True() } }
     },
     { "1\n",
       { { Token::Type::NUMBER,
@@ -226,10 +226,10 @@ TEST_F(LexerTest, BoolTest) {
   const std::string kFilename = "foo";
 
   const std::vector<Token> kExpected = {
-    { Token::Type::BOOL, { &kFilename, 1, 1 }, expr::Bool::Create(true) },
-    { Token::Type::BOOL, { &kFilename, 2, 1 }, expr::Bool::Create(false) },
-    { Token::Type::BOOL, { &kFilename, 3, 1 }, expr::Bool::Create(true) },
-    { Token::Type::BOOL, { &kFilename, 4, 1 }, expr::Bool::Create(false) },
+    { Token::Type::BOOL, { &kFilename, 1, 1 }, expr::True() },
+    { Token::Type::BOOL, { &kFilename, 2, 1 }, expr::False() },
+    { Token::Type::BOOL, { &kFilename, 3, 1 }, expr::True() },
+    { Token::Type::BOOL, { &kFilename, 4, 1 }, expr::False() },
   };
 
   std::istringstream s(kStr);

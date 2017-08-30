@@ -355,7 +355,7 @@ class Apply : public Evals {
 class Lambda : public Expr {
  public:
   static Lambda *Create(const std::vector<const Symbol *> &required_args,
-      const Symbol *variable_arg, const Expr *body, Env *env);
+      const Symbol *variable_arg, Expr *body, Env *env);
   ~Lambda() override;
 
   // Override from Expr
@@ -365,18 +365,18 @@ class Lambda : public Expr {
   const std::vector<const Symbol *> required_args() const {
     return required_args_;
   }
-  Symbol *variable_arg() const { return variable_arg_; }
+  const Symbol *variable_arg() const { return variable_arg_; }
   Expr *body() const { return body_; }
   Env *env() const { return env_; }
 
  private:
   explicit Lambda(const std::vector<const Symbol *> &required_args,
-      const Symbol *variable_arg, const std::vector<Expr *> &body);
+      const Symbol *variable_arg, Expr *body, Env *env);
 
   std::vector<const Symbol *> required_args_;
-  Symbol *variable_arg_;
+  const Symbol *variable_arg_;
   Expr *body_;
-  Env *env_;;
+  Env *env_;
 };
 
 class Cond : public Evals {
@@ -438,7 +438,8 @@ class LetSyntax : public Expr {
 
 class Env : public Expr {
  public:
-  static Env *Create(const std::vector<std::pair<const Symbol *, Expr *> > &vars,
+  static Env *Create(
+      const std::vector<std::pair<const Symbol *, Expr *> > &vars,
       Env *enclosing, bool readonly = false);
   ~Env() override;
 

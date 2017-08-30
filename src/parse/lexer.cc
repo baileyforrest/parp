@@ -525,7 +525,7 @@ const Token &Lexer::NextToken() {
         case 't': case 'T': case 'f': case 'F':
           c = stream_.Get();
           token_.type = Token::Type::BOOL;
-          token_.expr = expr::Bool::Create(c == 't' || c == 'T');
+          token_.expr = (c == 't' || c == 'T') ? expr::True() : expr::False();
           break;
         case '\\':
           LexChar();

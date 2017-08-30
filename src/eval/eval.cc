@@ -21,6 +21,9 @@
 
 #include <cassert>
 #include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "util/exceptions.h"
 #include "util/util.h"
@@ -29,7 +32,7 @@ namespace eval {
 
 namespace {
 
-void ThrowException [[ noreturn ]](expr::Expr *expr, const std::string &msg) {
+void ThrowException[[ noreturn ]](expr::Expr *expr, const std::string &msg) {
   throw util::RuntimeException("Eval error: " + msg + " " +
       util::to_string(expr));
 }
@@ -40,10 +43,10 @@ expr::Expr *EvalExpr(expr::Expr *expr, expr::Env *env) {
 }
 
 class Analyzer {
-public:
+ public:
   expr::Expr *Analyze(expr::Expr *expr, expr::Env *env);
 
-private:
+ private:
   std::vector<expr::Expr *> AnalyzeList(expr::Expr *expr, expr::Env *env);
   expr::Expr *AnalyzePair(expr::Pair *pair, expr::Env *env);
   expr::Expr *AnalyzeQuote(expr::Pair *pair, expr::Env *env);
@@ -53,7 +56,6 @@ private:
   expr::Expr *AnalyzeLambda(expr::Pair *pair, expr::Env *env);
   expr::Expr *AnalyzeSequence(expr::Expr *pair, expr::Env *env);
   expr::Expr *AnalyzeApplication(expr::Pair *pair, expr::Env *env);
-
 };
 
 expr::Expr *Analyzer::Analyze(expr::Expr *expr, expr::Env *env) {
@@ -306,7 +308,7 @@ expr::Expr *DoEval(expr::Expr *expr, expr::Env *env) {
   return nullptr;
 }
 
-}
+}  // namespace
 
 expr::Expr *Eval(expr::Expr *expr, expr::Env *env) {
   Analyzer ana;
