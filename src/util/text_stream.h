@@ -33,19 +33,19 @@ namespace util {
 
 class TextStream {
  public:
-  TextStream(std::istream *istream, const std::string *file_name);
+  TextStream(std::istream* istream, const std::string* file_name);
   ~TextStream();
 
   int Get();
   int Peek() const;
   bool Eof() const;
 
-  const Mark &mark() const { return mark_; }
+  const Mark& mark() const { return mark_; }
 
  private:
   DISALLOW_MOVE_COPY_AND_ASSIGN(TextStream);
 
-  std::istream *istream_;
+  std::istream* istream_;
   std::ios_base::iostate istream_except_mask_;
   Mark mark_;
 };

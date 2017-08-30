@@ -24,12 +24,11 @@
 
 namespace util {
 
-TextStream::TextStream(std::istream *istream, const std::string *file_name)
-  : istream_(istream),
-    istream_except_mask_(istream_->exceptions()) {
+TextStream::TextStream(std::istream* istream, const std::string* file_name)
+    : istream_(istream), istream_except_mask_(istream_->exceptions()) {
   // Enable all the exceptions on istream
   istream_->exceptions(std::istream::badbit | std::istream::failbit);
-  mark_ = { file_name, 1, 1 };
+  mark_ = {file_name, 1, 1};
 }
 
 TextStream::~TextStream() {
@@ -42,7 +41,7 @@ int TextStream::Get() {
   int c;
   try {
     c = istream_->get();
-  } catch (std::ios_base::failure &fail) {
+  } catch (std::ios_base::failure& fail) {
     std::cerr << "I/O error reading " << mark_ << std::endl;
     throw;
   }
@@ -64,7 +63,7 @@ int TextStream::Peek() const {
 bool TextStream::Eof() const {
   // Next character may be EOF before eof bit is set
   return istream_->eof() ||
-      istream_->peek() == std::istream::traits_type::eof();
+         istream_->peek() == std::istream::traits_type::eof();
 }
 
 }  // namespace util

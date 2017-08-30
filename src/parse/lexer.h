@@ -35,14 +35,14 @@ namespace parse {
 // struct representing <token> in r5rs:7.1.1
 struct Token {
   enum class Type {
-    INVAL,        // Invalid token
-    TOK_EOF,      // EOF token
+    INVAL,    // Invalid token
+    TOK_EOF,  // EOF token
 
-    ID,           // identifier
-    BOOL,         // boolean
-    NUMBER,       // number
-    CHAR,         // character
-    STRING,       // string
+    ID,      // identifier
+    BOOL,    // boolean
+    NUMBER,  // number
+    CHAR,    // character
+    STRING,  // string
 
     LPAREN,       // (
     RPAREN,       // )
@@ -56,26 +56,26 @@ struct Token {
 
   Type type;
   util::Mark mark;
-  expr::Expr *expr;
+  expr::Expr* expr;
 
-  std::ostream &PrettyPrint(
-      std::ostream &stream) const;  // NOLINT(runtime/references)
+  std::ostream& PrettyPrint(
+      std::ostream& stream) const;  // NOLINT(runtime/references)
 };
 
-bool operator==(const Token &lhs, const Token &rhs);
-inline bool operator!=(const Token &lhs, const Token &rhs) {
+bool operator==(const Token& lhs, const Token& rhs);
+inline bool operator!=(const Token& lhs, const Token& rhs) {
   return !(lhs == rhs);
 }
 
 std::ostream& operator<<(std::ostream& stream, Token::Type type);
-std::ostream& operator<<(std::ostream& stream, const Token &type);
+std::ostream& operator<<(std::ostream& stream, const Token& type);
 
 class Lexer {
  public:
-  explicit Lexer(util::TextStream &stream) : stream_(stream) {}
+  explicit Lexer(util::TextStream& stream) : stream_(stream) {}
   ~Lexer() = default;
 
-  const Token &NextToken();
+  const Token& NextToken();
 
  private:
   DISALLOW_MOVE_COPY_AND_ASSIGN(Lexer);
@@ -88,7 +88,7 @@ class Lexer {
 
   Token token_;
   std::string lexbuf_;
-  util::TextStream &stream_;
+  util::TextStream& stream_;
 };
 
 }  // namespace parse

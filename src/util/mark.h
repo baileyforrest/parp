@@ -26,15 +26,15 @@
 namespace util {
 
 struct Mark {
-  const std::string *path;
+  const std::string* path;
   int line;
   int col;
 };
 
 std::ostream& operator<<(std::ostream& stream, Mark const& mark);
-bool operator==(const Mark &lhs, const Mark &rhs);
+bool operator==(const Mark& lhs, const Mark& rhs);
 
-inline bool operator!=(const Mark &lhs, const Mark &rhs) {
+inline bool operator!=(const Mark& lhs, const Mark& rhs) {
   return !(lhs == rhs);
 }
 

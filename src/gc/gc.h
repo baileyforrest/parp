@@ -39,9 +39,8 @@ class Collectable {
 // TODO(bcf): Implement garbage collection for real
 class Gc {
  public:
-  static Gc &Get();
-  void *Alloc(std::size_t size,
-      std::function<Collectable *(void *)> creator);
+  static Gc& Get();
+  void* Alloc(std::size_t size, std::function<Collectable*(void*)> creator);
   void Purge();
 
  private:
@@ -49,7 +48,7 @@ class Gc {
   ~Gc();
 
   DISALLOW_MOVE_COPY_AND_ASSIGN(Gc);
-  std::vector<std::pair<Collectable *, void *>> allocs_;
+  std::vector<std::pair<Collectable*, void*>> allocs_;
 };
 
 }  // namespace gc

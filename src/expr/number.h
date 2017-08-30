@@ -39,26 +39,26 @@ class Number : public Expr {
     FLOAT,
   };
 
-  ~Number() override {};
+  ~Number() override{};
 
   // Override from Expr
-  const Number *GetAsNumber() const override;
+  const Number* GetAsNumber() const override;
 
-  virtual const NumReal *GetAsNumReal() const;
-  virtual const NumFloat *GetAsNumFloat() const;
+  virtual const NumReal* GetAsNumReal() const;
+  virtual const NumFloat* GetAsNumFloat() const;
 
   Type num_type() const { return num_type_; }
   bool exact() const { return exact_; }
 
  protected:
   Number(Type num_type, bool exact)
-    : Expr(Expr::Type::NUMBER, true), num_type_(num_type), exact_(exact) {}
+      : Expr(Expr::Type::NUMBER, true), num_type_(num_type), exact_(exact) {}
 
  private:
   // Override from Expr
-  bool EqvImpl(const Expr *other) const override;
+  bool EqvImpl(const Expr* other) const override;
 
-  virtual bool NumEqv(const Number *other) const = 0;
+  virtual bool NumEqv(const Number* other) const = 0;
 
   Type num_type_;
   bool exact_;
@@ -67,15 +67,15 @@ class Number : public Expr {
 // TODO(bcf): Expand this to be arbitrary precision rational
 class NumReal : public Number {
  public:
-  static NumReal *Create(int64_t val);
-  static NumReal *Create(const std::string &str, int radix);
+  static NumReal* Create(int64_t val);
+  static NumReal* Create(const std::string& str, int radix);
   ~NumReal() override {}
 
   // Override from Expr
-  std::ostream &AppendStream(std::ostream &stream) const override;
+  std::ostream& AppendStream(std::ostream& stream) const override;
 
   // Override from Number
-  const NumReal *GetAsNumReal() const override;
+  const NumReal* GetAsNumReal() const override;
 
   // TODO(bcf): Temp function for testing
   int64_t val() const { return val_; }
@@ -84,22 +84,22 @@ class NumReal : public Number {
   explicit NumReal(int64_t val) : Number(Type::RATIONAL, true), val_(val) {}
 
   // Override from Number
-  bool NumEqv(const Number *other) const override;
+  bool NumEqv(const Number* other) const override;
 
   int64_t val_;
 };
 
 class NumFloat : public Number {
  public:
-  static NumFloat *Create(double val);
-  static NumFloat *Create(const std::string &str, int radix);
+  static NumFloat* Create(double val);
+  static NumFloat* Create(const std::string& str, int radix);
   ~NumFloat() override {}
 
   // Override from Expr
-  std::ostream &AppendStream(std::ostream &stream) const override;
+  std::ostream& AppendStream(std::ostream& stream) const override;
 
   // Override from Number
-  const NumFloat *GetAsNumFloat() const override;
+  const NumFloat* GetAsNumFloat() const override;
 
   // TODO(bcf): Temp function for testing
   double val() const { return val_; }
@@ -108,7 +108,7 @@ class NumFloat : public Number {
   explicit NumFloat(double val) : Number(Type::FLOAT, false), val_(val) {}
 
   // Override from Number
-  bool NumEqv(const Number *other) const override;
+  bool NumEqv(const Number* other) const override;
 
   double val_;
 };

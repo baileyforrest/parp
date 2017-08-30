@@ -23,6 +23,8 @@
 #ifndef UTIL_CHAR_CLASS_H_
 #define UTIL_CHAR_CLASS_H_
 
+// clang-format off
+
 #define ASCII_LOWER                                                     \
     'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g': case 'h': \
 case 'i': case 'j': case 'k': case 'l': case 'm': case 'n': case 'o':   \
@@ -60,6 +62,7 @@ case '8': case '9'
 #define EXACT_SPECIFIER \
     'i': case 'I': case 'e': case 'E'
 
+// clang-format on
 
 namespace util {
 

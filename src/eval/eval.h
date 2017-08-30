@@ -24,7 +24,7 @@
 
 namespace eval {
 
-expr::Expr *Eval(expr::Expr *expr, expr::Env *env);
+expr::Expr* Eval(expr::Expr* expr, expr::Env* env);
 
 }  // namespace eval
 

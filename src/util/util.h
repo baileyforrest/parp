@@ -25,9 +25,9 @@
 
 namespace util {
 
-  // TODO(bcf): Use this function where this idiom is used.
-template<typename T>
-std::string to_string(const T &o) {
+// TODO(bcf): Use this function where this idiom is used.
+template <typename T>
+std::string to_string(const T& o) {
   std::ostringstream os;
   os << o;
   return os.str();
@@ -36,4 +36,3 @@ std::string to_string(const T &o) {
 }  // namespace util
 
 #endif  // UTIL_UTIL_H_
-

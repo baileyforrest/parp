@@ -1,6 +1,9 @@
 # parp Makefile. Based on https://github.com/mbcrawfo/GenericMakefile
-BIN_NAME := parp
+
 CXX ?= g++
+CLANG_FORMAT ?= clang-format
+
+BIN_NAME := parp
 SRC_EXT = cc
 SRC_DIR = src
 COMPILE_FLAGS = -std=c++14 -Wall -Wextra
@@ -122,3 +125,7 @@ ALL_SRC_FILES := \
 lint:
 	@./tools/cpplint.py --verbose=0 --root=$(SRC_DIR) \
 		--filter=-build/c++11 $(ALL_SRC_FILES)
+
+.PHONY: format
+format:
+	@$(CLANG_FORMAT) -i -style=Chromium $(ALL_SRC_FILES)

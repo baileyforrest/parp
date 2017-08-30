@@ -28,21 +28,20 @@ Gc::~Gc() {
 }
 
 // static
-Gc &Gc::Get() {
+Gc& Gc::Get() {
   static Gc gc;
   return gc;
 }
 
-void *Gc::Alloc(std::size_t size,
-    std::function<Collectable *(void *)> creator) {
-  void *addr = std::malloc(size);
+void* Gc::Alloc(std::size_t size, std::function<Collectable*(void*)> creator) {
+  void* addr = std::malloc(size);
   allocs_.emplace_back(creator(addr), addr);
 
   return addr;
 }
 
 void Gc::Purge() {
-  for (const auto &pair : allocs_) {
+  for (const auto& pair : allocs_) {
     pair.first->~Collectable();
     std::free(pair.second);
   }

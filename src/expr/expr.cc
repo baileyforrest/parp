@@ -41,178 +41,175 @@ bool Expr::IsDatum() const {
   }
 }
 
-bool Expr::Eqv(const Expr *other) const {
-  return Eq(other) ||
-    (type() == other->type() && EqvImpl(other));
+bool Expr::Eqv(const Expr* other) const {
+  return Eq(other) || (type() == other->type() && EqvImpl(other));
 }
 
-bool Expr::Equal(const Expr *other) const {
-  return Eq(other) ||
-    (type() == other->type() && EqualImpl(other));
+bool Expr::Equal(const Expr* other) const {
+  return Eq(other) || (type() == other->type() && EqualImpl(other));
 }
 
-bool Expr::EqvImpl(const Expr *other) const {
+bool Expr::EqvImpl(const Expr* other) const {
   return Eq(other);
 }
 
-bool Expr::EqualImpl(const Expr *other) const {
+bool Expr::EqualImpl(const Expr* other) const {
   return Eqv(other);
 }
 
-const EmptyList *Expr::GetAsEmptyList() const {
+const EmptyList* Expr::GetAsEmptyList() const {
   assert(false);
   return nullptr;
 }
 
-const Bool *Expr::GetAsBool() const {
+const Bool* Expr::GetAsBool() const {
   assert(false);
   return nullptr;
 }
 
-const Number *Expr::GetAsNumber() const {
+const Number* Expr::GetAsNumber() const {
   assert(false);
   return nullptr;
 }
 
-const Char *Expr::GetAsChar() const {
+const Char* Expr::GetAsChar() const {
   assert(false);
   return nullptr;
 }
 
-const String *Expr::GetAsString() const {
+const String* Expr::GetAsString() const {
   assert(false);
   return nullptr;
 }
 
-String *Expr::GetAsString() {
+String* Expr::GetAsString() {
   assert(false);
   return nullptr;
 }
 
-const Symbol *Expr::GetAsSymbol() const {
+const Symbol* Expr::GetAsSymbol() const {
   assert(false);
   return nullptr;
 }
 
-const Pair *Expr::GetAsPair() const {
+const Pair* Expr::GetAsPair() const {
   assert(false);
   return nullptr;
 }
 
-Pair *Expr::GetAsPair() {
+Pair* Expr::GetAsPair() {
   assert(false);
   return nullptr;
 }
 
-const Vector *Expr::GetAsVector() const {
+const Vector* Expr::GetAsVector() const {
   assert(false);
   return nullptr;
 }
 
-Vector *Expr::GetAsVector() {
+Vector* Expr::GetAsVector() {
   assert(false);
   return nullptr;
 }
 
-const Var *Expr::GetAsVar() const {
+const Var* Expr::GetAsVar() const {
   assert(false);
   return nullptr;
 }
 
-const Apply *Expr::GetAsApply() const {
+const Apply* Expr::GetAsApply() const {
   assert(false);
   return nullptr;
 }
 
-const Lambda *Expr::GetAsLambda() const {
+const Lambda* Expr::GetAsLambda() const {
   assert(false);
   return nullptr;
 }
 
-const Cond *Expr::GetAsCond() const {
+const Cond* Expr::GetAsCond() const {
   assert(false);
   return nullptr;
 }
 
-const Assign *Expr::GetAsAssign() const {
+const Assign* Expr::GetAsAssign() const {
   assert(false);
   return nullptr;
 }
 
-const LetSyntax *Expr::GetAsLetSyntax() const {
+const LetSyntax* Expr::GetAsLetSyntax() const {
   assert(false);
   return nullptr;
 }
 
-const Env *Expr::GetAsEnv() const {
+const Env* Expr::GetAsEnv() const {
   assert(false);
   return nullptr;
 }
 
-Env *Expr::GetAsEnv() {
+Env* Expr::GetAsEnv() {
   assert(false);
   return nullptr;
 }
 
-const Analyzed *Expr::GetAsAnalyzed() const {
+const Analyzed* Expr::GetAsAnalyzed() const {
   assert(false);
   return nullptr;
 }
 
-bool Evals::EqvImpl(const Expr *other) const {
+bool Evals::EqvImpl(const Expr* other) const {
   (void)other;
   assert(false && "The evaluation of this expr should be compared instead");
 }
 
-EmptyList *Nil() {
+EmptyList* Nil() {
   static EmptyList empty_list;
   return &empty_list;
 }
 
-const EmptyList *EmptyList::GetAsEmptyList() const {
+const EmptyList* EmptyList::GetAsEmptyList() const {
   return this;
 }
 
-std::ostream &EmptyList::AppendStream(std::ostream &stream) const {
+std::ostream& EmptyList::AppendStream(std::ostream& stream) const {
   return stream << "'()";
 }
 
-const Bool *Bool::GetAsBool() const {
+const Bool* Bool::GetAsBool() const {
   return this;
 }
 
-std::ostream &Bool::AppendStream(std::ostream &stream) const {
+std::ostream& Bool::AppendStream(std::ostream& stream) const {
   return val() ? (stream << "#t") : (stream << "#f");
 }
 
-bool Bool::EqvImpl(const Expr *other) const {
+bool Bool::EqvImpl(const Expr* other) const {
   return val() == other->GetAsBool()->val();
 }
 
-Bool *True() {
+Bool* True() {
   static Bool true_val(true);
   return &true_val;
 }
 
-Bool *False() {
+Bool* False() {
   static Bool false_val(false);
   return &false_val;
 }
 
-
 // static
-Char *Char::Create(char val) {
-  return static_cast<Char *>(
-      gc::Gc::Get().Alloc(sizeof(Char), [val](void *addr) {
-        return new(addr) Char(val);
-      }));
+Char* Char::Create(char val) {
+  return static_cast<Char*>(
+      gc::Gc::Get().Alloc(sizeof(Char), [val](void* addr) {
+        return new (addr) Char(val);
+      }));  // NOLINT(whitespace/newline)
 }
 
-const Char *Char::GetAsChar() const {
+const Char* Char::GetAsChar() const {
   return this;
 }
 
-std::ostream &Char::AppendStream(std::ostream &stream) const {
+std::ostream& Char::AppendStream(std::ostream& stream) const {
   switch (val()) {
     case ' ':
       return stream << "#\\space";
@@ -223,93 +220,91 @@ std::ostream &Char::AppendStream(std::ostream &stream) const {
   }
 }
 
-bool Char::EqvImpl(const Expr *other) const {
+bool Char::EqvImpl(const Expr* other) const {
   return val() == other->GetAsChar()->val();
 }
 
 // static
-String *String::Create(const std::string &val, bool readonly) {
-  return static_cast<String *>(
-      gc::Gc::Get().Alloc(sizeof(String), [val, readonly](void *addr) {
-        return new(addr) String(val, readonly);
+String* String::Create(const std::string& val, bool readonly) {
+  return static_cast<String*>(
+      gc::Gc::Get().Alloc(sizeof(String), [val, readonly](void* addr) {
+        return new (addr) String(val, readonly);
       }));
 }
 
-String::~String() {
-}
+String::~String() {}
 
-const String *String::GetAsString() const {
+const String* String::GetAsString() const {
   return this;
 }
 
-std::ostream &String::AppendStream(std::ostream &stream) const {
+std::ostream& String::AppendStream(std::ostream& stream) const {
   return stream << "\"" << val() << "\"";
 }
 
-String *String::GetAsString() {
+String* String::GetAsString() {
   return this;
 }
 
-bool String::EqualImpl(const Expr *other) const {
+bool String::EqualImpl(const Expr* other) const {
   return val() == other->GetAsString()->val();
 }
 
 // static
-Symbol *Symbol::Create(const std::string &val) {
-  return static_cast<Symbol *>(
-      gc::Gc::Get().Alloc(sizeof(Symbol), [val](void *addr) {
-        return new(addr) Symbol(val);
-      }));
+Symbol* Symbol::Create(const std::string& val) {
+  return static_cast<Symbol*>(
+      gc::Gc::Get().Alloc(sizeof(Symbol), [val](void* addr) {
+        return new (addr) Symbol(val);
+      }));  // NOLINT(whitespace/newline)
 }
 
-Symbol::~Symbol() {
-}
+Symbol::~Symbol() {}
 
-const Symbol *Symbol::GetAsSymbol() const {
+const Symbol* Symbol::GetAsSymbol() const {
   return this;
 }
 
-std::ostream &Symbol::AppendStream(std::ostream &stream) const {
+std::ostream& Symbol::AppendStream(std::ostream& stream) const {
   return stream << val();
 }
 
-bool Symbol::EqvImpl(const Expr *other) const {
+bool Symbol::EqvImpl(const Expr* other) const {
   return val() == other->GetAsSymbol()->val();
 }
 
 // static
-Pair *Pair::Create(Expr *car, Expr *cdr, bool readonly) {
-  return static_cast<Pair *>(
-      gc::Gc::Get().Alloc(sizeof(Pair), [car, cdr, readonly](void *addr) {
-        return new(addr) Pair(car, cdr, readonly);
+Pair* Pair::Create(Expr* car, Expr* cdr, bool readonly) {
+  return static_cast<Pair*>(
+      gc::Gc::Get().Alloc(sizeof(Pair), [car, cdr, readonly](void* addr) {
+        return new (addr) Pair(car, cdr, readonly);
       }));
 }
 
-const Pair *Pair::GetAsPair() const {
+const Pair* Pair::GetAsPair() const {
   return this;
 }
 
-Pair *Pair::GetAsPair() {
+Pair* Pair::GetAsPair() {
   return this;
 }
 
 // TODO(bcf): Check if its a list, if so print as (a b c ...)
-std::ostream &Pair::AppendStream(std::ostream &stream) const {
+std::ostream& Pair::AppendStream(std::ostream& stream) const {
   return stream << "(" << car() << " . " << cdr() << ")";
 }
 
-bool Pair::EqvImpl(const Expr *other) const {
+bool Pair::EqvImpl(const Expr* other) const {
   return car() == other->GetAsPair()->car() &&
-    cdr() == other->GetAsPair()->cdr();
+         cdr() == other->GetAsPair()->cdr();
 }
 
-bool Pair::EqualImpl(const Expr *other) const {
+bool Pair::EqualImpl(const Expr* other) const {
   return car()->Equal(other->GetAsPair()->car()) &&
-    cdr()->Equal(other->GetAsPair()->cdr());
+         cdr()->Equal(other->GetAsPair()->cdr());
 }
 
-expr::Expr *Pair::Cr(const std::string &str) const {
-  expr::Expr *expr = nullptr;
+expr::Expr* Pair::Cr(const std::string& str) const {
+  expr::Expr* expr = nullptr;
 
   for (auto cit = str.rbegin(); cit != str.rend(); ++cit) {
     auto c = *cit;
@@ -333,25 +328,24 @@ expr::Expr *Pair::Cr(const std::string &str) const {
 }
 
 // static
-Vector *Vector::Create(const std::vector<Expr *> &vals, bool readonly) {
-  return static_cast<Vector *>(
-      gc::Gc::Get().Alloc(sizeof(Vector), [vals, readonly](void *addr) {
-        return new(addr) Vector(vals, readonly);
+Vector* Vector::Create(const std::vector<Expr*>& vals, bool readonly) {
+  return static_cast<Vector*>(
+      gc::Gc::Get().Alloc(sizeof(Vector), [vals, readonly](void* addr) {
+        return new (addr) Vector(vals, readonly);
       }));
 }
 
-Vector::~Vector() {
-}
+Vector::~Vector() {}
 
-const Vector *Vector::GetAsVector() const {
+const Vector* Vector::GetAsVector() const {
   return this;
 }
 
-Vector *Vector::GetAsVector() {
+Vector* Vector::GetAsVector() {
   return this;
 }
 
-std::ostream &Vector::AppendStream(std::ostream &stream) const {
+std::ostream& Vector::AppendStream(std::ostream& stream) const {
   stream << "#(";
 
   for (auto e : vals())
@@ -360,13 +354,13 @@ std::ostream &Vector::AppendStream(std::ostream &stream) const {
   return stream << ")";
 }
 
-bool Vector::EqvImpl(const Expr *other) const {
+bool Vector::EqvImpl(const Expr* other) const {
   return vals() == other->GetAsVector()->vals();
 }
 
-bool Vector::EqualImpl(const Expr *other) const {
-  const auto &v1 = vals();
-  const auto &v2 = other->GetAsVector()->vals();
+bool Vector::EqualImpl(const Expr* other) const {
+  const auto& v1 = vals();
+  const auto& v2 = other->GetAsVector()->vals();
   if (v1.size() != v2.size())
     return false;
 
@@ -379,26 +373,23 @@ bool Vector::EqualImpl(const Expr *other) const {
 }
 
 // static
-Var *Var::Create(const std::string &name) {
-  return static_cast<Var *>(
-      gc::Gc::Get().Alloc(sizeof(Var), [name](void *addr) {
-        return new(addr) Var(name);
-      }));
+Var* Var::Create(const std::string& name) {
+  return static_cast<Var*>(gc::Gc::Get().Alloc(sizeof(Var), [name](void* addr) {
+    return new (addr) Var(name);
+  }));  // NOLINT(whitespace/newline)
 }
 
-Var::~Var() {
-}
+Var::~Var() {}
 
-const Var *Var::GetAsVar() const {
+const Var* Var::GetAsVar() const {
   return this;
 }
 
-std::ostream &Var::AppendStream(std::ostream &stream) const {
+std::ostream& Var::AppendStream(std::ostream& stream) const {
   return stream << name();
 }
 
-Apply::Apply(const std::vector<Expr *> &exprs)
-  : Evals(Type::APPLY, true) {
+Apply::Apply(const std::vector<Expr*>& exprs) : Evals(Type::APPLY, true) {
   assert(exprs.size() > 0);
   op_ = exprs[0];
   args_.reserve(exprs.size() - 1);
@@ -408,21 +399,20 @@ Apply::Apply(const std::vector<Expr *> &exprs)
 }
 
 // static
-Apply *Apply::Create(const std::vector<Expr *> &exprs) {
-  return static_cast<Apply *>(
-      gc::Gc::Get().Alloc(sizeof(Apply), [exprs](void *addr) {
-        return new(addr) Apply(exprs);
-      }));
+Apply* Apply::Create(const std::vector<Expr*>& exprs) {
+  return static_cast<Apply*>(
+      gc::Gc::Get().Alloc(sizeof(Apply), [exprs](void* addr) {
+        return new (addr) Apply(exprs);
+      }));  // NOLINT(whitespace/newline)
 }
 
-Apply::~Apply() {
-}
+Apply::~Apply() {}
 
-const Apply *Apply::GetAsApply() const {
+const Apply* Apply::GetAsApply() const {
   return this;
 }
 
-std::ostream &Apply::AppendStream(std::ostream &stream) const {
+std::ostream& Apply::AppendStream(std::ostream& stream) const {
   stream << "(" << op();
 
   for (auto arg : args())
@@ -431,35 +421,38 @@ std::ostream &Apply::AppendStream(std::ostream &stream) const {
   return stream << ")";
 }
 
-Lambda::Lambda(const std::vector<const Symbol *> &required_args,
-    const Symbol *variable_arg,
-    Expr* body, Env* env)
-  : Expr(Type::LAMBDA, true), required_args_(required_args),
-  variable_arg_(variable_arg), body_(body), env_(env) {
+Lambda::Lambda(const std::vector<const Symbol*>& required_args,
+               const Symbol* variable_arg,
+               Expr* body,
+               Env* env)
+    : Expr(Type::LAMBDA, true),
+      required_args_(required_args),
+      variable_arg_(variable_arg),
+      body_(body),
+      env_(env) {
   // TODO(bcf): assert Error checking on body.
 }
 
 // static
-Lambda *Lambda::Create(const std::vector<const Symbol *> &required_args,
-      const Symbol *variable_arg, Expr *body, Env *env) {
-  return static_cast<Lambda *>(
-      gc::Gc::Get().Alloc(sizeof(Lambda),
-        [required_args, variable_arg, body, env](void *addr) {
-          return new(addr) Lambda(required_args, variable_arg, body, env);
+Lambda* Lambda::Create(const std::vector<const Symbol*>& required_args,
+                       const Symbol* variable_arg,
+                       Expr* body,
+                       Env* env) {
+  return static_cast<Lambda*>(gc::Gc::Get().Alloc(
+      sizeof(Lambda), [required_args, variable_arg, body, env](void* addr) {
+        return new (addr) Lambda(required_args, variable_arg, body, env);
       }));
 }
 
-Lambda::~Lambda() {
-}
+Lambda::~Lambda() {}
 
-const Lambda *Lambda::GetAsLambda() const {
+const Lambda* Lambda::GetAsLambda() const {
   return this;
 }
 
-std::ostream &Lambda::AppendStream(std::ostream &stream) const {
+std::ostream& Lambda::AppendStream(std::ostream& stream) const {
   stream << "(lambda ";
-  if (required_args().size() == 0 &&
-      variable_arg() != nullptr) {
+  if (required_args().size() == 0 && variable_arg() != nullptr) {
     stream << variable_arg();
   } else {
     stream << "(";
@@ -477,19 +470,18 @@ std::ostream &Lambda::AppendStream(std::ostream &stream) const {
 }
 
 // static
-Cond *Cond::Create(Expr *test, Expr *true_expr, Expr *false_expr) {
-  return static_cast<Cond *>(
-      gc::Gc::Get().Alloc(sizeof(Cond),
-        [test, true_expr, false_expr](void *addr) {
-          return new(addr) Cond(test, true_expr, false_expr);
+Cond* Cond::Create(Expr* test, Expr* true_expr, Expr* false_expr) {
+  return static_cast<Cond*>(gc::Gc::Get().Alloc(
+      sizeof(Cond), [test, true_expr, false_expr](void* addr) {
+        return new (addr) Cond(test, true_expr, false_expr);
       }));
 }
 
-const Cond *Cond::GetAsCond() const {
+const Cond* Cond::GetAsCond() const {
   return this;
 }
 
-std::ostream &Cond::AppendStream(std::ostream &stream) const {
+std::ostream& Cond::AppendStream(std::ostream& stream) const {
   stream << "(if " << test() << " " << true_expr();
 
   if (false_expr() != nullptr)
@@ -499,81 +491,80 @@ std::ostream &Cond::AppendStream(std::ostream &stream) const {
 }
 
 // static
-Assign *Assign::Create(Var *var, Expr *expr) {
-  return static_cast<Assign *>(
-      gc::Gc::Get().Alloc(sizeof(Assign), [var, expr](void *addr) {
-        return new(addr) Assign(var, expr);
-      }));
+Assign* Assign::Create(Var* var, Expr* expr) {
+  return static_cast<Assign*>(
+      gc::Gc::Get().Alloc(sizeof(Assign), [var, expr](void* addr) {
+        return new (addr) Assign(var, expr);
+      }));  // NOLINT(whitespace/newline)
 }
 
-const Assign *Assign::GetAsAssign() const {
+const Assign* Assign::GetAsAssign() const {
   return this;
 }
 
-std::ostream &Assign::AppendStream(std::ostream &stream) const {
+std::ostream& Assign::AppendStream(std::ostream& stream) const {
   return stream << "(set! " << var() << " " << expr() << ")";
 }
 
 // static
-LetSyntax *LetSyntax::Create() {
-  return static_cast<LetSyntax *>(
-      gc::Gc::Get().Alloc(sizeof(LetSyntax), [](void *addr) {
-        return new(addr) LetSyntax();
-      }));
+LetSyntax* LetSyntax::Create() {
+  return static_cast<LetSyntax*>(
+      gc::Gc::Get().Alloc(sizeof(LetSyntax), [](void* addr) {
+        return new (addr) LetSyntax();
+      }));  // NOLINT(whitespace/newline)
 }
 
-LetSyntax::~LetSyntax() {
-}
+LetSyntax::~LetSyntax() {}
 
-const LetSyntax *LetSyntax::GetAsLetSyntax() const {
+const LetSyntax* LetSyntax::GetAsLetSyntax() const {
   return this;
 }
 
-std::ostream &LetSyntax::AppendStream(std::ostream &stream) const {
+std::ostream& LetSyntax::AppendStream(std::ostream& stream) const {
   return stream;
 }
 
 // static
-Env *Env::Create(const std::vector<std::pair<const Symbol *, Expr *> > &vars,
-    Env *enclosing, bool readonly) {
-  return static_cast<Env *>(
-      gc::Gc::Get().Alloc(sizeof(Env), [vars, enclosing, readonly](void *addr) {
-        return new(addr) Env(vars, enclosing, readonly);
+Env* Env::Create(const std::vector<std::pair<const Symbol*, Expr*> >& vars,
+                 Env* enclosing,
+                 bool readonly) {
+  return static_cast<Env*>(
+      gc::Gc::Get().Alloc(sizeof(Env), [vars, enclosing, readonly](void* addr) {
+        return new (addr) Env(vars, enclosing, readonly);
       }));
 }
 
-Env::~Env() {
-}
+Env::~Env() {}
 
-const Env *Env::GetAsEnv() const {
+const Env* Env::GetAsEnv() const {
   return this;
 }
 
-Env *Env::GetAsEnv() {
+Env* Env::GetAsEnv() {
   return this;
 }
 
-std::ostream &Env::AppendStream(std::ostream &stream) const {
+std::ostream& Env::AppendStream(std::ostream& stream) const {
   stream << "{";
-  for (const auto &pair : map_)
+  for (const auto& pair : map_)
     stream << "(" << pair.first << ", " << pair.second << ")";
 
   return stream << "}";
 }
 
-void Env::ThrowUnboundException(const Symbol *var) const {
+void Env::ThrowUnboundException(const Symbol* var) const {
   std::ostringstream os;
   os << var;
-  throw util::RuntimeException(
-      "Attempt to reference unbound variable" + os.str());
+  throw util::RuntimeException("Attempt to reference unbound variable" +
+                               os.str());
 }
 
-std::size_t Env::VarHash::operator()(const Symbol *var) const {
-    std::hash<std::string> hash;
-    return hash(var->val());
+std::size_t Env::VarHash::operator()(const Symbol* var) const {
+  std::hash<std::string> hash;
+  return hash(var->val());
 }
 
-Expr *Env::Lookup(const Symbol *var) const {
+Expr* Env::Lookup(const Symbol* var) const {
   auto env = this;
   while (env != nullptr) {
     auto search = env->map_.find(var);
@@ -587,11 +578,11 @@ Expr *Env::Lookup(const Symbol *var) const {
   return nullptr;
 }
 
-void Env::DefineVar(const Symbol *var, Expr *expr) {
+void Env::DefineVar(const Symbol* var, Expr* expr) {
   map_[var] = expr;
 }
 
-void Env::SetVar(const Symbol *var, Expr *expr) {
+void Env::SetVar(const Symbol* var, Expr* expr) {
   auto env = this;
   while (env != nullptr) {
     auto search = env->map_.find(var);
@@ -607,23 +598,22 @@ void Env::SetVar(const Symbol *var, Expr *expr) {
 }
 
 // static
-Analyzed *Analyzed::Create(const std::function<Expr *(Env *)> &func,
-    const std::vector<Expr *> &refs) {
-  return static_cast<Analyzed *>(
-      gc::Gc::Get().Alloc(sizeof(Analyzed), [func, refs](void *addr) {
-        return new(addr) Analyzed(func, refs);
-      }));
+Analyzed* Analyzed::Create(const std::function<Expr*(Env*)>& func,
+                           const std::vector<Expr*>& refs) {
+  return static_cast<Analyzed*>(
+      gc::Gc::Get().Alloc(sizeof(Analyzed), [func, refs](void* addr) {
+        return new (addr) Analyzed(func, refs);
+      }));  // NOLINT(whitespace/newline)
 }
 
-Analyzed::~Analyzed() {
-}
+Analyzed::~Analyzed() {}
 
-const Analyzed *Analyzed::GetAsAnalyzed() const {
+const Analyzed* Analyzed::GetAsAnalyzed() const {
   return this;
 }
 
 // TODO(bcf): possibly hold ref to original expression? (Is memory worth it)
-std::ostream &Analyzed::AppendStream(std::ostream &stream) const {
+std::ostream& Analyzed::AppendStream(std::ostream& stream) const {
   return stream << "Analyzed expression";
 }
 

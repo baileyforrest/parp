@@ -23,8 +23,8 @@
 
 namespace util {
 
-SyntaxException::SyntaxException(const std::string &msg,
-    const util::Mark &mark) {
+SyntaxException::SyntaxException(const std::string& msg,
+                                 const util::Mark& mark) {
   std::ostringstream ss;
   ss << mark << ": " + msg;
   full_msg_ = ss.str();

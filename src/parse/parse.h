@@ -28,11 +28,11 @@
 
 namespace parse {
 
-using ExprVec = std::vector<expr::Expr *>;
+using ExprVec = std::vector<expr::Expr*>;
 
 // Implementation of read procedure. Parses |stream| into datum
-ExprVec Read(util::TextStream &stream);  // NOLINT(runtime/references)
-ExprVec Read(const std::string &str, const std::string &filename = "string");
+ExprVec Read(util::TextStream& stream);  // NOLINT(runtime/references)
+ExprVec Read(const std::string& str, const std::string& filename = "string");
 
 }  // namespace parse
 

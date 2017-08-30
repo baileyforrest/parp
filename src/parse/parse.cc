@@ -33,23 +33,23 @@ namespace {
 
 class DatumParser {
  public:
-  explicit DatumParser(util::TextStream &stream) : lexer_(stream) {}
+  explicit DatumParser(util::TextStream& stream) : lexer_(stream) {}
 
   ExprVec Read();
 
  private:
-  const Token &Tok() { return *cur_token_; }
+  const Token& Tok() { return *cur_token_; }
   void AdvTok() { cur_token_ = &lexer_.NextToken(); }
-  void ThrowException(const std::string &msg) {
+  void ThrowException(const std::string& msg) {
     throw util::SyntaxException("Parse error: " + msg, Tok().mark);
   }
 
-  expr::Expr *ParseExpr();
-  expr::Expr *ParseList();
-  expr::Expr *ParseVector();
+  expr::Expr* ParseExpr();
+  expr::Expr* ParseList();
+  expr::Expr* ParseVector();
 
   Lexer lexer_;
-  const Token *cur_token_ = nullptr;
+  const Token* cur_token_ = nullptr;
 };
 
 ExprVec DatumParser::Read() {
@@ -63,7 +63,7 @@ ExprVec DatumParser::Read() {
   return result;
 }
 
-expr::Expr *DatumParser::ParseExpr() {
+expr::Expr* DatumParser::ParseExpr() {
   switch (Tok().type) {
     case Token::Type::ID:
     case Token::Type::BOOL:
@@ -71,7 +71,7 @@ expr::Expr *DatumParser::ParseExpr() {
     case Token::Type::CHAR:
     case Token::Type::STRING: {
       assert(Tok().expr != nullptr);
-      expr::Expr *result = Tok().expr;
+      expr::Expr* result = Tok().expr;
       AdvTok();
       return result;
     }
@@ -97,8 +97,8 @@ expr::Expr *DatumParser::ParseExpr() {
   return nullptr;
 }
 
-expr::Expr *DatumParser::ParseList() {
-  const char *header = nullptr;
+expr::Expr* DatumParser::ParseList() {
+  const char* header = nullptr;
 
   switch (Tok().type) {
     case Token::Type::LPAREN: {
@@ -130,7 +130,7 @@ expr::Expr *DatumParser::ParseList() {
       if (exprs.size() == 0)  // empty list
         return expr::Nil();
 
-      expr::Pair *end = nullptr;
+      expr::Pair* end = nullptr;
       for (auto it = exprs.rbegin(); it != exprs.rend(); ++it) {
         if (end == nullptr) {
           // Dot case has no '()
@@ -173,11 +173,11 @@ expr::Expr *DatumParser::ParseList() {
   AdvTok();
   auto expr = ParseExpr();
 
-  return expr::Cons(
-      expr::Symbol::Create(header), expr::Cons(expr, expr::Nil()));
+  return expr::Cons(expr::Symbol::Create(header),
+                    expr::Cons(expr, expr::Nil()));
 }
 
-expr::Expr *DatumParser::ParseVector() {
+expr::Expr* DatumParser::ParseVector() {
   assert(Tok().type == Token::Type::POUND_PAREN);
   AdvTok();
   ExprVec exprs;
@@ -192,13 +192,13 @@ expr::Expr *DatumParser::ParseVector() {
 
 }  // namespace
 
-ExprVec Read(util::TextStream &stream) {  // NOLINT(runtime/references)
+ExprVec Read(util::TextStream& stream) {  // NOLINT(runtime/references)
   DatumParser parser(stream);
 
   return parser.Read();
 }
 
-ExprVec Read(const std::string &str, const std::string &filename) {
+ExprVec Read(const std::string& str, const std::string& filename) {
   std::istringstream is(str);
   util::TextStream stream(&is, &filename);
 

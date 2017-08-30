@@ -33,25 +33,25 @@ namespace {
 
 class NumLexer {
  public:
-  NumLexer(const std::string &str, const util::Mark &mark)
-    : mark_(mark), str_(str), it_(str.begin()) {}
+  NumLexer(const std::string& str, const util::Mark& mark)
+      : mark_(mark), str_(str), it_(str.begin()) {}
 
-  expr::Number *LexNum();
+  expr::Number* LexNum();
 
  private:
   bool Eof() { return it_ == str_.end(); }
-  void ThrowException(const std::string &msg) {
+  void ThrowException(const std::string& msg) {
     const std::string full_msg =
-      "Invalid number literal \"" + str_ + "\":" + msg;
+        "Invalid number literal \"" + str_ + "\":" + msg;
     throw util::SyntaxException(full_msg, mark_);
   }
 
   void ParsePrefix();
-  std::string ExtractDigitStr(bool *has_dot);
-  expr::Number *ParseReal();
+  std::string ExtractDigitStr(bool* has_dot);
+  expr::Number* ParseReal();
 
-  const util::Mark &mark_;
-  const std::string &str_;
+  const util::Mark& mark_;
+  const std::string& str_;
   std::string::const_iterator it_;
 
   bool has_exact_ = false;
@@ -61,20 +61,20 @@ class NumLexer {
   bool has_exp_ = false;
 };
 
-expr::Number *NumLexer::LexNum() {
+expr::Number* NumLexer::LexNum() {
   ParsePrefix();
 
-  if (!Eof() && (*it_ == '+' || *it_ == '-') &&
-      it_ + 1 != str_.end() && (*(it_ + 1) == 'i')) {
+  if (!Eof() && (*it_ == '+' || *it_ == '-') && it_ + 1 != str_.end() &&
+      (*(it_ + 1) == 'i')) {
     // TODO(bcf): Remove when complex supported
     ThrowException("No support for complex numbers");
   }
 
-  expr::Number *real_part = ParseReal();
+  expr::Number* real_part = ParseReal();
   if (Eof())
     return real_part;
 
-  expr::Number *imag_part = nullptr;
+  expr::Number* imag_part = nullptr;
 
   switch (*it_) {
     case 'i':
@@ -94,8 +94,7 @@ expr::Number *NumLexer::LexNum() {
       ++it_;
       break;
     default:
-      ThrowException(
-          std::string("Unexpected junk on number literal: ") + *it_);
+      ThrowException(std::string("Unexpected junk on number literal: ") + *it_);
   }
 
   // TODO(bcf): Remove when complex supported
@@ -158,7 +157,7 @@ void NumLexer::ParsePrefix() {
   }
 }
 
-std::string NumLexer::ExtractDigitStr(bool *has_dot) {
+std::string NumLexer::ExtractDigitStr(bool* has_dot) {
   std::string out;
 
   if (!Eof() && (*it_ == '+' || *it_ == '-'))
@@ -172,9 +171,17 @@ std::string NumLexer::ExtractDigitStr(bool *has_dot) {
     bool hex_char = false;
 
     switch (c) {
-      case 'e': case 'E': case 'f': case 'F': case 'd': case 'D':
+      case 'e':
+      case 'E':
+      case 'f':
+      case 'F':
+      case 'd':
+      case 'D':
         hex_char = true;
-      case 's': case 'S':  case 'l': case 'L':
+      case 's':
+      case 'S':
+      case 'l':
+      case 'L':
         if (radix_ == 10) {
           if (!has_exact_)
             exact_ = false;
@@ -184,19 +191,24 @@ std::string NumLexer::ExtractDigitStr(bool *has_dot) {
         if (!hex_char)
           return out;
 
-        // FALL THROUGH
+      // FALL THROUGH
 
-      case 'a': case 'A': case 'b': case 'B': case 'c': case 'C':
+      case 'a':
+      case 'A':
+      case 'b':
+      case 'B':
+      case 'c':
+      case 'C':
         if (radix_ < 16)
-          ThrowException(
-              std::string("Invalid digit for non hex number: ") + *it_);
+          ThrowException(std::string("Invalid digit for non hex number: ") +
+                         *it_);
 
-        // FALL THROUGH
+      // FALL THROUGH
       case '9':
       case '8':
         if (radix_ <= 8)
-          ThrowException(
-              std::string("Invalid digit for non decimal number: ") + *it_);
+          ThrowException(std::string("Invalid digit for non decimal number: ") +
+                         *it_);
 
       case '7':
       case '6':
@@ -205,8 +217,8 @@ std::string NumLexer::ExtractDigitStr(bool *has_dot) {
       case '3':
       case '2':
         if (radix_ <= 2)
-          ThrowException(
-              std::string("Invalid digit for non binary number: ") + *it_);
+          ThrowException(std::string("Invalid digit for non binary number: ") +
+                         *it_);
 
       case '1':
       case '0':
@@ -233,7 +245,7 @@ std::string NumLexer::ExtractDigitStr(bool *has_dot) {
   return out;
 }
 
-expr::Number *NumLexer::ParseReal() {
+expr::Number* NumLexer::ParseReal() {
   bool neum_has_dot;
   std::string neum_str = ExtractDigitStr(&neum_has_dot);
   if (Eof() || *it_ != '/') {
@@ -243,7 +255,7 @@ expr::Number *NumLexer::ParseReal() {
       } else {
         return expr::NumFloat::Create(neum_str, radix_);
       }
-    } catch (std::exception &e) {
+    } catch (std::exception& e) {
       ThrowException(e.what());
     }
   }
@@ -264,7 +276,7 @@ expr::Number *NumLexer::ParseReal() {
 
 }  // namespace
 
-std::ostream &Token::PrettyPrint(std::ostream &stream) const {
+std::ostream& Token::PrettyPrint(std::ostream& stream) const {
   switch (type) {
     case Token::Type::TOK_EOF:
       stream << "EOF";
@@ -309,7 +321,7 @@ std::ostream &Token::PrettyPrint(std::ostream &stream) const {
   return stream;
 }
 
-bool operator==(const Token &lhs, const Token &rhs) {
+bool operator==(const Token& lhs, const Token& rhs) {
   if (lhs.type != rhs.type || lhs.mark != rhs.mark)
     return false;
 
@@ -326,8 +338,10 @@ bool operator==(const Token &lhs, const Token &rhs) {
 }
 
 std::ostream& operator<<(std::ostream& stream, Token::Type type) {
-#define CASE_TYPE(type) \
-  case Token::Type::type: stream << "Token::Type::" #type; break
+#define CASE_TYPE(type)              \
+  case Token::Type::type:            \
+    stream << "Token::Type::" #type; \
+    break
 
   switch (type) {
     CASE_TYPE(INVAL);
@@ -353,7 +367,7 @@ std::ostream& operator<<(std::ostream& stream, Token::Type type) {
 #undef CASE_TYPE
 }
 
-std::ostream& operator<<(std::ostream& stream, const Token &token) {
+std::ostream& operator<<(std::ostream& stream, const Token& token) {
   stream << "Token{" << token.type << ", " << token.mark << ", ";
 
   switch (token.type) {
@@ -448,7 +462,7 @@ void Lexer::LexString() {
   token_.expr = expr::String::Create(lexbuf_, true);
 }
 
-const Token &Lexer::NextToken() {
+const Token& Lexer::NextToken() {
   token_.type = Token::Type::INVAL;
   token_.expr = nullptr;
   lexbuf_.clear();
@@ -522,7 +536,10 @@ const Token &Lexer::NextToken() {
 
     case '#':
       switch (stream_.Peek()) {
-        case 't': case 'T': case 'f': case 'F':
+        case 't':
+        case 'T':
+        case 'f':
+        case 'F':
           c = stream_.Get();
           token_.type = Token::Type::BOOL;
           token_.expr = (c == 't' || c == 'T') ? expr::True() : expr::False();
@@ -530,8 +547,12 @@ const Token &Lexer::NextToken() {
         case '\\':
           LexChar();
           break;
-        case 'b': case 'o': case 'd': case 'x':
-        case 'e': case 'i':
+        case 'b':
+        case 'o':
+        case 'd':
+        case 'x':
+        case 'e':
+        case 'i':
           lexbuf_.push_back(c);
           LexNum();
           break;
@@ -541,7 +562,7 @@ const Token &Lexer::NextToken() {
           break;
         default:
           std::string msg = std::string("Invalid token: ") + '#' +
-            static_cast<char>(stream_.Peek());
+                            static_cast<char>(stream_.Peek());
           throw util::SyntaxException(msg, token_.mark);
       }
       break;
@@ -555,7 +576,7 @@ const Token &Lexer::NextToken() {
         break;
       }
 
-      // FALL THROUGH
+    // FALL THROUGH
     case ASCII_DIGIT:
       lexbuf_.push_back(c);
       LexNum();

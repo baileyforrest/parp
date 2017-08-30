@@ -21,7 +21,6 @@
 
 #include <cctype>
 
-
 namespace util {
 
 bool IsDelim(int c) {

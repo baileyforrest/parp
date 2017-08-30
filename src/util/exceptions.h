@@ -29,8 +29,8 @@ namespace util {
 
 class SyntaxException : public std::exception {
  public:
-  SyntaxException(const std::string &msg, const util::Mark &mark);
-  const char *what() const throw() override { return full_msg_.c_str(); }
+  SyntaxException(const std::string& msg, const util::Mark& mark);
+  const char* what() const throw() override { return full_msg_.c_str(); }
 
  private:
   std::string full_msg_;
@@ -39,9 +39,9 @@ class SyntaxException : public std::exception {
 // TODO(bcf): Add marks for this
 class RuntimeException : public std::exception {
  public:
-  explicit RuntimeException(const std::string &msg) : full_msg_(msg) {}
+  explicit RuntimeException(const std::string& msg) : full_msg_(msg) {}
 
-  const char *what() const throw() override { return full_msg_.c_str(); }
+  const char* what() const throw() override { return full_msg_.c_str(); }
 
  private:
   std::string full_msg_;
