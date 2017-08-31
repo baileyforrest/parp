@@ -11,7 +11,7 @@ RCOMPILE_FLAGS = -D NDEBUG -O2
 DCOMPILE_FLAGS = -D DEBUG -g
 INCLUDES = -I $(SRC_DIR)/
 
-GTEST_DIR := lib/gtest
+GTEST_DIR := third_party/googletest/googletest
 TEST_CXXFLAGS := -isystem $(GTEST_DIR)/include -pthread
 TEST_LDFLAGS := -lpthread
 TEST_NAME := unittests
@@ -123,8 +123,8 @@ ALL_SRC_FILES := \
 
 .PHONY: lint
 lint:
-	@./tools/cpplint.py --verbose=0 --root=$(SRC_DIR) \
-		--filter=-build/c++11 $(ALL_SRC_FILES)
+	@./third_party/styleguide/cpplint/cpplint.py --verbose=0 --root=$(SRC_DIR) \
+		$(ALL_SRC_FILES)
 
 .PHONY: format
 format:

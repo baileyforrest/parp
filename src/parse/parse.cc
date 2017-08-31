@@ -23,6 +23,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <utility>
 
 #include "parse/lexer.h"
 #include "util/exceptions.h"
