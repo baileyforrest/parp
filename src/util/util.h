@@ -25,7 +25,6 @@
 
 namespace util {
 
-// TODO(bcf): Use this function where this idiom is used.
 template <typename T>
 std::string to_string(const T& o) {
   std::ostringstream os;

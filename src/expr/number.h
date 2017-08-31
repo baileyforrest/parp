@@ -52,7 +52,7 @@ class Number : public Expr {
 
  protected:
   Number(Type num_type, bool exact)
-      : Expr(Expr::Type::NUMBER, true), num_type_(num_type), exact_(exact) {}
+      : Expr(Expr::Type::NUMBER), num_type_(num_type), exact_(exact) {}
 
  private:
   // Override from Expr

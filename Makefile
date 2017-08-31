@@ -6,7 +6,7 @@ CLANG_FORMAT ?= clang-format
 BIN_NAME := parp
 SRC_EXT = cc
 SRC_DIR = src
-COMPILE_FLAGS = -std=c++14 -Wall -Wextra
+COMPILE_FLAGS = -std=c++14 -Wall -Wextra -Werror
 RCOMPILE_FLAGS = -D NDEBUG -O2
 DCOMPILE_FLAGS = -D DEBUG -g
 INCLUDES = -I $(SRC_DIR)/

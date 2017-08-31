@@ -287,7 +287,7 @@ std::ostream& Token::PrettyPrint(std::ostream& stream) const {
     case Token::Type::NUMBER:
     case Token::Type::CHAR:
     case Token::Type::STRING:
-      stream << expr;
+      stream << *expr;
       break;
 
     case Token::Type::LPAREN:
@@ -369,19 +369,7 @@ std::ostream& operator<<(std::ostream& stream, Token::Type type) {
 
 std::ostream& operator<<(std::ostream& stream, const Token& token) {
   stream << "Token{" << token.type << ", " << token.mark << ", ";
-
-  switch (token.type) {
-    case Token::Type::ID:
-    case Token::Type::BOOL:
-    case Token::Type::NUMBER:
-    case Token::Type::CHAR:
-    case Token::Type::STRING:
-      stream << token.expr;
-      break;
-    default:
-      stream << "{}";
-  }
-
+  token.PrettyPrint(stream);
   return stream << "}";
 }
 

@@ -68,7 +68,7 @@ inline bool operator!=(const Token& lhs, const Token& rhs) {
 }
 
 std::ostream& operator<<(std::ostream& stream, Token::Type type);
-std::ostream& operator<<(std::ostream& stream, const Token& type);
+std::ostream& operator<<(std::ostream& stream, const Token& token);
 
 class Lexer {
  public:

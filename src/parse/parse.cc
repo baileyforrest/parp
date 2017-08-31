@@ -187,7 +187,7 @@ expr::Expr* DatumParser::ParseVector() {
   }
   AdvTok();  // Skip RPAREN
 
-  return expr::Vector::Create(exprs, true);
+  return expr::Vector::Create(std::move(exprs));
 }
 
 }  // namespace

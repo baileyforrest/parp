@@ -17,14 +17,6 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-// TODO(bcf): consider restricting copy/move operators, and how that relates to
-// garbage collection
-
-// TODO(bcf): Consider making everything immutable and associated performance
-// costs
-
-// TODO(bcf): Make sure things are inlined or not as appropriate.
-
 #ifndef EXPR_EXPR_H_
 #define EXPR_EXPR_H_
 
@@ -38,11 +30,10 @@
 #include <vector>
 
 #include "gc/gc.h"
+#include "util/macros.h"
 
 namespace expr {
 
-// TODO(bcf): Make sure order of classas are consistent with Type enum and
-// declaration/definition.
 class EmptyList;
 class Bool;
 class Number;
@@ -51,13 +42,8 @@ class String;
 class Symbol;
 class Pair;
 class Vector;
-class Env;
-class Var;
-class Apply;
 class Lambda;
-class Cond;
-class Assign;
-class LetSyntax;
+class Env;
 class Analyzed;
 class Primitive;
 
@@ -74,14 +60,8 @@ class Expr : public gc::Collectable {
     PAIR,
     VECTOR,
 
-    // TODO(bcf): remove if unused
-    VAR,         // Variable
-    APPLY,       // procure call/macro use
-    LAMBDA,      // (lambda <formals> <body>)
-    COND,        // (if <test> <consequent> <alternate>)
-    ASSIGN,      // (!set <variable> <expression>)
-    LET_SYNTAX,  // (let{rec}-syntax (<syntax spec>*) <body>)
-
+    // Analyzed types
+    LAMBDA,     // (lambda <formals> <body>)
     ENV,        // Environment
     ANALYZED,   // Analyzed expression
     PRIMITIVE,  // Primitive expression
@@ -91,48 +71,44 @@ class Expr : public gc::Collectable {
 
   Type type() const { return type_; }
 
-  // TODO(bcf): Remove readonly?
-  bool readonly() const { return readonly_; }
-  bool IsDatum() const;
-
   bool Eq(const Expr* other) const { return other == this; }
-  bool Eqv(const Expr* other) const;
-  bool Equal(const Expr* other) const;
+  bool Eqv(const Expr* other) const {
+    return Eq(other) || (type_ == other->type_ && EqvImpl(other));
+  }
+  bool Equal(const Expr* other) const {
+    return Eq(other) || (type_ == other->type_ && EqualImpl(other));
+  }
 
   virtual std::ostream& AppendStream(
       std::ostream& stream) const = 0;  // NOLINT(runtime/references)
 
-  virtual const EmptyList* GetAsEmptyList() const;
-  virtual const Bool* GetAsBool() const;
-  virtual const Number* GetAsNumber() const;
-  virtual const Char* GetAsChar() const;
-  virtual const String* GetAsString() const;
-  virtual String* GetAsString();
-  virtual const Symbol* GetAsSymbol() const;
-  virtual const Pair* GetAsPair() const;
-  virtual Pair* GetAsPair();
-  virtual const Vector* GetAsVector() const;
-  virtual Vector* GetAsVector();
-  virtual const Var* GetAsVar() const;
-  virtual const Apply* GetAsApply() const;
-  virtual const Lambda* GetAsLambda() const;
-  virtual const Cond* GetAsCond() const;
-  virtual const Assign* GetAsAssign() const;
-  virtual const LetSyntax* GetAsLetSyntax() const;
-  virtual const Env* GetAsEnv() const;
-  virtual Env* GetAsEnv();
-  virtual const Analyzed* GetAsAnalyzed() const;
-  virtual const Primitive* GetAsPrimitive() const;
+  virtual const EmptyList* GetAsEmptyList() const { return nullptr; }
+  virtual const Bool* GetAsBool() const { return nullptr; }
+  virtual const Number* GetAsNumber() const { return nullptr; }
+  virtual const Char* GetAsChar() const { return nullptr; }
+  virtual const String* GetAsString() const { return nullptr; }
+  virtual String* GetAsString() { return nullptr; }
+  virtual const Symbol* GetAsSymbol() const { return nullptr; }
+  virtual const Pair* GetAsPair() const { return nullptr; }
+  virtual Pair* GetAsPair() { return nullptr; }
+  virtual const Vector* GetAsVector() const { return nullptr; }
+  virtual Vector* GetAsVector() { return nullptr; }
+  virtual const Lambda* GetAsLambda() const { return nullptr; }
+  virtual const Env* GetAsEnv() const { return nullptr; }
+  virtual Env* GetAsEnv() { return nullptr; }
+  virtual const Analyzed* GetAsAnalyzed() const { return nullptr; }
+  virtual const Primitive* GetAsPrimitive() const { return nullptr; }
 
  protected:
-  Expr(Type type, bool readonly) : type_(type), readonly_(readonly) {}
+  explicit Expr(Type type) : type_(type) {}
 
  private:
-  virtual bool EqvImpl(const Expr* other) const;
-  virtual bool EqualImpl(const Expr* other) const;
+  virtual bool EqvImpl(const Expr* other) const { return Eq(other); }
+  virtual bool EqualImpl(const Expr* other) const { return Eqv(other); }
 
   Type type_;
-  bool readonly_;
+
+  DISALLOW_MOVE_COPY_AND_ASSIGN(Expr);
 };
 
 inline std::ostream& operator<<(std::ostream& stream, const Expr& expr) {
@@ -143,115 +119,98 @@ inline bool operator==(const Expr& lhs, const Expr& rhs) {
   return lhs.Equal(&rhs);
 }
 
-// TODO(bcf): Pass args by value to constructs where appropriate.
-
-// Class for expressions which don't evaluate to itself
-// TODO(bcf): Remove if unnecessary
-class Evals : public Expr {
- protected:
-  Evals(Type type, bool readonly) : Expr(type, readonly) {}
-
- private:
-  bool EqvImpl(const Expr* other) const override;
-};
-
 class EmptyList : public Expr {
  public:
   ~EmptyList() override = default;
 
-  // Override from Expr
-  const EmptyList* GetAsEmptyList() const override;
+  // Expr implementation:
+  const EmptyList* GetAsEmptyList() const override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
  private:
-  EmptyList() : Expr(Type::EMPTY_LIST, true) {}
+  EmptyList() : Expr(Type::EMPTY_LIST) {}
   friend EmptyList* Nil();
 };
-
-EmptyList* Nil();
 
 class Bool : public Expr {
  public:
   ~Bool() override = default;
 
-  // Override from Expr
-  const Bool* GetAsBool() const override;
+  // Expr implementation:
+  const Bool* GetAsBool() const override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   bool val() const { return val_; }
 
  private:
-  explicit Bool(bool val) : Expr(Type::BOOL, true), val_(val) {}
+  explicit Bool(bool val) : Expr(Type::BOOL), val_(val) {}
   friend Bool* True();
   friend Bool* False();
 
-  // Override from Expr
-  bool EqvImpl(const Expr* other) const override;
-
   bool val_;
 };
-
-Bool* True();
-Bool* False();
 
 class Char : public Expr {
  public:
   static Char* Create(char val);
   ~Char() override = default;
 
-  // Override from Expr
-  const Char* GetAsChar() const override;
+  // Expr implementation:
+  const Char* GetAsChar() const override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   char val() const { return val_; }
 
  private:
-  explicit Char(char val) : Expr(Type::CHAR, true), val_(val) {}
+  explicit Char(char val) : Expr(Type::CHAR), val_(val) {}
 
-  // Override from Expr
-  bool EqvImpl(const Expr* other) const override;
+  // Expr implementation:
+  bool EqvImpl(const Expr* other) const override {
+    return val_ == other->GetAsChar()->val_;
+  }
 
   char val_;
 };
 
+// TODO(bcf): Optimize for readonly strings.
 class String : public Expr {
  public:
-  static String* Create(const std::string& val, bool readonly = true);
+  static String* Create(std::string val, bool read_only = false);
   ~String() override;
 
-  // Override from Expr
-  const String* GetAsString() const override;
-  String* GetAsString() override;
+  // Expr implementation:
+  const String* GetAsString() const override { return this; }
+  String* GetAsString() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   const std::string& val() const { return val_; }
 
  private:
-  String(const std::string& val, bool readonly)
-      : Expr(Type::STRING, readonly), val_(val) {}
+  explicit String(std::string val, bool read_only = false);
 
-  // Override from Expr
+  // Expr implementation:
   bool EqualImpl(const Expr* other) const override;
 
   std::string val_;
+  bool read_only_;
 };
 
+// TODO(bcf): Optimize for read only.
 class Symbol : public Expr {
  public:
-  static Symbol* Create(const std::string& val);
+  static Symbol* Create(std::string val);
   ~Symbol() override;
 
-  // Override from Expr
-  const Symbol* GetAsSymbol() const override;
+  // Expr implementation:
+  const Symbol* GetAsSymbol() const override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   const std::string& val() const { return val_; }
 
  private:
-  explicit Symbol(const std::string& val)
-      : Expr(Type::SYMBOL, true), val_(val) {}
+  explicit Symbol(std::string val);
 
-  // Override from Expr
+  // Expr implementation:
   bool EqvImpl(const Expr* other) const override;
 
   std::string val_;
@@ -259,12 +218,12 @@ class Symbol : public Expr {
 
 class Pair : public Expr {
  public:
-  static Pair* Create(Expr* car, Expr* cdr, bool readonly = true);
+  static Pair* Create(Expr* car, Expr* cdr);
   ~Pair() override = default;
 
-  // Override from Expr
-  const Pair* GetAsPair() const override;
-  Pair* GetAsPair() override;
+  // Expr implementation:
+  const Pair* GetAsPair() const override { return this; }
+  Pair* GetAsPair() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   Expr* car() const { return car_; }
@@ -275,10 +234,9 @@ class Pair : public Expr {
   expr::Expr* Cr(const std::string& str) const;
 
  private:
-  Pair(Expr* car, Expr* cdr, bool readonly)
-      : Expr(Type::PAIR, readonly), car_(car), cdr_(cdr) {}
+  Pair(Expr* car, Expr* cdr) : Expr(Type::PAIR), car_(car), cdr_(cdr) {}
 
-  // Override from Expr
+  // Expr implementation:
   bool EqvImpl(const Expr* other) const override;
   bool EqualImpl(const Expr* other) const override;
 
@@ -286,92 +244,41 @@ class Pair : public Expr {
   Expr* cdr_;
 };
 
-template <typename T>
-Expr* ListFromIt(T it, T e) {
-  if (it == e) {
-    return Nil();
-  }
-
-  return Cons(*it, ListFromIt(++it, e));
-}
-
-// Alias for Pair::Create
-inline Pair* Cons(Expr* e1, Expr* e2) {
-  return Pair::Create(e1, e2);
-}
-
 class Vector : public Expr {
  public:
-  static Vector* Create(const std::vector<Expr*>& vals, bool readonly = true);
+  static Vector* Create(std::vector<Expr*> vals);
   ~Vector() override;
 
-  // Override from Expr
-  const Vector* GetAsVector() const override;
-  Vector* GetAsVector() override;
+  // Expr implementation:
+  const Vector* GetAsVector() const override { return this; }
+  Vector* GetAsVector() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   const std::vector<Expr*>& vals() const { return vals_; }
 
  private:
-  Vector(const std::vector<Expr*>& vals, bool readonly)
-      : Expr(Type::VECTOR, readonly), vals_(vals) {}
+  explicit Vector(std::vector<Expr*> vals);
 
-  // Override from Expr
+  // Expr implementation:
   bool EqvImpl(const Expr* other) const override;
   bool EqualImpl(const Expr* other) const override;
 
   std::vector<Expr*> vals_;
 };
 
-class Var : public Evals {
- public:
-  Var* Create(const std::string& name);
-  ~Var() override;
-
-  // Override from Expr
-  const Var* GetAsVar() const override;
-  std::ostream& AppendStream(std::ostream& stream) const override;
-
-  const std::string& name() const { return name_; }
-
- private:
-  explicit Var(const std::string& name) : Evals(Type::VAR, true), name_(name) {}
-
-  const std::string name_;
-};
-
-class Apply : public Evals {
- public:
-  Apply* Create(const std::vector<Expr*>& exprs);
-  ~Apply() override;
-
-  // Override from Expr
-  const Apply* GetAsApply() const override;
-  std::ostream& AppendStream(std::ostream& stream) const override;
-
-  const Expr* op() const { return op_; }
-  const std::vector<Expr*>& args() const { return args_; }
-
- private:
-  explicit Apply(const std::vector<Expr*>& exprs);
-
-  Expr* op_;
-  std::vector<Expr*> args_;
-};
-
 class Lambda : public Expr {
  public:
-  static Lambda* Create(const std::vector<const Symbol*>& required_args,
+  static Lambda* Create(std::vector<const Symbol*> required_args,
                         const Symbol* variable_arg,
                         Expr* body,
                         Env* env);
   ~Lambda() override;
 
-  // Override from Expr
-  const Lambda* GetAsLambda() const override;
+  // Expr implementation:
+  const Lambda* GetAsLambda() const override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
-  const std::vector<const Symbol*> required_args() const {
+  const std::vector<const Symbol*>& required_args() const {
     return required_args_;
   }
   const Symbol* variable_arg() const { return variable_arg_; }
@@ -379,7 +286,7 @@ class Lambda : public Expr {
   Env* env() const { return env_; }
 
  private:
-  explicit Lambda(const std::vector<const Symbol*>& required_args,
+  explicit Lambda(std::vector<const Symbol*> required_args,
                   const Symbol* variable_arg,
                   Expr* body,
                   Env* env);
@@ -390,79 +297,15 @@ class Lambda : public Expr {
   Env* env_;
 };
 
-class Cond : public Evals {
- public:
-  Cond* Create(Expr* test, Expr* true_expr, Expr* false_expr);
-  ~Cond() override = default;
-
-  // Override from Expr
-  const Cond* GetAsCond() const override;
-  std::ostream& AppendStream(std::ostream& stream) const override;
-
-  const Expr* test() const { return test_; }
-  const Expr* true_expr() const { return true_expr_; }
-  const Expr* false_expr() const { return false_expr_; }
-
- private:
-  Cond(Expr* test, Expr* true_expr, Expr* false_expr)
-      : Evals(Type::COND, true),
-        test_(test),
-        true_expr_(true_expr),
-        false_expr_(false_expr) {
-    assert(test);
-    assert(true_expr);
-  }
-
-  Expr* test_;
-  Expr* true_expr_;
-  Expr* false_expr_;
-};
-
-// TODO(bcf): Should take a symbol instead of Var.
-class Assign : public Evals {
- public:
-  Assign* Create(Var* var, Expr* expr);
-  ~Assign() override = default;
-
-  // Override from Expr
-  const Assign* GetAsAssign() const override;
-  std::ostream& AppendStream(std::ostream& stream) const override;
-
-  const Var* var() const { return var_; }
-  const Expr* expr() const { return expr_; }
-
- private:
-  Assign(Var* var, Expr* expr)
-      : Evals(Type::ASSIGN, true), var_(var), expr_(expr) {}
-
-  Var* var_;
-  Expr* expr_;
-};
-
-// TODO(bcf): Complete this
-class LetSyntax : public Expr {
- public:
-  LetSyntax* Create();
-  ~LetSyntax() override;
-
-  // Override from Expr
-  const LetSyntax* GetAsLetSyntax() const override;
-  std::ostream& AppendStream(std::ostream& stream) const override;
-
- private:
-  LetSyntax() : Expr(Type::LET_SYNTAX, true) {}
-};
-
 class Env : public Expr {
  public:
   static Env* Create(const std::vector<std::pair<const Symbol*, Expr*>>& vars,
-                     Env* enclosing,
-                     bool readonly = false);
+                     Env* enclosing);
   ~Env() override;
 
-  // Override from Expr
-  const Env* GetAsEnv() const override;
-  Env* GetAsEnv() override;
+  // Expr implementation:
+  const Env* GetAsEnv() const override { return this; }
+  Env* GetAsEnv() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   Expr* Lookup(const Symbol* var) const;
@@ -473,13 +316,8 @@ class Env : public Expr {
  private:
   void ThrowUnboundException(const Symbol* var) const;
   explicit Env(const std::vector<std::pair<const Symbol*, Expr*>>& vars,
-               Env* enclosing,
-               bool readonly)
-      : Expr(Type::ENV, readonly),
-        enclosing_(enclosing),
-        map_(vars.begin(), vars.end()) {}
+               Env* enclosing);
 
-  // TODO(bcf): Rename Var -> Sym.
   struct VarHash {
     std::size_t operator()(const Symbol* var) const;
   };
@@ -494,23 +332,24 @@ class Env : public Expr {
   std::unordered_map<const Symbol*, Expr*, VarHash, VarEqual> map_;
 };
 
-using Evaluation = std::function<Expr*(Env*)>;
-
-class Analyzed : public Evals {
+class Analyzed : public Expr {
  public:
-  static Analyzed* Create(const Evaluation& func,
-                          const std::vector<const Expr*>& refs);
+  using Evaluation = std::function<Expr*(Env*)>;
+
+  static Analyzed* Create(Expr* orig_expr,
+                          Evaluation func,
+                          std::vector<const Expr*> refs);
   ~Analyzed() override;
 
-  // Override from Expr
-  const Analyzed* GetAsAnalyzed() const override;
+  // Expr implementation:
+  const Analyzed* GetAsAnalyzed() const override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   const Evaluation& func() const { return func_; }
 
  private:
-  Analyzed(const Evaluation& func, const std::vector<const Expr*>& refs)
-      : Evals(Type::ANALYZED, true), func_(func), refs_(refs) {}
+  Analyzed(Expr* orig_expr, Evaluation func, std::vector<const Expr*> refs);
+  Expr* orig_expr_;
   Evaluation func_;
   std::vector<const Expr*> refs_;
 };
@@ -524,9 +363,29 @@ class Primitive : public Expr {
   std::ostream& AppendStream(std::ostream& stream) const override = 0;
 
  protected:
-  Primitive() : Expr(Type::PRIMITIVE, true) {}
+  Primitive() : Expr(Type::PRIMITIVE) {}
   virtual ~Primitive() = default;
 };
+
+// Special constants
+EmptyList* Nil();
+Bool* True();
+Bool* False();
+
+// Helpers
+template <typename T>
+Expr* ListFromIt(T it, T e) {
+  if (it == e) {
+    return Nil();
+  }
+
+  return Cons(*it, ListFromIt(++it, e));
+}
+
+// Alias for Pair::Create
+inline Pair* Cons(Expr* e1, Expr* e2) {
+  return Pair::Create(e1, e2);
+}
 
 }  // namespace expr
 
