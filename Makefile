@@ -61,6 +61,7 @@ COMMON_OBJS = $(COMMON_SOURCES:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
 
 # All test sources must be suffixed with _test
 TEST_SOURCES := \
+	eval/eval_test.cc \
 	parse/lexer_test.cc \
 	parse/parse_test.cc \
 	test/main_test.cc

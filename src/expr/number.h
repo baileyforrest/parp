@@ -42,10 +42,10 @@ class Number : public Expr {
   ~Number() override = default;
 
   // Override from Expr
-  const Number* GetAsNumber() const override;
+  const Number* GetAsNumber() const override { return this; }
 
-  virtual const NumReal* GetAsNumReal() const;
-  virtual const NumFloat* GetAsNumFloat() const;
+  virtual const NumReal* GetAsNumReal() const { return nullptr; }
+  virtual const NumFloat* GetAsNumFloat() const { return nullptr; }
 
   Type num_type() const { return num_type_; }
   bool exact() const { return exact_; }
@@ -56,7 +56,10 @@ class Number : public Expr {
 
  private:
   // Override from Expr
-  bool EqvImpl(const Expr* other) const override;
+  bool EqvImpl(const Expr* other) const override {
+    auto as_num = other->GetAsNumber();
+    return num_type() == as_num->num_type() && NumEqv(as_num);
+  }
 
   virtual bool NumEqv(const Number* other) const = 0;
 
@@ -75,7 +78,7 @@ class NumReal : public Number {
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   // Override from Number
-  const NumReal* GetAsNumReal() const override;
+  const NumReal* GetAsNumReal() const override { return this; }
 
   // TODO(bcf): Temp function for testing
   int64_t val() const { return val_; }
@@ -84,7 +87,9 @@ class NumReal : public Number {
   explicit NumReal(int64_t val) : Number(Type::RATIONAL, true), val_(val) {}
 
   // Override from Number
-  bool NumEqv(const Number* other) const override;
+  bool NumEqv(const Number* other) const override {
+    return val_ == other->GetAsNumReal()->val_;
+  }
 
   int64_t val_;
 };
@@ -99,7 +104,7 @@ class NumFloat : public Number {
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   // Override from Number
-  const NumFloat* GetAsNumFloat() const override;
+  const NumFloat* GetAsNumFloat() const override { return this; }
 
   // TODO(bcf): Temp function for testing
   double val() const { return val_; }
@@ -108,7 +113,9 @@ class NumFloat : public Number {
   explicit NumFloat(double val) : Number(Type::FLOAT, false), val_(val) {}
 
   // Override from Number
-  bool NumEqv(const Number* other) const override;
+  bool NumEqv(const Number* other) const override {
+    return val_ == other->GetAsNumFloat()->val_;
+  }
 
   double val_;
 };

@@ -27,9 +27,7 @@ namespace expr {
 
 namespace {
 
-/**
- *Wraps stoll throwing an exception if the whole string isn't consumed.
- */
+// Wraps stoll throwing an exception if the whole string isn't consumed.
 int64_t stoi64_whole(const std::string& str, int radix) {
   std::size_t pos;
   int64_t i = std::stoll(str, &pos, radix);
@@ -41,29 +39,6 @@ int64_t stoi64_whole(const std::string& str, int radix) {
 }
 
 }  // namespace
-
-const Number* Number::GetAsNumber() const {
-  return this;
-}
-
-const NumReal* Number::GetAsNumReal() const {
-  assert(false);
-  return nullptr;
-}
-
-const NumFloat* Number::GetAsNumFloat() const {
-  assert(false);
-  return nullptr;
-}
-
-const NumReal* NumReal::GetAsNumReal() const {
-  return this;
-}
-
-bool Number::EqvImpl(const Expr* other) const {
-  auto as_num = other->GetAsNumber();
-  return num_type() == as_num->num_type() && NumEqv(as_num);
-}
 
 // static
 NumReal* NumReal::Create(int64_t val) {
@@ -79,15 +54,7 @@ NumReal* NumReal::Create(const std::string& str, int radix) {
 }
 
 std::ostream& NumReal::AppendStream(std::ostream& stream) const {
-  return stream << val();
-}
-
-bool NumReal::NumEqv(const Number* other) const {
-  return val() == other->GetAsNumReal()->val();
-}
-
-const NumFloat* NumFloat::GetAsNumFloat() const {
-  return this;
+  return stream << val_;
 }
 
 // static
@@ -115,11 +82,7 @@ NumFloat* NumFloat::Create(const std::string& str, int radix) {
 }
 
 std::ostream& NumFloat::AppendStream(std::ostream& stream) const {
-  return stream << val();
-}
-
-bool NumFloat::NumEqv(const Number* other) const {
-  return val() == other->GetAsNumFloat()->val();
+  return stream << val_;
 }
 
 }  // namespace expr

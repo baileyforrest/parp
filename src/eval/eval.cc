@@ -99,6 +99,7 @@ std::vector<Expr*> AnalyzeList(Expr* expr) {
   return analyzed;
 }
 
+// TODO(bcf): These shouldn't be hard coded here.
 Expr* AnalyzePair(expr::Pair* pair) {
   if (auto* sym = pair->car()->GetAsSymbol()) {
     if (sym->val() == "quote") {
@@ -313,6 +314,7 @@ Expr* AnalyzeApplication(expr::Pair* pair) {
 Expr* DoEval(Expr* expr, expr::Env* env) {
   switch (expr->type()) {
     // Self evaluating
+    case Expr::Type::EMPTY_LIST:
     case Expr::Type::BOOL:
     case Expr::Type::NUMBER:
     case Expr::Type::CHAR:
