@@ -28,38 +28,34 @@
 #include "util/exceptions.h"
 #include "util/util.h"
 
+// TODO(bcf): using namespace expr
+
 namespace eval {
 
 namespace {
 
-void ThrowException[[noreturn]](expr::Expr* expr, const std::string& msg) {
+void ThrowException[[noreturn]](const expr::Expr* expr,
+                                const std::string& msg) {
   throw util::RuntimeException("Eval error: " + msg + " " +
                                util::to_string(expr));
 }
 
 expr::Expr* EvalExpr(expr::Expr* expr, expr::Env* env) {
-  return expr->type() == expr::Expr::Type::ANALYZED
-             ? expr->GetAsAnalyzed()->func()(env)
-             : expr;
+  return expr->GetAsAnalyzed() ? expr->GetAsAnalyzed()->func()(env) : expr;
 }
 
-class Analyzer {
- public:
-  expr::Expr* Analyze(expr::Expr* expr, expr::Env* env);
+expr::Expr* Analyze(expr::Expr* expr);
+std::vector<expr::Expr*> AnalyzeList(expr::Expr* expr);
+expr::Expr* AnalyzePair(expr::Pair* pair);
+expr::Expr* AnalyzeQuote(expr::Pair* pair);
+expr::Expr* AnalyzeAssign(expr::Pair* pair);
+expr::Expr* AnalyzeDefine(expr::Pair* pair);
+expr::Expr* AnalyzeIf(expr::Pair* pair);
+expr::Expr* AnalyzeLambda(expr::Pair* pair);
+expr::Expr* AnalyzeSequence(expr::Expr* pair);
+expr::Expr* AnalyzeApplication(expr::Pair* pair);
 
- private:
-  std::vector<expr::Expr*> AnalyzeList(expr::Expr* expr, expr::Env* env);
-  expr::Expr* AnalyzePair(expr::Pair* pair, expr::Env* env);
-  expr::Expr* AnalyzeQuote(expr::Pair* pair, expr::Env* env);
-  expr::Expr* AnalyzeAssign(expr::Pair* pair, expr::Env* env);
-  expr::Expr* AnalyzeDefine(expr::Pair* pair, expr::Env* env);
-  expr::Expr* AnalyzeIf(expr::Pair* pair, expr::Env* env);
-  expr::Expr* AnalyzeLambda(expr::Pair* pair, expr::Env* env);
-  expr::Expr* AnalyzeSequence(expr::Expr* pair, expr::Env* env);
-  expr::Expr* AnalyzeApplication(expr::Pair* pair, expr::Env* env);
-};
-
-expr::Expr* Analyzer::Analyze(expr::Expr* expr, expr::Env* env) {
+expr::Expr* Analyze(expr::Expr* expr) {
   switch (expr->type()) {
     case expr::Expr::Type::EMPTY_LIST:
     case expr::Expr::Type::BOOL:
@@ -77,7 +73,7 @@ expr::Expr* Analyzer::Analyze(expr::Expr* expr, expr::Env* env) {
           {expr});  // NOLINT(whitespace/newline)
     }
     case expr::Expr::Type::PAIR:
-      return AnalyzePair(expr->GetAsPair(), env);
+      return AnalyzePair(expr->GetAsPair());
 
     case expr::Expr::Type::ANALYZED:
       // Analyze called twice
@@ -92,12 +88,10 @@ expr::Expr* Analyzer::Analyze(expr::Expr* expr, expr::Env* env) {
   return nullptr;
 }
 
-std::vector<expr::Expr*> Analyzer::AnalyzeList(expr::Expr* expr,
-                                               expr::Env* env) {
+std::vector<expr::Expr*> AnalyzeList(expr::Expr* expr) {
   std::vector<expr::Expr*> analyzed;
-  while (expr->type() == expr::Expr::Type::PAIR) {
-    auto* pair = expr->GetAsPair();
-    analyzed.push_back(Analyze(pair->car(), env));
+  while (auto* pair = expr->GetAsPair()) {
+    analyzed.push_back(Analyze(pair->car()));
     expr = pair->cdr();
   }
   if (expr != expr::Nil())
@@ -106,80 +100,79 @@ std::vector<expr::Expr*> Analyzer::AnalyzeList(expr::Expr* expr,
   return analyzed;
 }
 
-expr::Expr* Analyzer::AnalyzePair(expr::Pair* pair, expr::Env* env) {
-  if (pair->car()->type() != expr::Expr::Type::SYMBOL) {
-    ThrowException(pair, "Expected Identifier");
+expr::Expr* AnalyzePair(expr::Pair* pair) {
+  if (auto* sym = pair->car()->GetAsSymbol()) {
+    if (sym->val() == "quote") {
+      return AnalyzeQuote(pair);
+    } else if (sym->val() == "set!") {
+      return AnalyzeAssign(pair);
+    } else if (sym->val() == "define") {
+      return AnalyzeDefine(pair);
+    } else if (sym->val() == "if") {
+      return AnalyzeIf(pair);
+    } else if (sym->val() == "lambda") {
+      return AnalyzeLambda(pair);
+    } else if (sym->val() == "begin") {
+      return AnalyzeSequence(pair->cdr());
+    }
   }
 
-  auto* sym = pair->car()->GetAsSymbol();
-
-  if (sym->val() == "quote") {
-    return AnalyzeQuote(pair, env);
-  } else if (sym->val() == "set!") {
-    return AnalyzeAssign(pair, env);
-  } else if (sym->val() == "define") {
-    return AnalyzeDefine(pair, env);
-  } else if (sym->val() == "if") {
-    return AnalyzeIf(pair, env);
-  } else if (sym->val() == "lambda") {
-    return AnalyzeLambda(pair, env);
-  } else if (sym->val() == "begin") {
-    return AnalyzeSequence(pair->cdr(), env);
-  }
-
-  return AnalyzeApplication(pair, env);
+  return AnalyzeApplication(pair);
 }
 
-expr::Expr* Analyzer::AnalyzeQuote(expr::Pair* pair, expr::Env* env) {
-  (void)env;
+expr::Expr* AnalyzeQuote(expr::Pair* pair) {
   if (pair->Cr("dd") != expr::Nil()) {
     ThrowException(pair, "Malformed quote expression");
   }
   return pair->Cr("ad");
 }
 
-expr::Expr* Analyzer::AnalyzeAssign(expr::Pair* pair, expr::Env* env) {
-  expr::Expr* sym;
-  if (pair->Cr("ddd") != expr::Nil() ||
-      (sym = pair->Cr("ad"))->type() != expr::Expr::Type::SYMBOL) {
+expr::Expr* AnalyzeAssign(expr::Pair* pair) {
+  if (pair->Cr("ddd") != expr::Nil()) {
     ThrowException(pair, "Malformed assignment expression");
   }
-  auto* var = sym->GetAsSymbol();
-  auto* val = Analyze(pair->Cr("add"), env);
+  auto* var = pair->Cr("ad")->GetAsSymbol();
+  if (!var) {
+    ThrowException(pair, "Expected Symbol");
+  }
+  auto* val = Analyze(pair->Cr("add"));
   return expr::Analyzed::Create(
       [var, val](expr::Env* env) {
         env->SetVar(var, EvalExpr(val, env));
         return expr::True();
       },
-      {sym, val});
+      {var, val});
 }
 
-expr::Expr* Analyzer::AnalyzeDefine(expr::Pair* pair, expr::Env* env) {
-  expr::Expr* sym;
-  if (pair->Cr("ddd") != expr::Nil() ||
-      (sym = pair->Cr("ad"))->type() != expr::Expr::Type::SYMBOL) {
+expr::Expr* AnalyzeDefine(expr::Pair* pair) {
+  if (pair->Cr("ddd") != expr::Nil()) {
     ThrowException(pair, "Malformed definition");
   }
-  auto* var = sym->GetAsSymbol();
-  auto* val = Analyze(pair->Cr("add"), env);
+
+  auto* var = pair->Cr("ad")->GetAsSymbol();
+  if (!var) {
+    ThrowException(pair, "Expected symbol");
+  }
+
+  auto* val = Analyze(pair->Cr("add"));
   return expr::Analyzed::Create(
       [var, val](expr::Env* env) {
         env->DefineVar(var, EvalExpr(val, env));
         return expr::True();
       },
-      {sym, val});
+      {var, val});
 }
 
-expr::Expr* Analyzer::AnalyzeIf(expr::Pair* pair, expr::Env* env) {
+expr::Expr* AnalyzeIf(expr::Pair* pair) {
   expr::Expr* raw_false_expr = nullptr;
 
   if (pair->Cr("dddd") == expr::Nil()) {
     raw_false_expr = pair->Cr("addd");
   } else if (pair->Cr("ddd") != expr::Nil()) {
-    ThrowException(pair, "Malformed conditional");
+    ThrowException(pair, "Malformed if");
   }
-  auto* cond = Analyze(pair->Cr("ad"), env);
-  auto* true_expr = Analyze(pair->Cr("add"), env);
+  auto* cond = Analyze(pair->Cr("ad"));
+  auto* true_expr = Analyze(pair->Cr("add"));
 
   if (raw_false_expr == nullptr) {
     return expr::Analyzed::Create(
@@ -191,7 +184,7 @@ expr::Expr* Analyzer::AnalyzeIf(expr::Pair* pair, expr::Env* env) {
         {cond, true_expr});
   }
 
-  auto* false_expr = Analyze(raw_false_expr, env);
+  auto* false_expr = Analyze(raw_false_expr);
 
   return expr::Analyzed::Create(
       [cond, true_expr, false_expr](expr::Env* env) {
@@ -201,48 +194,52 @@ expr::Expr* Analyzer::AnalyzeIf(expr::Pair* pair, expr::Env* env) {
       {cond, true_expr, false_expr});
 }
 
-expr::Expr* Analyzer::AnalyzeLambda(expr::Pair* pair, expr::Env* env) {
-  const expr::Symbol* var_arg = nullptr;
+expr::Expr* AnalyzeLambda(expr::Pair* pair) {
+  static const char kExpectSym[] = "Expected symbol as lambda argument";
   std::vector<const expr::Symbol*> req_args;
+  std::vector<const expr::Expr*> refs;
 
-  auto* args = pair->Cr("ad");
-  if (args->type() == expr::Expr::Type::SYMBOL) {
-    var_arg = args->GetAsSymbol();
-  } else {
-    const char* kExpectSym = "Expected symbol as lambda argument";
-    expr::Expr* cur = pair;
-    while (cur->type() == expr::Expr::Type::PAIR) {
-      auto* as_pair = cur->GetAsPair();
-      if (as_pair->car()->type() != expr::Expr::Type::SYMBOL)
-        ThrowException(args, kExpectSym);
-
-      req_args.push_back(as_pair->car()->GetAsSymbol());
-      cur = as_pair->cdr();
+  expr::Expr* cur_arg = pair->Cr("ad");
+  while (auto* as_pair = cur_arg->GetAsPair()) {
+    auto* arg = as_pair->car()->GetAsSymbol();
+    if (!arg) {
+      ThrowException(arg, kExpectSym);
     }
 
-    if (cur != expr::Nil()) {
-      if (cur->type() != expr::Expr::Type::SYMBOL)
-        ThrowException(args, kExpectSym);
+    req_args.push_back(arg);
+    refs.push_back(arg);
+    cur_arg = as_pair->cdr();
+  }
 
-      var_arg = cur->GetAsSymbol();
+  const expr::Symbol* var_arg = nullptr;
+  if (cur_arg != expr::Nil()) {
+    if (!(var_arg = cur_arg->GetAsSymbol())) {
+      ThrowException(cur_arg, kExpectSym);
     }
+    refs.push_back(var_arg);
   }
 
   // TODO(bcf): Make sure in sequence, definitions must go first
-  auto* body = AnalyzeSequence(pair->Cr("dd"), env);
+  auto* body = AnalyzeSequence(pair->Cr("dd"));
+  refs.push_back(body);
 
-  // TODO(bcf): Handle memory refs for lambda
   return expr::Analyzed::Create(
       [req_args, var_arg, body](expr::Env* env) {
         return expr::Lambda::Create(req_args, var_arg, body, env);
       },
-      {});
+      refs);
 }
 
-expr::Expr* Analyzer::AnalyzeSequence(expr::Expr* expr, expr::Env* env) {
-  std::vector<expr::Expr*> analyzed = AnalyzeList(expr, env);
-  if (analyzed.size() == 0)
+expr::Expr* AnalyzeSequence(expr::Expr* expr) {
+  auto analyzed = AnalyzeList(expr);
+  if (analyzed.size() == 0) {
     ThrowException(expr, "Empty sequence is not allowed");
+  }
+
+  std::vector<const expr::Expr*> const_analyzed;
+  for (auto* e : analyzed) {
+    const_analyzed.push_back(e);
+  }
 
   return expr::Analyzed::Create(
       [analyzed](expr::Env* env) {
@@ -252,34 +249,46 @@ expr::Expr* Analyzer::AnalyzeSequence(expr::Expr* expr, expr::Env* env) {
         }
         return res;
       },
-      analyzed);
+      const_analyzed);
 }
 
-expr::Expr* Analyzer::AnalyzeApplication(expr::Pair* pair, expr::Env* env) {
-  auto* op = Analyze(pair->car(), env);
-  auto args = AnalyzeList(pair->cdr(), env);
+expr::Expr* AnalyzeApplication(expr::Pair* pair) {
+  auto* op = Analyze(pair->car());
+  auto args = AnalyzeList(pair->cdr());
 
-  auto refs = args;
+  std::vector<const expr::Expr*> refs;
+  refs.reserve(args.size() + 1);
   refs.push_back(op);
+  for (auto* arg : args) {
+    refs.push_back(arg);
+  }
 
   return expr::Analyzed::Create(
       [op, args](expr::Env* env) {
-        auto* proc = EvalExpr(op, env);
-        if (proc->type() != expr::Expr::Type::LAMBDA)
-          ThrowException(proc, "Expected a procedure");
-        auto* lambda = proc->GetAsLambda();
-        if (args.size() < lambda->required_args().size()) {
-          std::ostringstream os;
-          os << "Invalid number of arguments. expected: ";
-          if (lambda->variable_arg() != nullptr)
-            os << "at least ";
-          os << lambda->required_args().size();
-          os << " given: " << args.size();
-          ThrowException(proc, os.str());
-        }
         auto eargs = args;
         for (auto& e : eargs) {
           e = EvalExpr(e, env);
+        }
+
+        auto* func = EvalExpr(op, env);
+        if (auto* primitive = func->GetAsPrimitive()) {
+          return primitive->Eval(env, eargs.data(), args.size());
+        }
+        auto* lambda = func->GetAsLambda();
+        if (!lambda) {
+          ThrowException(lambda, "Expected a procedure");
+        }
+
+        if (args.size() < lambda->required_args().size()) {
+          std::ostringstream os;
+          os << "Invalid number of arguments. expected ";
+          if (lambda->variable_arg() != nullptr) {
+            os << "at least ";
+          }
+
+          os << lambda->required_args().size();
+          os << " given: " << args.size();
+          ThrowException(lambda, os.str());
         }
         auto arg_it = eargs.begin();
         std::vector<std::pair<const expr::Symbol*, expr::Expr*>> bindings;
@@ -318,16 +327,13 @@ expr::Expr* DoEval(expr::Expr* expr, expr::Env* env) {
     default:
       ThrowException(expr, "Cannot evaluate");
   }
-
-  assert(false);
-  return nullptr;
 }
 
 }  // namespace
 
 expr::Expr* Eval(expr::Expr* expr, expr::Env* env) {
-  Analyzer ana;
-  return DoEval(ana.Analyze(expr, env), env);
+  auto* e = Analyze(expr);
+  return DoEval(e, env);
 }
 
 }  // namespace eval

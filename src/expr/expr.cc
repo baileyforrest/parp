@@ -58,102 +58,86 @@ bool Expr::EqualImpl(const Expr* other) const {
 }
 
 const EmptyList* Expr::GetAsEmptyList() const {
-  assert(false);
   return nullptr;
 }
 
 const Bool* Expr::GetAsBool() const {
-  assert(false);
   return nullptr;
 }
 
 const Number* Expr::GetAsNumber() const {
-  assert(false);
   return nullptr;
 }
 
 const Char* Expr::GetAsChar() const {
-  assert(false);
   return nullptr;
 }
 
 const String* Expr::GetAsString() const {
-  assert(false);
   return nullptr;
 }
 
 String* Expr::GetAsString() {
-  assert(false);
   return nullptr;
 }
 
 const Symbol* Expr::GetAsSymbol() const {
-  assert(false);
   return nullptr;
 }
 
 const Pair* Expr::GetAsPair() const {
-  assert(false);
   return nullptr;
 }
 
 Pair* Expr::GetAsPair() {
-  assert(false);
   return nullptr;
 }
 
 const Vector* Expr::GetAsVector() const {
-  assert(false);
   return nullptr;
 }
 
 Vector* Expr::GetAsVector() {
-  assert(false);
   return nullptr;
 }
 
 const Var* Expr::GetAsVar() const {
-  assert(false);
   return nullptr;
 }
 
 const Apply* Expr::GetAsApply() const {
-  assert(false);
   return nullptr;
 }
 
 const Lambda* Expr::GetAsLambda() const {
-  assert(false);
   return nullptr;
 }
 
 const Cond* Expr::GetAsCond() const {
-  assert(false);
   return nullptr;
 }
 
 const Assign* Expr::GetAsAssign() const {
-  assert(false);
   return nullptr;
 }
 
 const LetSyntax* Expr::GetAsLetSyntax() const {
-  assert(false);
   return nullptr;
 }
 
 const Env* Expr::GetAsEnv() const {
-  assert(false);
   return nullptr;
 }
 
 Env* Expr::GetAsEnv() {
-  assert(false);
   return nullptr;
 }
 
 const Analyzed* Expr::GetAsAnalyzed() const {
-  assert(false);
+  return nullptr;
+}
+
+const Primitive* Expr::GetAsPrimitive() const {
   return nullptr;
 }
 
@@ -601,7 +585,7 @@ void Env::SetVar(const Symbol* var, Expr* expr) {
 
 // static
 Analyzed* Analyzed::Create(const std::function<Expr*(Env*)>& func,
-                           const std::vector<Expr*>& refs) {
+                           const std::vector<const Expr*>& refs) {
   return static_cast<Analyzed*>(
       gc::Gc::Get().Alloc(sizeof(Analyzed), [func, refs](void* addr) {
         return new (addr) Analyzed(func, refs);

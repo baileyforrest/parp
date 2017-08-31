@@ -59,6 +59,7 @@ class Cond;
 class Assign;
 class LetSyntax;
 class Analyzed;
+class Primitive;
 
 class Expr : public gc::Collectable {
  public:
@@ -81,8 +82,9 @@ class Expr : public gc::Collectable {
     ASSIGN,      // (!set <variable> <expression>)
     LET_SYNTAX,  // (let{rec}-syntax (<syntax spec>*) <body>)
 
-    ENV,       // Environment
-    ANALYZED,  // Analyzed expression
+    ENV,        // Environment
+    ANALYZED,   // Analyzed expression
+    PRIMITIVE,  // Primitive expression
   };
 
   virtual ~Expr() = default;
@@ -120,6 +122,7 @@ class Expr : public gc::Collectable {
   virtual const Env* GetAsEnv() const;
   virtual Env* GetAsEnv();
   virtual const Analyzed* GetAsAnalyzed() const;
+  virtual const Primitive* GetAsPrimitive() const;
 
  protected:
   Expr(Type type, bool readonly) : type_(type), readonly_(readonly) {}
@@ -285,12 +288,11 @@ class Pair : public Expr {
 
 template <typename T>
 Expr* ListFromIt(T it, T e) {
-  Expr* res = Nil();
-  for (; it != e; ++it) {
-    res = Cons(*it, res);
+  if (it == e) {
+    return Nil();
   }
 
-  return res;
+  return Cons(*it, ListFromIt(++it, e));
 }
 
 // Alias for Pair::Create
@@ -497,7 +499,7 @@ using Evaluation = std::function<Expr*(Env*)>;
 class Analyzed : public Evals {
  public:
   static Analyzed* Create(const Evaluation& func,
-                          const std::vector<Expr*>& refs);
+                          const std::vector<const Expr*>& refs);
   ~Analyzed() override;
 
   // Override from Expr
@@ -507,10 +509,23 @@ class Analyzed : public Evals {
   const Evaluation& func() const { return func_; }
 
  private:
-  Analyzed(const Evaluation& func, const std::vector<Expr*>& refs)
+  Analyzed(const Evaluation& func, const std::vector<const Expr*>& refs)
       : Evals(Type::ANALYZED, true), func_(func), refs_(refs) {}
   Evaluation func_;
-  std::vector<Expr*> refs_;
+  std::vector<const Expr*> refs_;
+};
+
+class Primitive : public Expr {
+ public:
+  virtual Expr* Eval(Env* env, Expr** exprs, size_t size) const = 0;
+
+  // Expr implementation:
+  const Primitive* GetAsPrimitive() const override { return this; }
+  std::ostream& AppendStream(std::ostream& stream) const override = 0;
+
+ protected:
+  Primitive() : Expr(Type::PRIMITIVE, true) {}
+  virtual ~Primitive() = default;
 };
 
 }  // namespace expr
