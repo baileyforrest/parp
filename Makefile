@@ -2,19 +2,25 @@
 
 CXX ?= g++
 CLANG_FORMAT ?= clang-format
+MEMCHECK ?= valgrind
 
 BIN_NAME := parp
 SRC_EXT = cc
 SRC_DIR = src
 COMPILE_FLAGS = -std=c++14 -Wall -Wextra -Werror
-RCOMPILE_FLAGS = -D NDEBUG -O2
-DCOMPILE_FLAGS = -D DEBUG -g
-INCLUDES = -I $(SRC_DIR)/
+RCOMPILE_FLAGS = -DNDEBUG -O2
+DCOMPILE_FLAGS = -DDEBUG -g
+INCLUDES = -I$(SRC_DIR)/
 
 GTEST_DIR := third_party/googletest/googletest
 TEST_CXXFLAGS := -isystem $(GTEST_DIR)/include -pthread
 TEST_LDFLAGS := -lpthread
 TEST_NAME := unittests
+
+RELEASE_BUILD_PATH := build/release
+RELEASE_BIN_PATH := bin/release
+DEBUG_BUILD_PATH := build/debug
+DEBUG_BIN_PATH := bin/debug
 
 # Combine compiler and linker flags
 release: export CXXFLAGS := $(CXXFLAGS) $(COMPILE_FLAGS) $(RCOMPILE_FLAGS)
@@ -22,12 +28,12 @@ debug: export CXXFLAGS := $(CXXFLAGS) $(COMPILE_FLAGS) $(DCOMPILE_FLAGS)
 test: export CXXFLAGS := $(CXXFLAGS) $(COMPILE_FLAGS) $(DCOMPILE_FLAGS)
 
 # Build and output paths
-release: export BUILD_PATH := build/release
-release: export BIN_PATH := bin/release
-debug: export BUILD_PATH := build/debug
-debug: export BIN_PATH := bin/debug
-test: export BUILD_PATH := build/debug
-test: export BIN_PATH := bin/debug
+release: export BUILD_PATH := $(RELEASE_BUILD_PATH)
+release: export BIN_PATH := $(RELEASE_BIN_PATH)
+debug: export BUILD_PATH := $(DEBUG_BUILD_PATH)
+debug: export BIN_PATH := $(DEBUG_BIN_PATH)
+test: export BUILD_PATH := $(DEBUG_BUILD_PATH)
+test: export BIN_PATH := $(DEBUG_BIN_PATH)
 
 GTEST_OUT := $(BUILD_PATH)/gtest
 GTEST_LIB := $(GTEST_OUT)/libgtest.a
@@ -53,11 +59,11 @@ COMMON_SOURCES := \
 COMMON_SOURCES := $(addprefix $(SRC_DIR)/, $(COMMON_SOURCES))
 COMMON_OBJS = $(COMMON_SOURCES:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
 
-# All test sources must be suffixed with _unittest
+# All test sources must be suffixed with _test
 TEST_SOURCES := \
-	parse/lexer_unittest.cc \
-	parse/parse_unittest.cc \
-	test/main_unittest.cc
+	parse/lexer_test.cc \
+	parse/parse_test.cc \
+	test/main_test.cc
 
 TEST_SOURCES := $(addprefix $(SRC_DIR)/, $(TEST_SOURCES))
 TEST_OBJS = $(TEST_SOURCES:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)
@@ -112,7 +118,7 @@ $(BIN_PATH)/$(TEST_NAME): $(COMMON_OBJS) $(TEST_OBJS) $(GTEST_LIB)
 -include $(DEPS)
 
 # Unit tests have additional flags
-$(BUILD_PATH)/%unittest.o: $(SRC_DIR)/%unittest.$(SRC_EXT)
+$(BUILD_PATH)/%_test.o: $(SRC_DIR)/%_test.$(SRC_EXT)
 	$(CXX) $(CXXFLAGS) $(TEST_CXXFLAGS) $(INCLUDES) -MP -MMD -c $< -o $@
 
 $(BUILD_PATH)/%.o: $(SRC_DIR)/%.$(SRC_EXT)
@@ -129,3 +135,15 @@ lint:
 .PHONY: format
 format:
 	@$(CLANG_FORMAT) -i -style=Chromium $(ALL_SRC_FILES)
+
+.PHONY: presubmit
+.NOTPARALLEL:
+presubmit: lint format
+
+.PHONY: run_test
+run_test: test
+	@./$(DEBUG_BIN_PATH)/$(TEST_NAME)
+
+.PHONY: run_mem_test
+run_mem_test: test
+	@$(MEMCHECK) ./$(DEBUG_BIN_PATH)/$(TEST_NAME)
