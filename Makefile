@@ -48,6 +48,7 @@ COMMON_SOURCES := \
 	eval/eval.cc \
 	expr/expr.cc \
 	expr/number.cc \
+	expr/primitive.cc \
 	gc/gc.cc \
 	parse/lexer.cc \
 	parse/parse.cc \

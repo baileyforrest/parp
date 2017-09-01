@@ -111,6 +111,11 @@ class Expr : public gc::Collectable {
   DISALLOW_MOVE_COPY_AND_ASSIGN(Expr);
 };
 
+const char* TypeToString(Expr::Type type);
+inline std::ostream& operator<<(std::ostream& stream, const Expr::Type& type) {
+  return stream << TypeToString(type);
+}
+
 inline std::ostream& operator<<(std::ostream& stream, const Expr& expr) {
   return expr.AppendStream(stream);
 }
@@ -351,6 +356,8 @@ class Analyzed : public Expr {
   Analyzed(Expr* orig_expr, Evaluation func, std::vector<const Expr*> refs);
   Expr* orig_expr_;
   Evaluation func_;
+
+  // TODO(bcf): Shouldn't be const
   std::vector<const Expr*> refs_;
 };
 

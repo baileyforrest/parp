@@ -28,8 +28,6 @@
 #include "util/exceptions.h"
 #include "util/util.h"
 
-// TODO(bcf): using namespace expr
-
 using expr::Expr;
 
 namespace eval {
@@ -45,11 +43,21 @@ Expr* EvalExpr(Expr* expr, expr::Env* env) {
   return expr->GetAsAnalyzed() ? expr->GetAsAnalyzed()->func()(env) : expr;
 }
 
+std::vector<Expr*> ExprVecFromList(Expr* expr) {
+  std::vector<Expr*> ret;
+  while (auto* pair = expr->GetAsPair()) {
+    ret.push_back(pair->car());
+    expr = pair->cdr();
+  }
+  if (expr != expr::Nil())
+    ThrowException(expr, "Expected '() terminated list of expressions");
+
+  return ret;
+}
+
 Expr* Analyze(Expr* expr);
 std::vector<Expr*> AnalyzeList(Expr* expr);
 Expr* AnalyzePair(expr::Pair* pair);
-Expr* AnalyzeQuote(expr::Pair* pair);
-Expr* AnalyzeAssign(expr::Pair* pair);
 Expr* AnalyzeDefine(expr::Pair* pair);
 Expr* AnalyzeIf(expr::Pair* pair);
 Expr* AnalyzeLambda(expr::Pair* pair);
@@ -102,11 +110,7 @@ std::vector<Expr*> AnalyzeList(Expr* expr) {
 // TODO(bcf): These shouldn't be hard coded here.
 Expr* AnalyzePair(expr::Pair* pair) {
   if (auto* sym = pair->car()->GetAsSymbol()) {
-    if (sym->val() == "quote") {
-      return AnalyzeQuote(pair);
-    } else if (sym->val() == "set!") {
-      return AnalyzeAssign(pair);
-    } else if (sym->val() == "define") {
+    if (sym->val() == "define") {
       return AnalyzeDefine(pair);
     } else if (sym->val() == "if") {
       return AnalyzeIf(pair);
@@ -118,30 +122,6 @@ Expr* AnalyzePair(expr::Pair* pair) {
   }
 
   return AnalyzeApplication(pair);
-}
-
-Expr* AnalyzeQuote(expr::Pair* pair) {
-  if (pair->Cr("dd") != expr::Nil()) {
-    ThrowException(pair, "Malformed quote expression");
-  }
-  return pair->Cr("ad");
-}
-
-Expr* AnalyzeAssign(expr::Pair* pair) {
-  if (pair->Cr("ddd") != expr::Nil()) {
-    ThrowException(pair, "Malformed assignment expression");
-  }
-  auto* var = pair->Cr("ad")->GetAsSymbol();
-  if (!var) {
-    ThrowException(pair, "Expected Symbol");
-  }
-  auto* val = Analyze(pair->Cr("add"));
-  return expr::Analyzed::Create(pair,
-                                [var, val](expr::Env* env) {
-                                  env->SetVar(var, EvalExpr(val, env));
-                                  return expr::True();
-                                },
-                                {var, val});
 }
 
 Expr* AnalyzeDefine(expr::Pair* pair) {
@@ -256,7 +236,7 @@ Expr* AnalyzeSequence(Expr* expr) {
 
 Expr* AnalyzeApplication(expr::Pair* pair) {
   auto* op = Analyze(pair->car());
-  auto args = AnalyzeList(pair->cdr());
+  auto args = ExprVecFromList(pair->cdr());
 
   std::vector<const Expr*> refs;
   refs.reserve(args.size() + 1);
@@ -270,6 +250,7 @@ Expr* AnalyzeApplication(expr::Pair* pair) {
       [op, args](expr::Env* env) {
         auto eargs = args;
         for (auto& e : eargs) {
+          std::cout << *e << "\n";
           e = EvalExpr(e, env);
         }
 

@@ -28,6 +28,29 @@
 
 namespace expr {
 
+const char* TypeToString(Expr::Type type) {
+#define CASE_STR(x)   \
+  case Expr::Type::x: \
+    return #x
+  switch (type) {
+    CASE_STR(EMPTY_LIST);
+    CASE_STR(BOOL);
+    CASE_STR(NUMBER);
+    CASE_STR(CHAR);
+    CASE_STR(STRING);
+    CASE_STR(SYMBOL);
+    CASE_STR(PAIR);
+    CASE_STR(VECTOR);
+    CASE_STR(LAMBDA);
+    CASE_STR(ENV);
+    CASE_STR(ANALYZED);
+    CASE_STR(PRIMITIVE);
+  }
+#undef CASE_STR
+  assert(false);
+  return "UNKNOWN";
+}
+
 std::ostream& EmptyList::AppendStream(std::ostream& stream) const {
   return stream << "'()";
 }
