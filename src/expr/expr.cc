@@ -206,8 +206,8 @@ bool Vector::EqualImpl(const Expr* other) const {
 }
 
 // static
-Lambda* Lambda::Create(std::vector<const Symbol*> required_args,
-                       const Symbol* variable_arg,
+Lambda* Lambda::Create(std::vector<Symbol*> required_args,
+                       Symbol* variable_arg,
                        Expr* body,
                        Env* env) {
   return static_cast<Lambda*>(gc::Gc::Get().Alloc(
@@ -238,8 +238,8 @@ std::ostream& Lambda::AppendStream(std::ostream& stream) const {
   return stream << ")";
 }
 
-Lambda::Lambda(std::vector<const Symbol*> required_args,
-               const Symbol* variable_arg,
+Lambda::Lambda(std::vector<Symbol*> required_args,
+               Symbol* variable_arg,
                Expr* body,
                Env* env)
     : Expr(Type::LAMBDA),
@@ -251,7 +251,7 @@ Lambda::Lambda(std::vector<const Symbol*> required_args,
 }
 
 // static
-Env* Env::Create(const std::vector<std::pair<const Symbol*, Expr*>>& vars,
+Env* Env::Create(const std::vector<std::pair<Symbol*, Expr*>>& vars,
                  Env* enclosing) {
   return static_cast<Env*>(
       gc::Gc::Get().Alloc(sizeof(Env), [vars, enclosing](void* addr) {
@@ -269,21 +269,20 @@ std::ostream& Env::AppendStream(std::ostream& stream) const {
   return stream << "}";
 }
 
-void Env::ThrowUnboundException(const Symbol* var) const {
+void Env::ThrowUnboundException(Symbol* var) const {
   throw util::RuntimeException("Attempt to reference unbound variable: " +
                                util::to_string(*var));
 }
 
-Env::Env(const std::vector<std::pair<const Symbol*, Expr*>>& vars,
-         Env* enclosing)
+Env::Env(const std::vector<std::pair<Symbol*, Expr*>>& vars, Env* enclosing)
     : Expr(Type::ENV), enclosing_(enclosing), map_(vars.begin(), vars.end()) {}
 
-std::size_t Env::VarHash::operator()(const Symbol* var) const {
+std::size_t Env::VarHash::operator()(Symbol* var) const {
   std::hash<std::string> hash;
   return hash(var->val());
 }
 
-Expr* Env::Lookup(const Symbol* var) const {
+Expr* Env::Lookup(Symbol* var) const {
   auto* env = this;
   while (env != nullptr) {
     auto search = env->map_.find(var);
@@ -297,11 +296,11 @@ Expr* Env::Lookup(const Symbol* var) const {
   return nullptr;
 }
 
-void Env::DefineVar(const Symbol* var, Expr* expr) {
+void Env::DefineVar(Symbol* var, Expr* expr) {
   map_[var] = expr;
 }
 
-void Env::SetVar(const Symbol* var, Expr* expr) {
+void Env::SetVar(Symbol* var, Expr* expr) {
   auto* env = this;
   while (env != nullptr) {
     auto search = env->map_.find(var);
@@ -319,7 +318,7 @@ void Env::SetVar(const Symbol* var, Expr* expr) {
 // static
 Analyzed* Analyzed::Create(Expr* orig_expr,
                            Evaluation func,
-                           std::vector<const Expr*> refs) {
+                           std::vector<Expr*> refs) {
   return static_cast<Analyzed*>(gc::Gc::Get().Alloc(
       sizeof(Analyzed), [orig_expr, &func, &refs](void* addr) {
         return new (addr) Analyzed(orig_expr, std::move(func), std::move(refs));
@@ -332,9 +331,7 @@ std::ostream& Analyzed::AppendStream(std::ostream& stream) const {
   return stream << "Analyzed(" << *orig_expr_ << ")";
 }
 
-Analyzed::Analyzed(Expr* orig_expr,
-                   Evaluation func,
-                   std::vector<const Expr*> refs)
+Analyzed::Analyzed(Expr* orig_expr, Evaluation func, std::vector<Expr*> refs)
     : Expr(Type::ANALYZED),
       orig_expr_(orig_expr),
       func_(std::move(func)),

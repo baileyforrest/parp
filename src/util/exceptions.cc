@@ -17,9 +17,10 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "util/exceptions.h"
-
 #include <sstream>
+
+#include "util/exceptions.h"
+#include "util/mark.h"
 
 namespace util {
 

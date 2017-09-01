@@ -24,6 +24,7 @@
 #include <ios>
 #include <iostream>
 
+#include "expr/number.h"
 #include "util/char_class.h"
 #include "util/exceptions.h"
 

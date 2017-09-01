@@ -24,6 +24,8 @@
 
 #include "gtest/gtest.h"
 
+#include "expr/expr.h"
+#include "expr/number.h"
 #include "parse/lexer.h"
 #include "util/char_class.h"
 #include "util/text_stream.h"

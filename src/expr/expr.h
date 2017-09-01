@@ -83,21 +83,29 @@ class Expr : public gc::Collectable {
       std::ostream& stream) const = 0;  // NOLINT(runtime/references)
 
   virtual const EmptyList* GetAsEmptyList() const { return nullptr; }
+  virtual EmptyList* GetAsEmptyList() { return nullptr; }
   virtual const Bool* GetAsBool() const { return nullptr; }
+  virtual Bool* GetAsBool() { return nullptr; }
   virtual const Number* GetAsNumber() const { return nullptr; }
+  virtual Number* GetAsNumber() { return nullptr; }
   virtual const Char* GetAsChar() const { return nullptr; }
+  virtual Char* GetAsChar() { return nullptr; }
   virtual const String* GetAsString() const { return nullptr; }
   virtual String* GetAsString() { return nullptr; }
   virtual const Symbol* GetAsSymbol() const { return nullptr; }
+  virtual Symbol* GetAsSymbol() { return nullptr; }
   virtual const Pair* GetAsPair() const { return nullptr; }
   virtual Pair* GetAsPair() { return nullptr; }
   virtual const Vector* GetAsVector() const { return nullptr; }
   virtual Vector* GetAsVector() { return nullptr; }
   virtual const Lambda* GetAsLambda() const { return nullptr; }
+  virtual Lambda* GetAsLambda() { return nullptr; }
   virtual const Env* GetAsEnv() const { return nullptr; }
   virtual Env* GetAsEnv() { return nullptr; }
   virtual const Analyzed* GetAsAnalyzed() const { return nullptr; }
+  virtual Analyzed* GetAsAnalyzed() { return nullptr; }
   virtual const Primitive* GetAsPrimitive() const { return nullptr; }
+  virtual Primitive* GetAsPrimitive() { return nullptr; }
 
  protected:
   explicit Expr(Type type) : type_(type) {}
@@ -130,6 +138,7 @@ class EmptyList : public Expr {
 
   // Expr implementation:
   const EmptyList* GetAsEmptyList() const override { return this; }
+  EmptyList* GetAsEmptyList() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
  private:
@@ -143,6 +152,7 @@ class Bool : public Expr {
 
   // Expr implementation:
   const Bool* GetAsBool() const override { return this; }
+  Bool* GetAsBool() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   bool val() const { return val_; }
@@ -162,6 +172,7 @@ class Char : public Expr {
 
   // Expr implementation:
   const Char* GetAsChar() const override { return this; }
+  Char* GetAsChar() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   char val() const { return val_; }
@@ -208,6 +219,7 @@ class Symbol : public Expr {
 
   // Expr implementation:
   const Symbol* GetAsSymbol() const override { return this; }
+  Symbol* GetAsSymbol() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   const std::string& val() const { return val_; }
@@ -273,38 +285,37 @@ class Vector : public Expr {
 
 class Lambda : public Expr {
  public:
-  static Lambda* Create(std::vector<const Symbol*> required_args,
-                        const Symbol* variable_arg,
+  static Lambda* Create(std::vector<Symbol*> required_args,
+                        Symbol* variable_arg,
                         Expr* body,
                         Env* env);
   ~Lambda() override;
 
   // Expr implementation:
   const Lambda* GetAsLambda() const override { return this; }
+  Lambda* GetAsLambda() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
-  const std::vector<const Symbol*>& required_args() const {
-    return required_args_;
-  }
-  const Symbol* variable_arg() const { return variable_arg_; }
+  const std::vector<Symbol*>& required_args() const { return required_args_; }
+  Symbol* variable_arg() const { return variable_arg_; }
   Expr* body() const { return body_; }
   Env* env() const { return env_; }
 
  private:
-  explicit Lambda(std::vector<const Symbol*> required_args,
-                  const Symbol* variable_arg,
+  explicit Lambda(std::vector<Symbol*> required_args,
+                  Symbol* variable_arg,
                   Expr* body,
                   Env* env);
 
-  std::vector<const Symbol*> required_args_;
-  const Symbol* variable_arg_;
+  std::vector<Symbol*> required_args_;
+  Symbol* variable_arg_;
   Expr* body_;
   Env* env_;
 };
 
 class Env : public Expr {
  public:
-  static Env* Create(const std::vector<std::pair<const Symbol*, Expr*>>& vars,
+  static Env* Create(const std::vector<std::pair<Symbol*, Expr*>>& vars,
                      Env* enclosing);
   ~Env() override;
 
@@ -313,28 +324,26 @@ class Env : public Expr {
   Env* GetAsEnv() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
-  Expr* Lookup(const Symbol* var) const;
+  Expr* Lookup(Symbol* var) const;
   const Env* enclosing() const { return enclosing_; }
-  void DefineVar(const Symbol* var, Expr* expr);
-  void SetVar(const Symbol* var, Expr* expr);
+  void DefineVar(Symbol* var, Expr* expr);
+  void SetVar(Symbol* var, Expr* expr);
 
  private:
-  void ThrowUnboundException(const Symbol* var) const;
-  explicit Env(const std::vector<std::pair<const Symbol*, Expr*>>& vars,
+  void ThrowUnboundException(Symbol* var) const;
+  explicit Env(const std::vector<std::pair<Symbol*, Expr*>>& vars,
                Env* enclosing);
 
   struct VarHash {
-    std::size_t operator()(const Symbol* var) const;
+    std::size_t operator()(Symbol* var) const;
   };
 
   struct VarEqual {
-    bool operator()(const Symbol* lhs, const Symbol* rhs) const {
-      return lhs->Eqv(rhs);
-    }
+    bool operator()(Symbol* lhs, Symbol* rhs) const { return lhs->Eqv(rhs); }
   };
 
   Env* enclosing_;
-  std::unordered_map<const Symbol*, Expr*, VarHash, VarEqual> map_;
+  std::unordered_map<Symbol*, Expr*, VarHash, VarEqual> map_;
 };
 
 class Analyzed : public Expr {
@@ -343,22 +352,22 @@ class Analyzed : public Expr {
 
   static Analyzed* Create(Expr* orig_expr,
                           Evaluation func,
-                          std::vector<const Expr*> refs);
+                          std::vector<Expr*> refs);
   ~Analyzed() override;
 
   // Expr implementation:
   const Analyzed* GetAsAnalyzed() const override { return this; }
+  Analyzed* GetAsAnalyzed() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   const Evaluation& func() const { return func_; }
 
  private:
-  Analyzed(Expr* orig_expr, Evaluation func, std::vector<const Expr*> refs);
+  Analyzed(Expr* orig_expr, Evaluation func, std::vector<Expr*> refs);
+
   Expr* orig_expr_;
   Evaluation func_;
-
-  // TODO(bcf): Shouldn't be const
-  std::vector<const Expr*> refs_;
+  std::vector<Expr*> refs_;
 };
 
 class Primitive : public Expr {
@@ -367,6 +376,7 @@ class Primitive : public Expr {
 
   // Expr implementation:
   const Primitive* GetAsPrimitive() const override { return this; }
+  Primitive* GetAsPrimitive() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override = 0;
 
  protected:

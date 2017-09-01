@@ -21,7 +21,6 @@
 #define EXPR_NUMBER_H_
 
 #include <cstdint>
-
 #include <string>
 
 #include "expr/expr.h"

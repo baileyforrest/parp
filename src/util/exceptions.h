@@ -23,9 +23,9 @@
 #include <exception>
 #include <string>
 
-#include "util/mark.h"
-
 namespace util {
+
+struct Mark;
 
 class SyntaxException : public std::exception {
  public:

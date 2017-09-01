@@ -17,6 +17,8 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string>
+
 #include "eval/eval.h"
 #include "expr/expr.h"
 #include "expr/number.h"
