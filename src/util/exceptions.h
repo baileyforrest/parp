@@ -23,6 +23,10 @@
 #include <exception>
 #include <string>
 
+namespace expr {
+class Expr;
+}  // namespace expr
+
 namespace util {
 
 struct Mark;
@@ -39,11 +43,12 @@ class SyntaxException : public std::exception {
 // TODO(bcf): Add marks for this
 class RuntimeException : public std::exception {
  public:
-  explicit RuntimeException(const std::string& msg) : full_msg_(msg) {}
+  RuntimeException(const std::string& msg, expr::Expr* expr);
 
   const char* what() const throw() override { return full_msg_.c_str(); }
 
  private:
+  expr::Expr* const expr_;
   std::string full_msg_;
 };
 

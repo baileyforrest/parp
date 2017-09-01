@@ -330,7 +330,6 @@ class Env : public Expr {
   void SetVar(Symbol* var, Expr* expr);
 
  private:
-  void ThrowUnboundException(Symbol* var) const;
   explicit Env(const std::vector<std::pair<Symbol*, Expr*>>& vars,
                Env* enclosing);
 
@@ -390,13 +389,18 @@ Bool* True();
 Bool* False();
 
 // Helpers
+
+std::vector<Expr*> ExprVecFromList(Expr* expr);
+
 template <typename T>
 Expr* ListFromIt(T it, T e) {
   if (it == e) {
     return Nil();
   }
 
-  return Cons(*it, ListFromIt(++it, e));
+  auto* val = *it;
+  ++it;
+  return Cons(val, ListFromIt(it, e));
 }
 
 // Alias for Pair::Create

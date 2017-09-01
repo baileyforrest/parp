@@ -28,6 +28,14 @@
 
 namespace expr {
 
+namespace {
+
+void ThrowUnboundException(Symbol* var) {
+  throw util::RuntimeException("Attempt to reference unbound variable: ", var);
+}
+
+}  // namespace
+
 const char* TypeToString(Expr::Type type) {
 #define CASE_STR(x)   \
   case Expr::Type::x: \
@@ -269,11 +277,6 @@ std::ostream& Env::AppendStream(std::ostream& stream) const {
   return stream << "}";
 }
 
-void Env::ThrowUnboundException(Symbol* var) const {
-  throw util::RuntimeException("Attempt to reference unbound variable: " +
-                               util::to_string(*var));
-}
-
 Env::Env(const std::vector<std::pair<Symbol*, Expr*>>& vars, Env* enclosing)
     : Expr(Type::ENV), enclosing_(enclosing), map_(vars.begin(), vars.end()) {}
 
@@ -350,6 +353,19 @@ Bool* True() {
 Bool* False() {
   static Bool false_val(false);
   return &false_val;
+}
+
+std::vector<Expr*> ExprVecFromList(Expr* expr) {
+  std::vector<Expr*> ret;
+  while (auto* pair = expr->GetAsPair()) {
+    ret.push_back(pair->car());
+    expr = pair->cdr();
+  }
+  if (expr != expr::Nil())
+    throw util::RuntimeException("Expected '() terminated list of expressions",
+                                 expr);
+
+  return ret;
 }
 
 }  // namespace expr

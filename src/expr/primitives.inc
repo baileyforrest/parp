@@ -26,10 +26,10 @@
 #endif
 
 // 4.1. Primitive expression types
-X(Quote, "quote")
-X(Lambda, "lambda")
-X(If, "if")
-X(Set, "set!")
+X(Quote, quote)
+X(Lambda, lambda)
+X(If, if)
+X(Set, set!)
 
 // 4.2 Derived expression types
 // TODO(bcf): Implement as lisp expressions?
@@ -41,7 +41,7 @@ Y(Let)
 Y(LetStar)
 Y(LetRec)
 Y(LetRec)
-Y(Begin)
+X(Begin, begin)
 Y(Do)
 Y(Delay)
 Y(Quasiquote)
@@ -52,7 +52,7 @@ Y(LetRecSyntax)
 Y(SyntaxRules)
 
 // 5.2. Definitions
-Y(Define)
+X(Define, define)
 
 // 5.3. Syntax definitions
 Y(DefineSyntax)

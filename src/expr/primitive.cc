@@ -19,6 +19,7 @@
 
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "expr/expr.h"
 #include "expr/primitive.h"
@@ -29,7 +30,7 @@
 #define THROW_EXCEPTION(msg)                         \
   do {                                               \
     auto error = std::string(__func__) + ": " + msg; \
-    throw util::RuntimeException(error);             \
+    throw util::RuntimeException(error, nullptr);    \
   } while (0)
 
 #define EXPECT_ARGS_NUM(expected)                            \
@@ -68,17 +69,6 @@
     }                                                            \
   } while (0)
 
-#define PRIM_IMPL(Name, eval_body)                                      \
-  class Name : public Primitive {                                       \
-    Expr* Eval(Env* env, Expr** args, size_t num_args) const override { \
-      (void)env;                                                        \
-      (void)args;                                                       \
-      (void)num_args;                                                   \
-      eval_body                                                         \
-    }                                                                   \
-    std::ostream& AppendStream(std::ostream& stream) const override;    \
-  };
-
 namespace expr {
 namespace primitive {
 
@@ -88,7 +78,7 @@ struct {
   Primitive* (*expr)();
   const char* name;
 } kPrimitives[] = {
-#define X(name, str) {name, str},
+#define X(name, str) {name, #str},
 #include "expr/primitives.inc"  // NOLINT(build/include)
 #undef X
 };
@@ -96,24 +86,58 @@ struct {
 }  // namespace
 
 namespace impl {
-// clang-format off
 
-PRIM_IMPL(Quote,
+// Declare Class Base
+#define X(Name, str)                                                   \
+  class Name : public Primitive {                                      \
+    Expr* Eval(Env* env, Expr** args, size_t num_args) const override; \
+    std::ostream& AppendStream(std::ostream& stream) const {           \
+      return stream << #str;                                           \
+    }                                                                  \
+  };
+#include "expr/primitives.inc"  // NOLINT(build/include)
+#undef X
+
+Expr* Quote::Eval(Env* /* env */, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(1);
   return *args;
-);
+}
 
-PRIM_IMPL(Lambda,
+Expr* Lambda::Eval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
-  return nullptr;
-  // TODO(bcf): This
-);
+  std::vector<Symbol*> req_args;
+  Symbol* var_arg = nullptr;
+  switch (args[0]->type()) {
+    case Type::SYMBOL:
+      req_args.push_back(args[0]->GetAsSymbol());
+      break;
+    case Type::PAIR: {
+      Expr* cur_arg = args[0];
+      while (auto* pair = cur_arg->GetAsPair()) {
+        EXPECT_TYPE(SYMBOL, pair->car());
+        auto* arg = pair->car()->GetAsSymbol();
+        req_args.push_back(arg);
+        cur_arg = pair->cdr();
+      }
+      if (cur_arg != expr::Nil()) {
+        EXPECT_TYPE(SYMBOL, cur_arg);
+        var_arg = cur_arg->GetAsSymbol();
+      }
+      break;
+    };
+    default:
+      THROW_EXCEPTION("Expected arguments");
+  }
 
-PRIM_IMPL(If,
+  auto* body = ListFromIt(args + 1, args + num_args);
+  return expr::Lambda::Create(req_args, var_arg, body, env);
+}
+
+Expr* If::Eval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
   EXPECT_ARGS_LE(3);
   auto* cond = eval::Eval(args[0], env);
-  if (cond == expr::False()) {
+  if (cond == False()) {
     if (num_args == 3) {
       return eval::Eval(args[2], env);
     } else {
@@ -121,39 +145,40 @@ PRIM_IMPL(If,
     }
   }
   return eval::Eval(args[1], env);
-);
+}
 
-PRIM_IMPL(Set,
+Expr* Set::Eval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EXPECT_TYPE(SYMBOL, args[0]);
   env->SetVar(args[0]->GetAsSymbol(), args[1]);
-  return expr::Nil();
-);
+  return Nil();
+}
 
-PRIM_IMPL(Define,
+Expr* Begin::Eval(Env* env, Expr** args, size_t num_args) const {
+  if (num_args == 0) {
+    return Nil();
+  }
+  for (; num_args > 1; --num_args, ++args) {
+    eval::Eval(*args, env);
+  }
+  return eval::Eval(*args, env);
+}
+
+Expr* Define::Eval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EXPECT_TYPE(SYMBOL, args[0]);
   env->DefineVar(args[0]->GetAsSymbol(), args[1]);
   // TODO(bcf): handle define lambda.
 
-  return expr::Nil();
-);
+  return Nil();
+}
 
-// clang-format on
 }  // namespace impl
 
-// Declare AppendStream
-#define X(name, str)                                                   \
-  std::ostream& impl::name::AppendStream(std::ostream& stream) const { \
-    return stream << str;                                              \
-  }
-#include "expr/primitives.inc"  // NOLINT(build/include)
-#undef X
-
 // Declare Factories
-#define X(name, str)        \
-  Primitive* name() {       \
-    static impl::name impl; \
+#define X(Name, str)        \
+  Primitive* Name() {       \
+    static impl::Name impl; \
     return &impl;           \
   }
 #include "expr/primitives.inc"  // NOLINT(build/include)

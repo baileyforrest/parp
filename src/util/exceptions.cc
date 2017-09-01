@@ -19,8 +19,10 @@
 
 #include <sstream>
 
+#include "expr/expr.h"
 #include "util/exceptions.h"
 #include "util/mark.h"
+#include "util/util.h"
 
 namespace util {
 
@@ -29,6 +31,16 @@ SyntaxException::SyntaxException(const std::string& msg,
   std::ostringstream ss;
   ss << mark << ": " + msg;
   full_msg_ = ss.str();
+}
+
+RuntimeException::RuntimeException(const std::string& msg, expr::Expr* expr)
+    : expr_(expr), full_msg_(msg) {
+  std::ostringstream os;
+  os << msg;
+  if (expr) {
+    os << " " << *expr;
+  }
+  full_msg_ = os.str();
 }
 
 }  // namespace util
