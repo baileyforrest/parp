@@ -41,10 +41,10 @@ class Number : public Expr {
   ~Number() override = default;
 
   // Override from Expr
-  const Number* GetAsNumber() const override { return this; }
+  const Number* AsNumber() const override { return this; }
 
-  virtual const NumReal* GetAsNumReal() const { return nullptr; }
-  virtual const NumFloat* GetAsNumFloat() const { return nullptr; }
+  virtual const NumReal* AsNumReal() const { return nullptr; }
+  virtual const NumFloat* AsNumFloat() const { return nullptr; }
 
   Type num_type() const { return num_type_; }
   bool exact() const { return exact_; }
@@ -56,7 +56,7 @@ class Number : public Expr {
  private:
   // Override from Expr
   bool EqvImpl(const Expr* other) const override {
-    auto as_num = other->GetAsNumber();
+    auto as_num = other->AsNumber();
     return num_type() == as_num->num_type() && NumEqv(as_num);
   }
 
@@ -77,7 +77,7 @@ class NumReal : public Number {
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   // Override from Number
-  const NumReal* GetAsNumReal() const override { return this; }
+  const NumReal* AsNumReal() const override { return this; }
 
   // TODO(bcf): Temp function for testing
   int64_t val() const { return val_; }
@@ -87,7 +87,7 @@ class NumReal : public Number {
 
   // Override from Number
   bool NumEqv(const Number* other) const override {
-    return val_ == other->GetAsNumReal()->val_;
+    return val_ == other->AsNumReal()->val_;
   }
 
   int64_t val_;
@@ -103,7 +103,7 @@ class NumFloat : public Number {
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   // Override from Number
-  const NumFloat* GetAsNumFloat() const override { return this; }
+  const NumFloat* AsNumFloat() const override { return this; }
 
   // TODO(bcf): Temp function for testing
   double val() const { return val_; }
@@ -113,7 +113,7 @@ class NumFloat : public Number {
 
   // Override from Number
   bool NumEqv(const Number* other) const override {
-    return val_ == other->GetAsNumFloat()->val_;
+    return val_ == other->AsNumFloat()->val_;
   }
 
   double val_;

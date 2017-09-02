@@ -109,19 +109,19 @@ Expr* Lambda::Eval(Env* env, Expr** args, size_t num_args) const {
   Symbol* var_arg = nullptr;
   switch (args[0]->type()) {
     case Type::SYMBOL:
-      req_args.push_back(args[0]->GetAsSymbol());
+      req_args.push_back(args[0]->AsSymbol());
       break;
     case Type::PAIR: {
       Expr* cur_arg = args[0];
-      while (auto* pair = cur_arg->GetAsPair()) {
+      while (auto* pair = cur_arg->AsPair()) {
         EXPECT_TYPE(SYMBOL, pair->car());
-        auto* arg = pair->car()->GetAsSymbol();
+        auto* arg = pair->car()->AsSymbol();
         req_args.push_back(arg);
         cur_arg = pair->cdr();
       }
       if (cur_arg != expr::Nil()) {
         EXPECT_TYPE(SYMBOL, cur_arg);
-        var_arg = cur_arg->GetAsSymbol();
+        var_arg = cur_arg->AsSymbol();
       }
       break;
     };
@@ -155,7 +155,7 @@ Expr* If::Eval(Env* env, Expr** args, size_t num_args) const {
 Expr* Set::Eval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EXPECT_TYPE(SYMBOL, args[0]);
-  env->SetVar(args[0]->GetAsSymbol(), args[1]);
+  env->SetVar(args[0]->AsSymbol(), args[1]);
   return Nil();
 }
 
@@ -172,7 +172,7 @@ Expr* Begin::Eval(Env* env, Expr** args, size_t num_args) const {
 Expr* Define::Eval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EXPECT_TYPE(SYMBOL, args[0]);
-  env->DefineVar(args[0]->GetAsSymbol(), args[1]);
+  env->DefineVar(args[0]->AsSymbol(), args[1]);
   // TODO(bcf): handle define lambda.
 
   return Nil();

@@ -41,7 +41,7 @@ expr::Expr* ParseExpr(const std::string& str) {
 class EvalTest : public test::TestBase {
  protected:
   virtual void TestSetUp() {
-    env_ = expr::Env::Create({}, nullptr);
+    env_ = expr::Env::Create(nullptr);
     expr::primitive::LoadPrimitives(env_);
   }
   virtual void TestTearDown() { env_ = nullptr; }
@@ -74,7 +74,7 @@ TEST_F(EvalTest, SelfEvaluating) {
 TEST_F(EvalTest, Symbol) {
   auto* num = expr::NumReal::Create(42);
   auto* symbol = ParseExpr("abc");
-  env_->DefineVar(symbol->GetAsSymbol(), num);
+  env_->DefineVar(symbol->AsSymbol(), num);
 
   EXPECT_EQ(num, Eval(symbol, env_));
 }

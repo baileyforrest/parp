@@ -36,9 +36,9 @@ namespace {
 Expr* DoEval(Expr* expr, expr::Env* env) {
   switch (expr->type()) {
     case Expr::Type::ANALYZED:
-      return expr->GetAsAnalyzed()->func()(env);
+      return expr->AsAnalyzed()->func()(env);
     case Expr::Type::SYMBOL:
-      return env->Lookup(expr->GetAsSymbol());
+      return env->Lookup(expr->AsSymbol());
     default:
       break;
   }
@@ -68,7 +68,7 @@ Expr* Analyze(Expr* expr) {
       break;
   }
 
-  auto* pair = expr->GetAsPair();
+  auto* pair = expr->AsPair();
   auto* op = Analyze(pair->car());
   auto args = ExprVecFromList(pair->cdr());
   auto refs = args;
@@ -78,11 +78,11 @@ Expr* Analyze(Expr* expr) {
       pair,
       [op, args](expr::Env* env) {
         auto* func = DoEval(op, env);
-        if (auto* primitive = func->GetAsPrimitive()) {
+        if (auto* primitive = func->AsPrimitive()) {
           auto args_copy = args;
           return primitive->Eval(env, args_copy.data(), args_copy.size());
         }
-        auto* lambda = func->GetAsLambda();
+        auto* lambda = func->AsLambda();
         if (!lambda) {
           throw new util::RuntimeException("Expected a procedure", lambda);
         }

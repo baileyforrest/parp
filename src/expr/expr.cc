@@ -104,7 +104,7 @@ String::String(std::string val, bool read_only)
     : Expr(Type::STRING), val_(std::move(val)), read_only_(read_only) {}
 
 bool String::EqualImpl(const Expr* other) const {
-  return val_ == other->GetAsString()->val_;
+  return val_ == other->AsString()->val_;
 }
 
 // static
@@ -124,7 +124,7 @@ std::ostream& Symbol::AppendStream(std::ostream& stream) const {
 Symbol::Symbol(std::string val) : Expr(Type::SYMBOL), val_(std::move(val)) {}
 
 bool Symbol::EqvImpl(const Expr* other) const {
-  return val_ == other->GetAsSymbol()->val_;
+  return val_ == other->AsSymbol()->val_;
 }
 
 // static
@@ -141,12 +141,12 @@ std::ostream& Pair::AppendStream(std::ostream& stream) const {
 }
 
 bool Pair::EqvImpl(const Expr* other) const {
-  return car_ == other->GetAsPair()->car_ && cdr_ == other->GetAsPair()->cdr_;
+  return car_ == other->AsPair()->car_ && cdr_ == other->AsPair()->cdr_;
 }
 
 bool Pair::EqualImpl(const Expr* other) const {
-  return car_->Equal(other->GetAsPair()->car_) &&
-         cdr_->Equal(other->GetAsPair()->cdr_);
+  return car_->Equal(other->AsPair()->car_) &&
+         cdr_->Equal(other->AsPair()->cdr_);
 }
 
 expr::Expr* Pair::Cr(const std::string& str) const {
@@ -161,7 +161,7 @@ expr::Expr* Pair::Cr(const std::string& str) const {
         if (cexpr->type() != Type::PAIR)
           return nullptr;
 
-        auto* pair = cexpr->GetAsPair();
+        auto* pair = cexpr->AsPair();
         expr = c == 'a' ? pair->car_ : pair->cdr_;
         break;
       }
@@ -196,12 +196,12 @@ Vector::Vector(std::vector<Expr*> vals)
     : Expr(Type::VECTOR), vals_(std::move(vals)) {}
 
 bool Vector::EqvImpl(const Expr* other) const {
-  return vals_ == other->GetAsVector()->vals_;
+  return vals_ == other->AsVector()->vals_;
 }
 
 bool Vector::EqualImpl(const Expr* other) const {
   const auto& v1 = vals_;
-  const auto& v2 = other->GetAsVector()->vals_;
+  const auto& v2 = other->AsVector()->vals_;
   if (v1.size() != v2.size())
     return false;
 
@@ -357,7 +357,7 @@ Bool* False() {
 
 std::vector<Expr*> ExprVecFromList(Expr* expr) {
   std::vector<Expr*> ret;
-  while (auto* pair = expr->GetAsPair()) {
+  while (auto* pair = expr->AsPair()) {
     ret.push_back(pair->car());
     expr = pair->cdr();
   }

@@ -83,30 +83,30 @@ class Expr : public gc::Collectable {
       std::ostream& stream) const = 0;  // NOLINT(runtime/references)
 
   // TODO(bcf): Rename as AsX.
-  virtual const EmptyList* GetAsEmptyList() const { return nullptr; }
-  virtual EmptyList* GetAsEmptyList() { return nullptr; }
-  virtual const Bool* GetAsBool() const { return nullptr; }
-  virtual Bool* GetAsBool() { return nullptr; }
-  virtual const Number* GetAsNumber() const { return nullptr; }
-  virtual Number* GetAsNumber() { return nullptr; }
-  virtual const Char* GetAsChar() const { return nullptr; }
-  virtual Char* GetAsChar() { return nullptr; }
-  virtual const String* GetAsString() const { return nullptr; }
-  virtual String* GetAsString() { return nullptr; }
-  virtual const Symbol* GetAsSymbol() const { return nullptr; }
-  virtual Symbol* GetAsSymbol() { return nullptr; }
-  virtual const Pair* GetAsPair() const { return nullptr; }
-  virtual Pair* GetAsPair() { return nullptr; }
-  virtual const Vector* GetAsVector() const { return nullptr; }
-  virtual Vector* GetAsVector() { return nullptr; }
-  virtual const Lambda* GetAsLambda() const { return nullptr; }
-  virtual Lambda* GetAsLambda() { return nullptr; }
-  virtual const Env* GetAsEnv() const { return nullptr; }
-  virtual Env* GetAsEnv() { return nullptr; }
-  virtual const Analyzed* GetAsAnalyzed() const { return nullptr; }
-  virtual Analyzed* GetAsAnalyzed() { return nullptr; }
-  virtual const Primitive* GetAsPrimitive() const { return nullptr; }
-  virtual Primitive* GetAsPrimitive() { return nullptr; }
+  virtual const EmptyList* AsEmptyList() const { return nullptr; }
+  virtual EmptyList* AsEmptyList() { return nullptr; }
+  virtual const Bool* AsBool() const { return nullptr; }
+  virtual Bool* AsBool() { return nullptr; }
+  virtual const Number* AsNumber() const { return nullptr; }
+  virtual Number* AsNumber() { return nullptr; }
+  virtual const Char* AsChar() const { return nullptr; }
+  virtual Char* AsChar() { return nullptr; }
+  virtual const String* AsString() const { return nullptr; }
+  virtual String* AsString() { return nullptr; }
+  virtual const Symbol* AsSymbol() const { return nullptr; }
+  virtual Symbol* AsSymbol() { return nullptr; }
+  virtual const Pair* AsPair() const { return nullptr; }
+  virtual Pair* AsPair() { return nullptr; }
+  virtual const Vector* AsVector() const { return nullptr; }
+  virtual Vector* AsVector() { return nullptr; }
+  virtual const Lambda* AsLambda() const { return nullptr; }
+  virtual Lambda* AsLambda() { return nullptr; }
+  virtual const Env* AsEnv() const { return nullptr; }
+  virtual Env* AsEnv() { return nullptr; }
+  virtual const Analyzed* AsAnalyzed() const { return nullptr; }
+  virtual Analyzed* AsAnalyzed() { return nullptr; }
+  virtual const Primitive* AsPrimitive() const { return nullptr; }
+  virtual Primitive* AsPrimitive() { return nullptr; }
 
  protected:
   explicit Expr(Type type) : type_(type) {}
@@ -138,8 +138,8 @@ class EmptyList : public Expr {
   ~EmptyList() override = default;
 
   // Expr implementation:
-  const EmptyList* GetAsEmptyList() const override { return this; }
-  EmptyList* GetAsEmptyList() override { return this; }
+  const EmptyList* AsEmptyList() const override { return this; }
+  EmptyList* AsEmptyList() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
  private:
@@ -152,8 +152,8 @@ class Bool : public Expr {
   ~Bool() override = default;
 
   // Expr implementation:
-  const Bool* GetAsBool() const override { return this; }
-  Bool* GetAsBool() override { return this; }
+  const Bool* AsBool() const override { return this; }
+  Bool* AsBool() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   bool val() const { return val_; }
@@ -172,8 +172,8 @@ class Char : public Expr {
   ~Char() override = default;
 
   // Expr implementation:
-  const Char* GetAsChar() const override { return this; }
-  Char* GetAsChar() override { return this; }
+  const Char* AsChar() const override { return this; }
+  Char* AsChar() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   char val() const { return val_; }
@@ -183,7 +183,7 @@ class Char : public Expr {
 
   // Expr implementation:
   bool EqvImpl(const Expr* other) const override {
-    return val_ == other->GetAsChar()->val_;
+    return val_ == other->AsChar()->val_;
   }
 
   char val_;
@@ -196,8 +196,8 @@ class String : public Expr {
   ~String() override;
 
   // Expr implementation:
-  const String* GetAsString() const override { return this; }
-  String* GetAsString() override { return this; }
+  const String* AsString() const override { return this; }
+  String* AsString() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   const std::string& val() const { return val_; }
@@ -219,8 +219,8 @@ class Symbol : public Expr {
   ~Symbol() override;
 
   // Expr implementation:
-  const Symbol* GetAsSymbol() const override { return this; }
-  Symbol* GetAsSymbol() override { return this; }
+  const Symbol* AsSymbol() const override { return this; }
+  Symbol* AsSymbol() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   const std::string& val() const { return val_; }
@@ -240,8 +240,8 @@ class Pair : public Expr {
   ~Pair() override = default;
 
   // Expr implementation:
-  const Pair* GetAsPair() const override { return this; }
-  Pair* GetAsPair() override { return this; }
+  const Pair* AsPair() const override { return this; }
+  Pair* AsPair() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   Expr* car() const { return car_; }
@@ -268,8 +268,8 @@ class Vector : public Expr {
   ~Vector() override;
 
   // Expr implementation:
-  const Vector* GetAsVector() const override { return this; }
-  Vector* GetAsVector() override { return this; }
+  const Vector* AsVector() const override { return this; }
+  Vector* AsVector() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   const std::vector<Expr*>& vals() const { return vals_; }
@@ -293,8 +293,8 @@ class Lambda : public Expr {
   ~Lambda() override;
 
   // Expr implementation:
-  const Lambda* GetAsLambda() const override { return this; }
-  Lambda* GetAsLambda() override { return this; }
+  const Lambda* AsLambda() const override { return this; }
+  Lambda* AsLambda() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   const std::vector<Symbol*>& required_args() const { return required_args_; }
@@ -320,8 +320,8 @@ class Env : public Expr {
   ~Env() override;
 
   // Expr implementation:
-  const Env* GetAsEnv() const override { return this; }
-  Env* GetAsEnv() override { return this; }
+  const Env* AsEnv() const override { return this; }
+  Env* AsEnv() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   Expr* Lookup(Symbol* var) const;
@@ -354,8 +354,8 @@ class Analyzed : public Expr {
   ~Analyzed() override;
 
   // Expr implementation:
-  const Analyzed* GetAsAnalyzed() const override { return this; }
-  Analyzed* GetAsAnalyzed() override { return this; }
+  const Analyzed* AsAnalyzed() const override { return this; }
+  Analyzed* AsAnalyzed() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
   const Evaluation& func() const { return func_; }
@@ -373,8 +373,8 @@ class Primitive : public Expr {
   virtual Expr* Eval(Env* env, Expr** exprs, size_t size) const = 0;
 
   // Expr implementation:
-  const Primitive* GetAsPrimitive() const override { return this; }
-  Primitive* GetAsPrimitive() override { return this; }
+  const Primitive* AsPrimitive() const override { return this; }
+  Primitive* AsPrimitive() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override = 0;
 
  protected:
