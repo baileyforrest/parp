@@ -216,12 +216,12 @@ bool Vector::EqualImpl(const Expr* other) const {
 // static
 Lambda* Lambda::Create(std::vector<Symbol*> required_args,
                        Symbol* variable_arg,
-                       Expr* body,
+                       std::vector<Expr*> body,
                        Env* env) {
   return static_cast<Lambda*>(gc::Gc::Get().Alloc(
-      sizeof(Lambda), [&required_args, variable_arg, body, env](void* addr) {
-        return new (addr)
-            Lambda(std::move(required_args), variable_arg, body, env);
+      sizeof(Lambda), [&required_args, variable_arg, &body, env](void* addr) {
+        return new (addr) Lambda(std::move(required_args), variable_arg,
+                                 std::move(body), env);
       }));
 }
 
@@ -242,29 +242,30 @@ std::ostream& Lambda::AppendStream(std::ostream& stream) const {
     stream << ")";
   }
 
-  stream << *body_;
+  for (auto* expr : body_) {
+    stream << *expr << "\n";
+  }
   return stream << ")";
 }
 
 Lambda::Lambda(std::vector<Symbol*> required_args,
                Symbol* variable_arg,
-               Expr* body,
+               std::vector<Expr*> body,
                Env* env)
     : Expr(Type::LAMBDA),
       required_args_(std::move(required_args)),
       variable_arg_(variable_arg),
-      body_(body),
+      body_(std::move(body)),
       env_(env) {
   // TODO(bcf): assert Error checking on body.
 }
 
 // static
-Env* Env::Create(const std::vector<std::pair<Symbol*, Expr*>>& vars,
-                 Env* enclosing) {
+Env* Env::Create(Env* enclosing) {
   return static_cast<Env*>(
-      gc::Gc::Get().Alloc(sizeof(Env), [vars, enclosing](void* addr) {
-        return new (addr) Env(vars, enclosing);
-      }));
+      gc::Gc::Get().Alloc(sizeof(Env), [enclosing](void* addr) {
+        return new (addr) Env(enclosing);
+      }));  // NOLINT(whitespace/newline)
 }
 
 Env::~Env() = default;
@@ -277,8 +278,7 @@ std::ostream& Env::AppendStream(std::ostream& stream) const {
   return stream << "}";
 }
 
-Env::Env(const std::vector<std::pair<Symbol*, Expr*>>& vars, Env* enclosing)
-    : Expr(Type::ENV), enclosing_(enclosing), map_(vars.begin(), vars.end()) {}
+Env::Env(Env* enclosing) : Expr(Type::ENV), enclosing_(enclosing) {}
 
 std::size_t Env::VarHash::operator()(Symbol* var) const {
   std::hash<std::string> hash;

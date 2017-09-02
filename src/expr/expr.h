@@ -82,6 +82,7 @@ class Expr : public gc::Collectable {
   virtual std::ostream& AppendStream(
       std::ostream& stream) const = 0;  // NOLINT(runtime/references)
 
+  // TODO(bcf): Rename as AsX.
   virtual const EmptyList* GetAsEmptyList() const { return nullptr; }
   virtual EmptyList* GetAsEmptyList() { return nullptr; }
   virtual const Bool* GetAsBool() const { return nullptr; }
@@ -287,7 +288,7 @@ class Lambda : public Expr {
  public:
   static Lambda* Create(std::vector<Symbol*> required_args,
                         Symbol* variable_arg,
-                        Expr* body,
+                        std::vector<Expr*> body,
                         Env* env);
   ~Lambda() override;
 
@@ -298,25 +299,24 @@ class Lambda : public Expr {
 
   const std::vector<Symbol*>& required_args() const { return required_args_; }
   Symbol* variable_arg() const { return variable_arg_; }
-  Expr* body() const { return body_; }
+  const std::vector<Expr*>& body() const { return body_; }
   Env* env() const { return env_; }
 
  private:
   explicit Lambda(std::vector<Symbol*> required_args,
                   Symbol* variable_arg,
-                  Expr* body,
+                  std::vector<Expr*> body,
                   Env* env);
 
   std::vector<Symbol*> required_args_;
   Symbol* variable_arg_;
-  Expr* body_;
+  std::vector<Expr*> body_;
   Env* env_;
 };
 
 class Env : public Expr {
  public:
-  static Env* Create(const std::vector<std::pair<Symbol*, Expr*>>& vars,
-                     Env* enclosing);
+  static Env* Create(Env* enclosing);
   ~Env() override;
 
   // Expr implementation:
@@ -330,8 +330,7 @@ class Env : public Expr {
   void SetVar(Symbol* var, Expr* expr);
 
  private:
-  explicit Env(const std::vector<std::pair<Symbol*, Expr*>>& vars,
-               Env* enclosing);
+  explicit Env(Env* enclosing);
 
   struct VarHash {
     std::size_t operator()(Symbol* var) const;

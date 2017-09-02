@@ -34,15 +34,19 @@ namespace eval {
 namespace {
 
 Expr* DoEval(Expr* expr, expr::Env* env) {
-  if (auto* analyzed = expr->GetAsAnalyzed()) {
-    return analyzed->func()(env);
+  switch (expr->type()) {
+    case Expr::Type::ANALYZED:
+      return expr->GetAsAnalyzed()->func()(env);
+    case Expr::Type::SYMBOL:
+      return env->Lookup(expr->GetAsSymbol());
+    default:
+      break;
   }
 
   return expr;
 }
 
-Expr* Analyze(Expr* expr);
-Expr* AnalyzeApplication(expr::Pair* pair);
+}  // namespace
 
 Expr* Analyze(Expr* expr) {
   switch (expr->type()) {
@@ -52,30 +56,19 @@ Expr* Analyze(Expr* expr) {
     case Expr::Type::CHAR:
     case Expr::Type::STRING:
     case Expr::Type::VECTOR:
+    case Expr::Type::SYMBOL:
       return expr;
 
-    case Expr::Type::SYMBOL: {
-      auto* sym = expr->GetAsSymbol();
-      return expr::Analyzed::Create(
-          expr, [sym](expr::Env* env) { return env->Lookup(sym); },
-          {expr});  // NOLINT(whitespace/newline)
-    }
     case Expr::Type::PAIR:
-      return AnalyzeApplication(expr->GetAsPair());
+      break;
 
-    case Expr::Type::LAMBDA:
-    case Expr::Type::ENV:
-    case Expr::Type::PRIMITIVE:
-    case Expr::Type::ANALYZED:
+    default:
       // Analyze called twice
       assert(false);
       break;
   }
 
-  return nullptr;
-}
-
-Expr* AnalyzeApplication(expr::Pair* pair) {
+  auto* pair = expr->GetAsPair();
   auto* op = Analyze(pair->car());
   auto args = ExprVecFromList(pair->cdr());
   auto refs = args;
@@ -84,15 +77,10 @@ Expr* AnalyzeApplication(expr::Pair* pair) {
   return expr::Analyzed::Create(
       pair,
       [op, args](expr::Env* env) {
-        auto eargs = args;
-        for (auto& e : eargs) {
-          std::cout << *e << "\n";
-          e = DoEval(e, env);
-        }
-
         auto* func = DoEval(op, env);
         if (auto* primitive = func->GetAsPrimitive()) {
-          return primitive->Eval(env, eargs.data(), args.size());
+          auto args_copy = args;
+          return primitive->Eval(env, args_copy.data(), args_copy.size());
         }
         auto* lambda = func->GetAsLambda();
         if (!lambda) {
@@ -110,25 +98,25 @@ Expr* AnalyzeApplication(expr::Pair* pair) {
           os << " given: " << args.size();
           throw new util::RuntimeException(os.str(), lambda);
         }
-        auto arg_it = eargs.begin();
-        std::vector<std::pair<expr::Symbol*, Expr*>> bindings;
+        auto arg_it = args.begin();
+        auto* new_env = expr::Env::Create(lambda->env());
 
         for (auto* sym : lambda->required_args()) {
-          bindings.emplace_back(sym, *(arg_it++));
+          new_env->DefineVar(sym, *arg_it++);
         }
         if (lambda->variable_arg() != nullptr) {
-          auto* rest = ListFromIt(arg_it, eargs.end());
-          bindings.emplace_back(lambda->variable_arg(), rest);
+          auto* rest = ListFromIt(arg_it, args.end());
+          new_env->DefineVar(lambda->variable_arg(), rest);
         }
 
-        auto* new_env = expr::Env::Create(bindings, lambda->env());
-
-        return DoEval(lambda->body(), new_env);
+        assert(lambda->body().size() >= 1);
+        for (size_t i = 0; i < lambda->body().size() - 1; ++i) {
+          DoEval(lambda->body()[i], new_env);
+        }
+        return DoEval(lambda->body().back(), new_env);
       },
       std::move(refs));
 }
-
-}  // namespace
 
 Expr* Eval(Expr* expr, expr::Env* env) {
   auto* e = Analyze(expr);

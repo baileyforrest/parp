@@ -46,6 +46,10 @@ class EvalTest : public test::TestBase {
   }
   virtual void TestTearDown() { env_ = nullptr; }
 
+  expr::Expr* EvalStr(const std::string& str) {
+    return Eval(ParseExpr(str), env_);
+  }
+
   expr::Env* env_ = nullptr;
 };
 
@@ -77,16 +81,45 @@ TEST_F(EvalTest, Symbol) {
 
 TEST_F(EvalTest, Quote) {
   auto* expected = static_cast<expr::Expr*>(expr::NumReal::Create(42));
-  auto* expr = Eval(ParseExpr("(quote 42)"), env_);
+  auto* expr = EvalStr("(quote 42)");
 
   EXPECT_EQ(*expected, *expr);
+}
+
+TEST_F(EvalTest, LambdaBasic) {
+  auto* n42 = static_cast<expr::Expr*>(expr::NumReal::Create(42));
+  EXPECT_EQ(*n42, *EvalStr("((lambda (x) x) 42)"));
+}
+
+TEST_F(EvalTest, If) {
+  auto* n42 = static_cast<expr::Expr*>(expr::NumReal::Create(42));
+
+  EXPECT_EQ(*n42, *EvalStr("(if #t 42)"));
+  EXPECT_EQ(*expr::Nil(), *EvalStr("(if #f 42)"));
+
+  auto* n43 = static_cast<expr::Expr*>(expr::NumReal::Create(43));
+  EXPECT_EQ(*n42, *EvalStr("(if #t 42 43)"));
+  EXPECT_EQ(*n43, *EvalStr("(if #f 42 43)"));
 }
 
 TEST_F(EvalTest, Set) {
   auto* expected = static_cast<expr::Expr*>(expr::NumReal::Create(42));
   auto* sym = expr::Symbol::Create("foo");
   env_->DefineVar(sym, expr::Nil());
-  Eval(ParseExpr("(set! foo 42)"), env_);
+  EvalStr("(set! foo 42)");
+
+  EXPECT_EQ(*expected, *env_->Lookup(sym));
+}
+
+TEST_F(EvalTest, Begin) {
+  // TODO(bcf)
+}
+
+TEST_F(EvalTest, Define) {
+  // TODO(bcf): Test define function
+  auto* expected = static_cast<expr::Expr*>(expr::NumReal::Create(42));
+  auto* sym = expr::Symbol::Create("foo");
+  EvalStr("(define foo 42)");
 
   EXPECT_EQ(*expected, *env_->Lookup(sym));
 }

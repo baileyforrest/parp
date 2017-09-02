@@ -44,7 +44,7 @@
 
 #define EXPECT_ARGS_LE(expected)                                     \
   do {                                                               \
-    if (num_args <= expected) {                                      \
+    if (num_args > expected) {                                       \
       std::ostringstream os;                                         \
       os << "Expected at most " #expected " args. Got " << num_args; \
       THROW_EXCEPTION(os.str());                                     \
@@ -53,7 +53,7 @@
 
 #define EXPECT_ARGS_GE(expected)                                      \
   do {                                                                \
-    if (num_args >= expected) {                                       \
+    if (num_args < expected) {                                        \
       std::ostringstream os;                                          \
       os << "Expected at least " #expected " args. Got " << num_args; \
       THROW_EXCEPTION(os.str());                                      \
@@ -129,8 +129,13 @@ Expr* Lambda::Eval(Env* env, Expr** args, size_t num_args) const {
       THROW_EXCEPTION("Expected arguments");
   }
 
-  auto* body = ListFromIt(args + 1, args + num_args);
-  return expr::Lambda::Create(req_args, var_arg, body, env);
+  // TODO(bcf): Analyze in other places as appropriate.
+  for (size_t i = 1; i < num_args; ++i) {
+    args[i] = eval::Analyze(args[i]);
+  }
+
+  return expr::Lambda::Create(req_args, var_arg, {args + 1, args + num_args},
+                              env);
 }
 
 Expr* If::Eval(Env* env, Expr** args, size_t num_args) const {
