@@ -74,7 +74,7 @@ Expr* Analyze(Expr* expr) {
   auto refs = args;
   refs.push_back(op);
 
-  return expr::Analyzed::Create(
+  return new expr::Analyzed(
       pair,
       [op, args](expr::Env* env) {
         auto* func = DoEval(op, env);
@@ -99,7 +99,7 @@ Expr* Analyze(Expr* expr) {
           throw new util::RuntimeException(os.str(), lambda);
         }
         auto arg_it = args.begin();
-        auto* new_env = expr::Env::Create(lambda->env());
+        auto* new_env = new expr::Env(lambda->env());
 
         for (auto* sym : lambda->required_args()) {
           new_env->DefineVar(sym, *arg_it++);

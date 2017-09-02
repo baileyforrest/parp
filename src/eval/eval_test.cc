@@ -26,6 +26,8 @@
 #include "parse/parse.h"
 #include "test/util.h"
 
+using expr::Expr;
+
 namespace eval {
 
 namespace {
@@ -41,7 +43,7 @@ expr::Expr* ParseExpr(const std::string& str) {
 class EvalTest : public test::TestBase {
  protected:
   virtual void TestSetUp() {
-    env_ = expr::Env::Create(nullptr);
+    env_ = new expr::Env;
     expr::primitive::LoadPrimitives(env_);
   }
   virtual void TestTearDown() { env_ = nullptr; }
@@ -58,21 +60,21 @@ TEST_F(EvalTest, SelfEvaluating) {
   EXPECT_EQ(expr::True(), Eval(expr::True(), env_));
   EXPECT_EQ(expr::False(), Eval(expr::False(), env_));
 
-  auto* num = expr::NumReal::Create(42);
+  Expr* num = new expr::NumReal(42);
   EXPECT_EQ(num, Eval(num, env_));
 
-  auto* character = expr::Char::Create('a');
+  Expr* character = new expr::Char('a');
   EXPECT_EQ(character, Eval(character, env_));
 
-  auto* str = expr::String::Create("abc");
+  Expr* str = new expr::String("abc");
   EXPECT_EQ(str, Eval(str, env_));
 
-  auto* vec = expr::Vector::Create({num, character, str});
+  Expr* vec = new expr::Vector({num, character, str});
   EXPECT_EQ(vec, Eval(vec, env_));
 }
 
 TEST_F(EvalTest, Symbol) {
-  auto* num = expr::NumReal::Create(42);
+  Expr* num = new expr::NumReal(42);
   auto* symbol = ParseExpr("abc");
   env_->DefineVar(symbol->AsSymbol(), num);
 
@@ -80,31 +82,31 @@ TEST_F(EvalTest, Symbol) {
 }
 
 TEST_F(EvalTest, Quote) {
-  auto* expected = static_cast<expr::Expr*>(expr::NumReal::Create(42));
-  auto* expr = EvalStr("(quote 42)");
+  Expr* expected = new expr::NumReal(42);
+  Expr* expr = EvalStr("(quote 42)");
 
   EXPECT_EQ(*expected, *expr);
 }
 
 TEST_F(EvalTest, LambdaBasic) {
-  auto* n42 = static_cast<expr::Expr*>(expr::NumReal::Create(42));
-  EXPECT_EQ(*n42, *EvalStr("((lambda (x) x) 42)"));
+  Expr* n = new expr::NumReal(42);
+  EXPECT_EQ(*n, *EvalStr("((lambda (x) x) 42)"));
 }
 
 TEST_F(EvalTest, If) {
-  auto* n42 = static_cast<expr::Expr*>(expr::NumReal::Create(42));
+  Expr* n42 = new expr::NumReal(42);
 
   EXPECT_EQ(*n42, *EvalStr("(if #t 42)"));
   EXPECT_EQ(*expr::Nil(), *EvalStr("(if #f 42)"));
 
-  auto* n43 = static_cast<expr::Expr*>(expr::NumReal::Create(43));
+  Expr* n43 = new expr::NumReal(43);
   EXPECT_EQ(*n42, *EvalStr("(if #t 42 43)"));
   EXPECT_EQ(*n43, *EvalStr("(if #f 42 43)"));
 }
 
 TEST_F(EvalTest, Set) {
-  auto* expected = static_cast<expr::Expr*>(expr::NumReal::Create(42));
-  auto* sym = expr::Symbol::Create("foo");
+  Expr* expected = new expr::NumReal(42);
+  auto* sym = new expr::Symbol("foo");
   env_->DefineVar(sym, expr::Nil());
   EvalStr("(set! foo 42)");
 
@@ -117,8 +119,8 @@ TEST_F(EvalTest, Begin) {
 
 TEST_F(EvalTest, Define) {
   // TODO(bcf): Test define function
-  auto* expected = static_cast<expr::Expr*>(expr::NumReal::Create(42));
-  auto* sym = expr::Symbol::Create("foo");
+  Expr* expected = new expr::NumReal(42);
+  auto* sym = new expr::Symbol("foo");
   EvalStr("(define foo 42)");
 
   EXPECT_EQ(*expected, *env_->Lookup(sym));

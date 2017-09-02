@@ -50,11 +50,11 @@ TEST_F(ParserTest, ReadSimpleDatum) {
 
   // clang-format off
   const ExprVec kExpected = {
-      expr::Symbol::Create("hello"),
+      new expr::Symbol("hello"),
       expr::True(),
-      expr::NumReal::Create(1),
-      expr::Char::Create('c'),
-      expr::String::Create("world"),
+      new expr::NumReal(1),
+      new expr::Char('c'),
+      new expr::String("world"),
   };
   // clang-format on
 
@@ -65,12 +65,12 @@ TEST_F(ParserTest, ReadVector) {
   const std::string kStr = "#(a b c d e)";
   // clang-format off
   const ExprVec kExpected = {
-      expr::Vector::Create({
-          expr::Symbol::Create("a"),
-          expr::Symbol::Create("b"),
-          expr::Symbol::Create("c"),
-          expr::Symbol::Create("d"),
-          expr::Symbol::Create("e"),
+      new expr::Vector({
+          new expr::Symbol("a"),
+          new expr::Symbol("b"),
+          new expr::Symbol("c"),
+          new expr::Symbol("d"),
+          new expr::Symbol("e"),
       }),
   };
   // clang-format on
@@ -85,13 +85,13 @@ TEST_F(ParserTest, ReadListAbbreviation) {
       ",a\n"
       ",@a\n";
 
-  auto tail = expr::Cons(expr::Symbol::Create("a"), expr::Nil());
+  auto tail = expr::Cons(new expr::Symbol("a"), expr::Nil());
 
   const ExprVec kExpected = {
-      expr::Cons(expr::Symbol::Create("quote"), tail),
-      expr::Cons(expr::Symbol::Create("quasiquote"), tail),
-      expr::Cons(expr::Symbol::Create("unquote"), tail),
-      expr::Cons(expr::Symbol::Create("unquote-splicing"), tail),
+      expr::Cons(new expr::Symbol("quote"), tail),
+      expr::Cons(new expr::Symbol("quasiquote"), tail),
+      expr::Cons(new expr::Symbol("unquote"), tail),
+      expr::Cons(new expr::Symbol("unquote-splicing"), tail),
   };
 
   VerifyExprs(kExpected, Read(kStr));
@@ -101,11 +101,11 @@ TEST_F(ParserTest, ReadList) {
   const std::string kStr = "(a b c d e)";
   const ExprVec kExpected = {
       expr::Cons(
-          expr::Symbol::Create("a"),
-          expr::Cons(expr::Symbol::Create("b"),
-                     expr::Cons(expr::Symbol::Create("c"),
-                                expr::Cons(expr::Symbol::Create("d"),
-                                           expr::Cons(expr::Symbol::Create("e"),
+          new expr::Symbol("a"),
+          expr::Cons(new expr::Symbol("b"),
+                     expr::Cons(new expr::Symbol("c"),
+                                expr::Cons(new expr::Symbol("d"),
+                                           expr::Cons(new expr::Symbol("e"),
                                                       expr::Nil()))))),
   };
 
@@ -118,13 +118,13 @@ TEST_F(ParserTest, ReadListDot) {
       "(f . g)";
 
   const ExprVec kExpected = {
-      expr::Cons(expr::Symbol::Create("a"),
-                 expr::Cons(expr::Symbol::Create("b"),
-                            expr::Cons(expr::Symbol::Create("c"),
-                                       expr::Cons(expr::Symbol::Create("d"),
-                                                  expr::Symbol::Create("e"))))),
+      expr::Cons(new expr::Symbol("a"),
+                 expr::Cons(new expr::Symbol("b"),
+                            expr::Cons(new expr::Symbol("c"),
+                                       expr::Cons(new expr::Symbol("d"),
+                                                  new expr::Symbol("e"))))),
 
-      expr::Cons(expr::Symbol::Create("f"), expr::Symbol::Create("g")),
+      expr::Cons(new expr::Symbol("f"), new expr::Symbol("g")),
   };
 
   VerifyExprs(kExpected, Read(kStr));

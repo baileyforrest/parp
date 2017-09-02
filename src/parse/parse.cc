@@ -174,8 +174,7 @@ expr::Expr* DatumParser::ParseList() {
   AdvTok();
   auto expr = ParseExpr();
 
-  return expr::Cons(expr::Symbol::Create(header),
-                    expr::Cons(expr, expr::Nil()));
+  return expr::Cons(new expr::Symbol(header), expr::Cons(expr, expr::Nil()));
 }
 
 expr::Expr* DatumParser::ParseVector() {
@@ -188,7 +187,7 @@ expr::Expr* DatumParser::ParseVector() {
   }
   AdvTok();  // Skip RPAREN
 
-  return expr::Vector::Create(std::move(exprs));
+  return new expr::Vector(std::move(exprs));
 }
 
 }  // namespace

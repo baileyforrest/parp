@@ -61,30 +61,30 @@ TEST_F(LexerTest, Basic) {
 
   const std::vector<Token> kExpected = {
       {Token::Type::LPAREN, {&kFilename, 3, 3}, nullptr},
-      {Token::Type::ID, {&kFilename, 3, 4}, expr::Symbol::Create("define")},
-      {Token::Type::ID, {&kFilename, 3, 11}, expr::Symbol::Create("fact")},
+      {Token::Type::ID, {&kFilename, 3, 4}, new expr::Symbol("define")},
+      {Token::Type::ID, {&kFilename, 3, 11}, new expr::Symbol("fact")},
       {Token::Type::LPAREN, {&kFilename, 4, 4}, nullptr},
-      {Token::Type::ID, {&kFilename, 4, 5}, expr::Symbol::Create("lambda")},
+      {Token::Type::ID, {&kFilename, 4, 5}, new expr::Symbol("lambda")},
       {Token::Type::LPAREN, {&kFilename, 4, 12}, nullptr},
-      {Token::Type::ID, {&kFilename, 4, 13}, expr::Symbol::Create("n")},
+      {Token::Type::ID, {&kFilename, 4, 13}, new expr::Symbol("n")},
       {Token::Type::RPAREN, {&kFilename, 4, 14}, nullptr},
       {Token::Type::LPAREN, {&kFilename, 5, 5}, nullptr},
-      {Token::Type::ID, {&kFilename, 5, 6}, expr::Symbol::Create("if")},
+      {Token::Type::ID, {&kFilename, 5, 6}, new expr::Symbol("if")},
       {Token::Type::LPAREN, {&kFilename, 5, 9}, nullptr},
-      {Token::Type::ID, {&kFilename, 5, 10}, expr::Symbol::Create("=")},
-      {Token::Type::ID, {&kFilename, 5, 12}, expr::Symbol::Create("n")},
-      {Token::Type::NUMBER, {&kFilename, 5, 14}, expr::NumReal::Create(0)},
+      {Token::Type::ID, {&kFilename, 5, 10}, new expr::Symbol("=")},
+      {Token::Type::ID, {&kFilename, 5, 12}, new expr::Symbol("n")},
+      {Token::Type::NUMBER, {&kFilename, 5, 14}, new expr::NumReal(0)},
       {Token::Type::RPAREN, {&kFilename, 5, 15}, nullptr},
-      {Token::Type::NUMBER, {&kFilename, 6, 6}, expr::NumReal::Create(1)},
+      {Token::Type::NUMBER, {&kFilename, 6, 6}, new expr::NumReal(1)},
       {Token::Type::LPAREN, {&kFilename, 7, 6}, nullptr},
-      {Token::Type::ID, {&kFilename, 7, 7}, expr::Symbol::Create("*")},
-      {Token::Type::ID, {&kFilename, 7, 9}, expr::Symbol::Create("n")},
+      {Token::Type::ID, {&kFilename, 7, 7}, new expr::Symbol("*")},
+      {Token::Type::ID, {&kFilename, 7, 9}, new expr::Symbol("n")},
       {Token::Type::LPAREN, {&kFilename, 7, 11}, nullptr},
-      {Token::Type::ID, {&kFilename, 7, 12}, expr::Symbol::Create("fact")},
+      {Token::Type::ID, {&kFilename, 7, 12}, new expr::Symbol("fact")},
       {Token::Type::LPAREN, {&kFilename, 7, 17}, nullptr},
-      {Token::Type::ID, {&kFilename, 7, 18}, expr::Symbol::Create("-")},
-      {Token::Type::ID, {&kFilename, 7, 20}, expr::Symbol::Create("n")},
-      {Token::Type::NUMBER, {&kFilename, 7, 22}, expr::NumReal::Create(1)},
+      {Token::Type::ID, {&kFilename, 7, 18}, new expr::Symbol("-")},
+      {Token::Type::ID, {&kFilename, 7, 20}, new expr::Symbol("n")},
+      {Token::Type::NUMBER, {&kFilename, 7, 22}, new expr::NumReal(1)},
       {Token::Type::RPAREN, {&kFilename, 7, 23}, nullptr},
       {Token::Type::RPAREN, {&kFilename, 7, 24}, nullptr},
       {Token::Type::RPAREN, {&kFilename, 7, 25}, nullptr},
@@ -119,18 +119,15 @@ TEST_F(LexerTest, NoTrailingNewine) {
     const char* str;
     std::vector<Token> expected;
   } kTests[] = {
-      {"abc",
-       {{Token::Type::ID, {&kFilename, 1, 1}, expr::Symbol::Create("abc")}}},
+      {"abc", {{Token::Type::ID, {&kFilename, 1, 1}, new expr::Symbol("abc")}}},
 
       {"#t\n", {{Token::Type::BOOL, {&kFilename, 1, 1}, expr::True()}}},
       {"1\n",
-       {{Token::Type::NUMBER, {&kFilename, 1, 1}, expr::NumReal::Create(1)}}},
+       {{Token::Type::NUMBER, {&kFilename, 1, 1}, new expr::NumReal(1)}}},
       {"#\\c\n",
-       {{Token::Type::CHAR, {&kFilename, 1, 1}, expr::Char::Create('c')}}},
+       {{Token::Type::CHAR, {&kFilename, 1, 1}, new expr::Char('c')}}},
       {"\"def\"",
-       {{Token::Type::STRING,
-         {&kFilename, 1, 1},
-         expr::String::Create("def")}}},
+       {{Token::Type::STRING, {&kFilename, 1, 1}, new expr::String("def")}}},
   };
 
   for (const auto& test : kTests) {
@@ -179,29 +176,29 @@ TEST_F(LexerTest, IdTest) {
   const std::string kFilename = "foo";
 
   const std::vector<Token> kExpected = {
-      {Token::Type::ID, {&kFilename, 1, 1}, expr::Symbol::Create("abc")},
-      {Token::Type::ID, {&kFilename, 2, 1}, expr::Symbol::Create("!")},
-      {Token::Type::ID, {&kFilename, 3, 1}, expr::Symbol::Create("$")},
-      {Token::Type::ID, {&kFilename, 4, 1}, expr::Symbol::Create("%")},
-      {Token::Type::ID, {&kFilename, 5, 1}, expr::Symbol::Create("&")},
-      {Token::Type::ID, {&kFilename, 6, 1}, expr::Symbol::Create("*")},
-      {Token::Type::ID, {&kFilename, 7, 1}, expr::Symbol::Create("/")},
-      {Token::Type::ID, {&kFilename, 8, 1}, expr::Symbol::Create(":")},
-      {Token::Type::ID, {&kFilename, 9, 1}, expr::Symbol::Create("<")},
-      {Token::Type::ID, {&kFilename, 10, 1}, expr::Symbol::Create("=")},
-      {Token::Type::ID, {&kFilename, 11, 1}, expr::Symbol::Create(">")},
-      {Token::Type::ID, {&kFilename, 12, 1}, expr::Symbol::Create("?")},
-      {Token::Type::ID, {&kFilename, 13, 1}, expr::Symbol::Create("^")},
-      {Token::Type::ID, {&kFilename, 14, 1}, expr::Symbol::Create("_")},
-      {Token::Type::ID, {&kFilename, 15, 1}, expr::Symbol::Create("~")},
-      {Token::Type::ID, {&kFilename, 16, 1}, expr::Symbol::Create("~a")},
-      {Token::Type::ID, {&kFilename, 17, 1}, expr::Symbol::Create("+")},
-      {Token::Type::ID, {&kFilename, 18, 1}, expr::Symbol::Create("-")},
-      {Token::Type::ID, {&kFilename, 19, 1}, expr::Symbol::Create("...")},
-      {Token::Type::ID, {&kFilename, 20, 1}, expr::Symbol::Create("a+")},
-      {Token::Type::ID, {&kFilename, 21, 1}, expr::Symbol::Create("b-")},
-      {Token::Type::ID, {&kFilename, 22, 1}, expr::Symbol::Create("c.")},
-      {Token::Type::ID, {&kFilename, 23, 1}, expr::Symbol::Create("c@")},
+      {Token::Type::ID, {&kFilename, 1, 1}, new expr::Symbol("abc")},
+      {Token::Type::ID, {&kFilename, 2, 1}, new expr::Symbol("!")},
+      {Token::Type::ID, {&kFilename, 3, 1}, new expr::Symbol("$")},
+      {Token::Type::ID, {&kFilename, 4, 1}, new expr::Symbol("%")},
+      {Token::Type::ID, {&kFilename, 5, 1}, new expr::Symbol("&")},
+      {Token::Type::ID, {&kFilename, 6, 1}, new expr::Symbol("*")},
+      {Token::Type::ID, {&kFilename, 7, 1}, new expr::Symbol("/")},
+      {Token::Type::ID, {&kFilename, 8, 1}, new expr::Symbol(":")},
+      {Token::Type::ID, {&kFilename, 9, 1}, new expr::Symbol("<")},
+      {Token::Type::ID, {&kFilename, 10, 1}, new expr::Symbol("=")},
+      {Token::Type::ID, {&kFilename, 11, 1}, new expr::Symbol(">")},
+      {Token::Type::ID, {&kFilename, 12, 1}, new expr::Symbol("?")},
+      {Token::Type::ID, {&kFilename, 13, 1}, new expr::Symbol("^")},
+      {Token::Type::ID, {&kFilename, 14, 1}, new expr::Symbol("_")},
+      {Token::Type::ID, {&kFilename, 15, 1}, new expr::Symbol("~")},
+      {Token::Type::ID, {&kFilename, 16, 1}, new expr::Symbol("~a")},
+      {Token::Type::ID, {&kFilename, 17, 1}, new expr::Symbol("+")},
+      {Token::Type::ID, {&kFilename, 18, 1}, new expr::Symbol("-")},
+      {Token::Type::ID, {&kFilename, 19, 1}, new expr::Symbol("...")},
+      {Token::Type::ID, {&kFilename, 20, 1}, new expr::Symbol("a+")},
+      {Token::Type::ID, {&kFilename, 21, 1}, new expr::Symbol("b-")},
+      {Token::Type::ID, {&kFilename, 22, 1}, new expr::Symbol("c.")},
+      {Token::Type::ID, {&kFilename, 23, 1}, new expr::Symbol("c@")},
   };
 
   std::istringstream s(kStr);
@@ -288,36 +285,32 @@ TEST_F(LexerTest, NumTest) {
   const std::string kFilename = "foo";
 
   const std::vector<Token> kExpected = {
-      {Token::Type::NUMBER, {&kFilename, 1, 1}, expr::NumReal::Create(1)},
-      {Token::Type::NUMBER, {&kFilename, 2, 1}, expr::NumReal::Create(1)},
-      {Token::Type::NUMBER, {&kFilename, 3, 1}, expr::NumReal::Create(1)},
-      {Token::Type::NUMBER, {&kFilename, 4, 1}, expr::NumReal::Create(1)},
-      {Token::Type::NUMBER, {&kFilename, 5, 1}, expr::NumFloat::Create(1)},
-      {Token::Type::NUMBER, {&kFilename, 6, 1}, expr::NumReal::Create(1)},
-      {Token::Type::NUMBER, {&kFilename, 7, 1}, expr::NumFloat::Create(1.0)},
-      {Token::Type::NUMBER, {&kFilename, 8, 1}, expr::NumFloat::Create(1.0)},
-      {Token::Type::NUMBER, {&kFilename, 9, 1}, expr::NumReal::Create(1)},
-      {Token::Type::NUMBER, {&kFilename, 10, 1}, expr::NumReal::Create(1)},
-      {Token::Type::NUMBER, {&kFilename, 11, 1}, expr::NumReal::Create(1)},
-      {Token::Type::NUMBER, {&kFilename, 12, 1}, expr::NumReal::Create(1)},
-      {Token::Type::NUMBER, {&kFilename, 13, 1}, expr::NumFloat::Create(1.0)},
-      {Token::Type::NUMBER, {&kFilename, 14, 1}, expr::NumFloat::Create(1.0)},
-      {Token::Type::NUMBER, {&kFilename, 15, 1}, expr::NumReal::Create(3)},
-      {Token::Type::NUMBER, {&kFilename, 16, 1}, expr::NumReal::Create(2)},
-      {Token::Type::NUMBER, {&kFilename, 17, 1}, expr::NumReal::Create(-2)},
-      {Token::Type::NUMBER, {&kFilename, 18, 1}, expr::NumFloat::Create(400)},
-      {Token::Type::NUMBER, {&kFilename, 19, 1}, expr::NumFloat::Create(5.7)},
-      {Token::Type::NUMBER,
-       {&kFilename, 20, 1},
-       expr::NumFloat::Create(500.007)},
-      {Token::Type::NUMBER, {&kFilename, 21, 1}, expr::NumFloat::Create(7.2)},
-      {Token::Type::NUMBER, {&kFilename, 22, 1}, expr::NumFloat::Create(0.3)},
-      {Token::Type::NUMBER, {&kFilename, 23, 1}, expr::NumFloat::Create(1.0)},
-      {Token::Type::NUMBER, {&kFilename, 24, 1}, expr::NumFloat::Create(10.0)},
-      {Token::Type::NUMBER, {&kFilename, 25, 1}, expr::NumFloat::Create(100.0)},
-      {Token::Type::NUMBER,
-       {&kFilename, 26, 1},
-       expr::NumFloat::Create(1000.0)},
+      {Token::Type::NUMBER, {&kFilename, 1, 1}, new expr::NumReal(1)},
+      {Token::Type::NUMBER, {&kFilename, 2, 1}, new expr::NumReal(1)},
+      {Token::Type::NUMBER, {&kFilename, 3, 1}, new expr::NumReal(1)},
+      {Token::Type::NUMBER, {&kFilename, 4, 1}, new expr::NumReal(1)},
+      {Token::Type::NUMBER, {&kFilename, 5, 1}, new expr::NumFloat(1)},
+      {Token::Type::NUMBER, {&kFilename, 6, 1}, new expr::NumReal(1)},
+      {Token::Type::NUMBER, {&kFilename, 7, 1}, new expr::NumFloat(1.0)},
+      {Token::Type::NUMBER, {&kFilename, 8, 1}, new expr::NumFloat(1.0)},
+      {Token::Type::NUMBER, {&kFilename, 9, 1}, new expr::NumReal(1)},
+      {Token::Type::NUMBER, {&kFilename, 10, 1}, new expr::NumReal(1)},
+      {Token::Type::NUMBER, {&kFilename, 11, 1}, new expr::NumReal(1)},
+      {Token::Type::NUMBER, {&kFilename, 12, 1}, new expr::NumReal(1)},
+      {Token::Type::NUMBER, {&kFilename, 13, 1}, new expr::NumFloat(1.0)},
+      {Token::Type::NUMBER, {&kFilename, 14, 1}, new expr::NumFloat(1.0)},
+      {Token::Type::NUMBER, {&kFilename, 15, 1}, new expr::NumReal(3)},
+      {Token::Type::NUMBER, {&kFilename, 16, 1}, new expr::NumReal(2)},
+      {Token::Type::NUMBER, {&kFilename, 17, 1}, new expr::NumReal(-2)},
+      {Token::Type::NUMBER, {&kFilename, 18, 1}, new expr::NumFloat(400)},
+      {Token::Type::NUMBER, {&kFilename, 19, 1}, new expr::NumFloat(5.7)},
+      {Token::Type::NUMBER, {&kFilename, 20, 1}, new expr::NumFloat(500.007)},
+      {Token::Type::NUMBER, {&kFilename, 21, 1}, new expr::NumFloat(7.2)},
+      {Token::Type::NUMBER, {&kFilename, 22, 1}, new expr::NumFloat(0.3)},
+      {Token::Type::NUMBER, {&kFilename, 23, 1}, new expr::NumFloat(1.0)},
+      {Token::Type::NUMBER, {&kFilename, 24, 1}, new expr::NumFloat(10.0)},
+      {Token::Type::NUMBER, {&kFilename, 25, 1}, new expr::NumFloat(100.0)},
+      {Token::Type::NUMBER, {&kFilename, 26, 1}, new expr::NumFloat(1000.0)},
   };
 
   std::istringstream s(kStr);
@@ -349,7 +342,7 @@ TEST_F(LexerTest, CharTest) {
     ++line;
     Token expect = {Token::Type::CHAR,
                     {&kFilename, line, 1},
-                    expr::Char::Create(static_cast<char>(i))};
+                    new expr::Char(static_cast<char>(i))};
     expected.push_back(expect);
   }
 
@@ -368,8 +361,8 @@ TEST_F(LexerTest, CharTestSpaceNewline) {
   const std::string kFilename = "foo";
 
   const std::vector<Token> kExpected = {
-      {Token::Type::CHAR, {&kFilename, 1, 1}, expr::Char::Create(' ')},
-      {Token::Type::CHAR, {&kFilename, 2, 1}, expr::Char::Create('\n')},
+      {Token::Type::CHAR, {&kFilename, 1, 1}, new expr::Char(' ')},
+      {Token::Type::CHAR, {&kFilename, 2, 1}, new expr::Char('\n')},
   };
 
   std::istringstream s(kStr);
@@ -394,19 +387,15 @@ TEST_F(LexerTest, StringTest) {
   const std::string kFilename = "foo";
 
   const std::vector<Token> kExpected = {
-      {Token::Type::STRING, {&kFilename, 1, 1}, expr::String::Create("abc")},
-      {Token::Type::STRING, {&kFilename, 2, 1}, expr::String::Create("abc")},
-      {Token::Type::STRING, {&kFilename, 3, 1}, expr::String::Create("abc")},
-      {Token::Type::STRING, {&kFilename, 4, 1}, expr::String::Create("\\abc")},
-      {Token::Type::STRING, {&kFilename, 5, 1}, expr::String::Create("\"abc")},
-      {Token::Type::STRING,
-       {&kFilename, 6, 1},
-       expr::String::Create("foo\\abc")},
-      {Token::Type::STRING,
-       {&kFilename, 7, 1},
-       expr::String::Create("foo\"abc")},
-      {Token::Type::STRING, {&kFilename, 8, 1}, expr::String::Create("abc\\")},
-      {Token::Type::STRING, {&kFilename, 9, 1}, expr::String::Create("abc\"")},
+      {Token::Type::STRING, {&kFilename, 1, 1}, new expr::String("abc")},
+      {Token::Type::STRING, {&kFilename, 2, 1}, new expr::String("abc")},
+      {Token::Type::STRING, {&kFilename, 3, 1}, new expr::String("abc")},
+      {Token::Type::STRING, {&kFilename, 4, 1}, new expr::String("\\abc")},
+      {Token::Type::STRING, {&kFilename, 5, 1}, new expr::String("\"abc")},
+      {Token::Type::STRING, {&kFilename, 6, 1}, new expr::String("foo\\abc")},
+      {Token::Type::STRING, {&kFilename, 7, 1}, new expr::String("foo\"abc")},
+      {Token::Type::STRING, {&kFilename, 8, 1}, new expr::String("abc\\")},
+      {Token::Type::STRING, {&kFilename, 9, 1}, new expr::String("abc\"")},
   };
 
   std::istringstream s(kStr);

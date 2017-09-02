@@ -69,9 +69,8 @@ class Number : public Expr {
 // TODO(bcf): Expand this to be arbitrary precision rational
 class NumReal : public Number {
  public:
-  static NumReal* Create(int64_t val);
-  static NumReal* Create(const std::string& str, int radix);
-  ~NumReal() override = default;
+  explicit NumReal(int64_t val) : Number(Type::RATIONAL, true), val_(val) {}
+  explicit NumReal(const std::string& str, int radix);
 
   // Override from Expr
   std::ostream& AppendStream(std::ostream& stream) const override;
@@ -83,7 +82,7 @@ class NumReal : public Number {
   int64_t val() const { return val_; }
 
  private:
-  explicit NumReal(int64_t val) : Number(Type::RATIONAL, true), val_(val) {}
+  ~NumReal() override = default;
 
   // Override from Number
   bool NumEqv(const Number* other) const override {
@@ -95,8 +94,8 @@ class NumReal : public Number {
 
 class NumFloat : public Number {
  public:
-  static NumFloat* Create(double val);
-  static NumFloat* Create(const std::string& str, int radix);
+  explicit NumFloat(double val) : Number(Type::FLOAT, false), val_(val) {}
+  explicit NumFloat(const std::string& str, int radix);
   ~NumFloat() override = default;
 
   // Override from Expr
@@ -109,8 +108,6 @@ class NumFloat : public Number {
   double val() const { return val_; }
 
  private:
-  explicit NumFloat(double val) : Number(Type::FLOAT, false), val_(val) {}
-
   // Override from Number
   bool NumEqv(const Number* other) const override {
     return val_ == other->AsNumFloat()->val_;

@@ -32,6 +32,7 @@
 #include "gc/gc.h"
 #include "util/macros.h"
 
+// TODO(bcf): assert Error checking on constructors
 namespace expr {
 
 class EmptyList;
@@ -47,7 +48,8 @@ class Env;
 class Analyzed;
 class Primitive;
 
-class Expr : public gc::Collectable {
+// TODO(bcf): Define interface to get all references.
+class Expr {
  public:
   enum class Type : char {
     // Expr values
@@ -66,8 +68,6 @@ class Expr : public gc::Collectable {
     ANALYZED,   // Analyzed expression
     PRIMITIVE,  // Primitive expression
   };
-
-  virtual ~Expr() = default;
 
   Type type() const { return type_; }
 
@@ -108,12 +108,26 @@ class Expr : public gc::Collectable {
   virtual const Primitive* AsPrimitive() const { return nullptr; }
   virtual Primitive* AsPrimitive() { return nullptr; }
 
+  static void* operator new(std::size_t size) {
+    return gc::Gc::Get().AllocExpr(size);
+  }
+
+  // Do nothing. Garbage collector will take care of it.
+  static void operator delete(void* /* ptr */) {}
+
  protected:
   explicit Expr(Type type) : type_(type) {}
+  virtual ~Expr() = default;
 
  private:
+  friend class gc::Gc;
+
   virtual bool EqvImpl(const Expr* other) const { return Eq(other); }
   virtual bool EqualImpl(const Expr* other) const { return Eqv(other); }
+
+  // We do now allow allocating arrays.
+  static void operator delete[](void* ptr) = delete;
+  static void* operator new[](std::size_t size) = delete;
 
   Type type_;
 
@@ -121,6 +135,7 @@ class Expr : public gc::Collectable {
 };
 
 const char* TypeToString(Expr::Type type);
+
 inline std::ostream& operator<<(std::ostream& stream, const Expr::Type& type) {
   return stream << TypeToString(type);
 }
@@ -135,56 +150,57 @@ inline bool operator==(const Expr& lhs, const Expr& rhs) {
 
 class EmptyList : public Expr {
  public:
-  ~EmptyList() override = default;
+  EmptyList() : Expr(Type::EMPTY_LIST) {}
+
+ private:
+  friend EmptyList* Nil();
 
   // Expr implementation:
   const EmptyList* AsEmptyList() const override { return this; }
   EmptyList* AsEmptyList() override { return this; }
-  std::ostream& AppendStream(std::ostream& stream) const override;
+  std::ostream& AppendStream(std::ostream& stream) const override {
+    return stream << "'()";
+  }
 
- private:
-  EmptyList() : Expr(Type::EMPTY_LIST) {}
-  friend EmptyList* Nil();
+  ~EmptyList() override = default;
 };
 
 class Bool : public Expr {
  public:
-  ~Bool() override = default;
+  explicit Bool(bool val) : Expr(Type::BOOL), val_(val) {}
+
+  bool val() const { return val_; }
+
+ private:
+  friend Bool* True();
+  friend Bool* False();
 
   // Expr implementation:
   const Bool* AsBool() const override { return this; }
   Bool* AsBool() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
-  bool val() const { return val_; }
-
- private:
-  explicit Bool(bool val) : Expr(Type::BOOL), val_(val) {}
-  friend Bool* True();
-  friend Bool* False();
+  ~Bool() override = default;
 
   bool val_;
 };
 
 class Char : public Expr {
  public:
-  static Char* Create(char val);
-  ~Char() override = default;
-
-  // Expr implementation:
-  const Char* AsChar() const override { return this; }
-  Char* AsChar() override { return this; }
-  std::ostream& AppendStream(std::ostream& stream) const override;
+  explicit Char(char val) : Expr(Type::CHAR), val_(val) {}
 
   char val() const { return val_; }
 
  private:
-  explicit Char(char val) : Expr(Type::CHAR), val_(val) {}
-
   // Expr implementation:
+  const Char* AsChar() const override { return this; }
+  Char* AsChar() override { return this; }
+  std::ostream& AppendStream(std::ostream& stream) const override;
   bool EqvImpl(const Expr* other) const override {
     return val_ == other->AsChar()->val_;
   }
+
+  ~Char() override = default;
 
   char val_;
 };
@@ -192,21 +208,23 @@ class Char : public Expr {
 // TODO(bcf): Optimize for readonly strings.
 class String : public Expr {
  public:
-  static String* Create(std::string val, bool read_only = false);
-  ~String() override;
-
-  // Expr implementation:
-  const String* AsString() const override { return this; }
-  String* AsString() override { return this; }
-  std::ostream& AppendStream(std::ostream& stream) const override;
+  explicit String(std::string val, bool read_only = false)
+      : Expr(Type::STRING), val_(std::move(val)), read_only_(read_only) {}
 
   const std::string& val() const { return val_; }
 
  private:
-  explicit String(std::string val, bool read_only = false);
-
   // Expr implementation:
-  bool EqualImpl(const Expr* other) const override;
+  const String* AsString() const override { return this; }
+  String* AsString() override { return this; }
+  std::ostream& AppendStream(std::ostream& stream) const override {
+    return stream << "\"" << val_ << "\"";
+  }
+  bool EqualImpl(const Expr* other) const override {
+    return val_ == other->AsString()->val_;
+  }
+
+  ~String() override = default;
 
   std::string val_;
   bool read_only_;
@@ -215,48 +233,53 @@ class String : public Expr {
 // TODO(bcf): Optimize for read only.
 class Symbol : public Expr {
  public:
-  static Symbol* Create(std::string val);
-  ~Symbol() override;
-
-  // Expr implementation:
-  const Symbol* AsSymbol() const override { return this; }
-  Symbol* AsSymbol() override { return this; }
-  std::ostream& AppendStream(std::ostream& stream) const override;
+  explicit Symbol(std::string val) : Expr(Type::SYMBOL), val_(std::move(val)) {}
 
   const std::string& val() const { return val_; }
 
  private:
-  explicit Symbol(std::string val);
-
   // Expr implementation:
-  bool EqvImpl(const Expr* other) const override;
+  const Symbol* AsSymbol() const override { return this; }
+  Symbol* AsSymbol() override { return this; }
+  std::ostream& AppendStream(std::ostream& stream) const override {
+    return stream << val_;
+  }
+  bool EqvImpl(const Expr* other) const override {
+    return val_ == other->AsSymbol()->val_;
+  }
+
+  ~Symbol() override = default;
 
   std::string val_;
 };
 
 class Pair : public Expr {
  public:
-  static Pair* Create(Expr* car, Expr* cdr);
-  ~Pair() override = default;
+  Pair(Expr* car, Expr* cdr) : Expr(Type::PAIR), car_(car), cdr_(cdr) {}
 
-  // Expr implementation:
-  const Pair* AsPair() const override { return this; }
-  Pair* AsPair() override { return this; }
-  std::ostream& AppendStream(std::ostream& stream) const override;
+  expr::Expr* Cr(const std::string& str) const;
 
   Expr* car() const { return car_; }
   Expr* cdr() const { return cdr_; }
   void set_car(Expr* expr) { car_ = expr; }
   void set_cdr(Expr* expr) { cdr_ = expr; }
 
-  expr::Expr* Cr(const std::string& str) const;
-
  private:
-  Pair(Expr* car, Expr* cdr) : Expr(Type::PAIR), car_(car), cdr_(cdr) {}
+  ~Pair() override = default;
 
   // Expr implementation:
-  bool EqvImpl(const Expr* other) const override;
-  bool EqualImpl(const Expr* other) const override;
+  const Pair* AsPair() const override { return this; }
+  Pair* AsPair() override { return this; }
+  std::ostream& AppendStream(std::ostream& stream) const override {
+    return stream << "(" << *car_ << " . " << *cdr_ << ")";
+  }
+  bool EqvImpl(const Expr* other) const override {
+    return car_ == other->AsPair()->car_ && cdr_ == other->AsPair()->cdr_;
+  }
+  bool EqualImpl(const Expr* other) const override {
+    return car_->Equal(other->AsPair()->car_) &&
+           cdr_->Equal(other->AsPair()->cdr_);
+  }
 
   Expr* car_;
   Expr* cdr_;
@@ -264,38 +287,37 @@ class Pair : public Expr {
 
 class Vector : public Expr {
  public:
-  static Vector* Create(std::vector<Expr*> vals);
-  ~Vector() override;
-
-  // Expr implementation:
-  const Vector* AsVector() const override { return this; }
-  Vector* AsVector() override { return this; }
-  std::ostream& AppendStream(std::ostream& stream) const override;
+  explicit Vector(std::vector<Expr*> vals)
+      : Expr(Type::VECTOR), vals_(std::move(vals)) {}
 
   const std::vector<Expr*>& vals() const { return vals_; }
 
  private:
-  explicit Vector(std::vector<Expr*> vals);
-
   // Expr implementation:
-  bool EqvImpl(const Expr* other) const override;
+  const Vector* AsVector() const override { return this; }
+  Vector* AsVector() override { return this; }
+  std::ostream& AppendStream(std::ostream& stream) const override;
+  bool EqvImpl(const Expr* other) const override {
+    return vals_ == other->AsVector()->vals_;
+  }
   bool EqualImpl(const Expr* other) const override;
+
+  ~Vector() override = default;
 
   std::vector<Expr*> vals_;
 };
 
 class Lambda : public Expr {
  public:
-  static Lambda* Create(std::vector<Symbol*> required_args,
-                        Symbol* variable_arg,
-                        std::vector<Expr*> body,
-                        Env* env);
-  ~Lambda() override;
-
-  // Expr implementation:
-  const Lambda* AsLambda() const override { return this; }
-  Lambda* AsLambda() override { return this; }
-  std::ostream& AppendStream(std::ostream& stream) const override;
+  explicit Lambda(std::vector<Symbol*> required_args,
+                  Symbol* variable_arg,
+                  std::vector<Expr*> body,
+                  Env* env)
+      : Expr(Type::LAMBDA),
+        required_args_(std::move(required_args)),
+        variable_arg_(variable_arg),
+        body_(std::move(body)),
+        env_(env) {}
 
   const std::vector<Symbol*>& required_args() const { return required_args_; }
   Symbol* variable_arg() const { return variable_arg_; }
@@ -303,10 +325,12 @@ class Lambda : public Expr {
   Env* env() const { return env_; }
 
  private:
-  explicit Lambda(std::vector<Symbol*> required_args,
-                  Symbol* variable_arg,
-                  std::vector<Expr*> body,
-                  Env* env);
+  // Expr implementation:
+  const Lambda* AsLambda() const override { return this; }
+  Lambda* AsLambda() override { return this; }
+  std::ostream& AppendStream(std::ostream& stream) const override;
+
+  ~Lambda() override = default;
 
   std::vector<Symbol*> required_args_;
   Symbol* variable_arg_;
@@ -316,24 +340,26 @@ class Lambda : public Expr {
 
 class Env : public Expr {
  public:
-  static Env* Create(Env* enclosing);
-  ~Env() override;
+  explicit Env(Env* enclosing = nullptr)
+      : Expr(Type::ENV), enclosing_(enclosing) {}
 
+  Expr* Lookup(Symbol* var) const;
+  const Env* enclosing() const { return enclosing_; }
+  void DefineVar(Symbol* var, Expr* expr) { map_[var] = expr; }
+  void SetVar(Symbol* var, Expr* expr);
+
+ private:
   // Expr implementation:
   const Env* AsEnv() const override { return this; }
   Env* AsEnv() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
-  Expr* Lookup(Symbol* var) const;
-  const Env* enclosing() const { return enclosing_; }
-  void DefineVar(Symbol* var, Expr* expr);
-  void SetVar(Symbol* var, Expr* expr);
-
- private:
-  explicit Env(Env* enclosing);
+  ~Env() override = default;
 
   struct VarHash {
-    std::size_t operator()(Symbol* var) const;
+    std::size_t operator()(Symbol* var) const {
+      return std::hash<std::string>()(var->val());
+    }
   };
 
   struct VarEqual {
@@ -348,20 +374,23 @@ class Analyzed : public Expr {
  public:
   using Evaluation = std::function<Expr*(Env*)>;
 
-  static Analyzed* Create(Expr* orig_expr,
-                          Evaluation func,
-                          std::vector<Expr*> refs);
-  ~Analyzed() override;
-
-  // Expr implementation:
-  const Analyzed* AsAnalyzed() const override { return this; }
-  Analyzed* AsAnalyzed() override { return this; }
-  std::ostream& AppendStream(std::ostream& stream) const override;
+  Analyzed(Expr* orig_expr, Evaluation func, std::vector<Expr*> refs)
+      : Expr(Type::ANALYZED),
+        orig_expr_(orig_expr),
+        func_(std::move(func)),
+        refs_(std::move(refs)) {}
 
   const Evaluation& func() const { return func_; }
 
  private:
-  Analyzed(Expr* orig_expr, Evaluation func, std::vector<Expr*> refs);
+  // Expr implementation:
+  const Analyzed* AsAnalyzed() const override { return this; }
+  Analyzed* AsAnalyzed() override { return this; }
+  std::ostream& AppendStream(std::ostream& stream) const override {
+    return stream << "Analyzed(" << *orig_expr_ << ")";
+  }
+
+  ~Analyzed() override = default;
 
   Expr* orig_expr_;
   Evaluation func_;
@@ -372,12 +401,11 @@ class Primitive : public Expr {
  public:
   virtual Expr* Eval(Env* env, Expr** exprs, size_t size) const = 0;
 
+ protected:
   // Expr implementation:
   const Primitive* AsPrimitive() const override { return this; }
   Primitive* AsPrimitive() override { return this; }
-  std::ostream& AppendStream(std::ostream& stream) const override = 0;
 
- protected:
   Primitive() : Expr(Type::PRIMITIVE) {}
   virtual ~Primitive() = default;
 };
@@ -402,9 +430,9 @@ Expr* ListFromIt(T it, T e) {
   return Cons(val, ListFromIt(it, e));
 }
 
-// Alias for Pair::Create
+// Alias for new Pair
 inline Pair* Cons(Expr* e1, Expr* e2) {
-  return Pair::Create(e1, e2);
+  return new Pair(e1, e2);
 }
 
 }  // namespace expr

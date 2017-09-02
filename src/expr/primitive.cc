@@ -134,8 +134,7 @@ Expr* Lambda::Eval(Env* env, Expr** args, size_t num_args) const {
     args[i] = eval::Analyze(args[i]);
   }
 
-  return expr::Lambda::Create(req_args, var_arg, {args + 1, args + num_args},
-                              env);
+  return new expr::Lambda(req_args, var_arg, {args + 1, args + num_args}, env);
 }
 
 Expr* If::Eval(Env* env, Expr** args, size_t num_args) const {
@@ -191,7 +190,7 @@ Expr* Define::Eval(Env* env, Expr** args, size_t num_args) const {
 
 void LoadPrimitives(Env* env) {
   for (const auto& primitive : kPrimitives) {
-    env->DefineVar(Symbol::Create(primitive.name), primitive.expr());
+    env->DefineVar(new Symbol(primitive.name), primitive.expr());
   }
 }
 

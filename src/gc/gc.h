@@ -21,26 +21,21 @@
 #define GC_GC_H_
 
 #include <cstddef>
-#include <functional>
-#include <utility>
-#include <vector>
+#include <deque>
 
 #include "util/macros.h"
 
+namespace expr {
+class Expr;
+}  // namespace expr
+
 namespace gc {
-
-class Collectable {
- public:
-  virtual ~Collectable() = default;
-
-  // TODO(bcf): define iterator for pointers to other collectables
-};
 
 // TODO(bcf): Implement garbage collection for real
 class Gc {
  public:
   static Gc& Get();
-  void* Alloc(std::size_t size, std::function<Collectable*(void*)> creator);
+  void* AllocExpr(std::size_t size);
   void Purge();
 
  private:
@@ -48,7 +43,7 @@ class Gc {
   ~Gc();
 
   DISALLOW_MOVE_COPY_AND_ASSIGN(Gc);
-  std::vector<std::pair<Collectable*, void*>> allocs_;
+  std::deque<expr::Expr*> exprs_;
 };
 
 }  // namespace gc

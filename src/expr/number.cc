@@ -38,35 +38,7 @@ int64_t stoi64_whole(const std::string& str, int radix) {
   return i;
 }
 
-}  // namespace
-
-// static
-NumReal* NumReal::Create(int64_t val) {
-  return static_cast<NumReal*>(
-      gc::Gc::Get().Alloc(sizeof(NumReal), [val](void* addr) {
-        return new (addr) NumReal(val);
-      }));  // NOLINT(whitespace/newline)
-}
-
-// static
-NumReal* NumReal::Create(const std::string& str, int radix) {
-  return NumReal::Create(static_cast<int64_t>(stoi64_whole(str, radix)));
-}
-
-std::ostream& NumReal::AppendStream(std::ostream& stream) const {
-  return stream << val_;
-}
-
-// static
-NumFloat* NumFloat::Create(double val) {
-  return static_cast<NumFloat*>(
-      gc::Gc::Get().Alloc(sizeof(NumFloat), [val](void* addr) {
-        return new (addr) NumFloat(val);
-      }));  // NOLINT(whitespace/newline)
-}
-
-// static
-NumFloat* NumFloat::Create(const std::string& str, int radix) {
+double strtod_whole(const std::string& str, int radix) {
   double d;
   if (radix == 10) {
     std::size_t pos;
@@ -78,8 +50,20 @@ NumFloat* NumFloat::Create(const std::string& str, int radix) {
     d = stoi64_whole(str, radix);
   }
 
-  return NumFloat::Create(d);
+  return d;
 }
+
+}  // namespace
+
+NumReal::NumReal(const std::string& str, int radix)
+    : NumReal(stoi64_whole(str, radix)) {}
+
+std::ostream& NumReal::AppendStream(std::ostream& stream) const {
+  return stream << val_;
+}
+
+NumFloat::NumFloat(const std::string& str, int radix)
+    : NumFloat(strtod_whole(str, radix)) {}
 
 std::ostream& NumFloat::AppendStream(std::ostream& stream) const {
   return stream << val_;

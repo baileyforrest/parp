@@ -17,9 +17,10 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "gc/gc.h"
-
 #include <cstdlib>
+
+#include "expr/expr.h"
+#include "gc/gc.h"
 
 namespace gc {
 
@@ -33,19 +34,18 @@ Gc& Gc::Get() {
   return gc;
 }
 
-void* Gc::Alloc(std::size_t size, std::function<Collectable*(void*)> creator) {
-  void* addr = std::malloc(size);
-  allocs_.emplace_back(creator(addr), addr);
-
+void* Gc::AllocExpr(std::size_t size) {
+  auto* addr = reinterpret_cast<expr::Expr*>(std::malloc(size));
+  exprs_.push_back(addr);
   return addr;
 }
 
 void Gc::Purge() {
-  for (const auto& pair : allocs_) {
-    pair.first->~Collectable();
-    std::free(pair.second);
+  for (auto* expr : exprs_) {
+    expr->~Expr();
+    std::free(expr);
   }
-  allocs_.clear();
+  exprs_.clear();
 }
 
 }  // namespace gc
