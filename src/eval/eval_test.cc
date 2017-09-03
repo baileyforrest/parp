@@ -18,6 +18,7 @@
  */
 
 #include <string>
+#include <utility>
 
 #include "eval/eval.h"
 #include "expr/expr.h"
@@ -43,6 +44,10 @@ expr::Expr* ParseExpr(const std::string& str) {
 
 Expr* IntExpr(int64_t val) {
   return new Int(val);
+}
+
+Expr* SymExpr(std::string str) {
+  return new Symbol(std::move(str));
 }
 
 }  // namespace
@@ -151,6 +156,25 @@ TEST_F(EvalTest, Cond) {
   EXPECT_EQ(
       *IntExpr(10),
       *EvalStr("(cond (#f 3) ((+ 4 3) => (lambda (x) (+ x 3))) (else 4))"));
+}
+
+TEST_F(EvalTest, Case) {
+  EXPECT_EQ(*Nil(), *EvalStr("(case 3)"));
+  // clang-format off
+  EXPECT_EQ(*SymExpr("composite"), *EvalStr(
+      "(case (* 2 3)"
+      "  ((2 3 5 7) 'prime)"
+      "  ((1 4 6 8 9) 'composite))"));
+  EXPECT_EQ(*Nil(), *EvalStr(
+      "(case (car '(c d))"
+      "  ((a) 'a)"
+      "  ((b) 'b))"));
+  EXPECT_EQ(*SymExpr("consonant"), *EvalStr(
+      "(case (car '(c d))"
+      "  ((a e i o u) 'vowel)"
+      "  ((w y) 'semivowel)"
+      "  (else 'consonant))"));
+  // clang-format on
 }
 
 TEST_F(EvalTest, Begin) {

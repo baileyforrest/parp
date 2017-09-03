@@ -35,7 +35,7 @@ X(Set, set!)
 X(Arrow, =>) // Not defined in the standard, used for cond
 X(Else, else) // Not defined in the standard, used for cond
 X(Cond, cond)
-Y(Case)
+X(Case, case)
 Y(And)
 Y(Or)
 Y(Let)
@@ -151,7 +151,6 @@ Y(Cdr)
 Y(SetCar)
 Y(SetCdr)
 
-// TODO(bcf): (cdddar) upto 4 deep, there are 28 total
 Y(IsNull)
 Y(IsList)
 Y(List)

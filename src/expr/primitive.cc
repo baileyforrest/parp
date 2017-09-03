@@ -74,6 +74,9 @@ namespace primitive {
 
 namespace {
 
+// Depth for car, cdr, caar etc
+const int kCrDepth = 4;
+
 struct {
   Evals* (*expr)();
   const char* name;
@@ -102,6 +105,24 @@ void EvalArgs(Env* env, Expr** args, size_t num_args) {
   }
 }
 
+Expr* ExecuteList(Env* env, Expr* cur) {
+  Expr* last_eval = nullptr;
+  while (auto* link = cur->AsPair()) {
+    last_eval = Eval(link->car(), env);
+    cur = link->cdr();
+  }
+
+  if (cur != Nil()) {
+    throw RuntimeException("Unexpected expression", cur);
+  }
+
+  if (!last_eval) {
+    throw RuntimeException("Unexpected empty sequence", cur);
+  }
+
+  return last_eval;
+}
+
 class LambdaImpl : public Evals {
  public:
   explicit LambdaImpl(const std::vector<Symbol*>& required_args,
@@ -119,7 +140,7 @@ class LambdaImpl : public Evals {
  private:
   // Evals implementation:
   std::ostream& AppendStream(std::ostream& stream) const override;
-  Expr* DoEval(Env* env, Expr** exprs, size_t size) const override;
+  Expr* DoEval(Env* env, Expr** args, size_t num_args) const override;
 
   ~LambdaImpl() override = default;
 
@@ -180,6 +201,43 @@ Expr* LambdaImpl::DoEval(Env* /* env */, Expr** args, size_t num_args) const {
     Eval(body_[i], new_env);
   }
   return Eval(body_.back(), new_env);
+}
+
+class CrImpl : public Evals {
+ public:
+  explicit CrImpl(std::string cr) : cr_(cr) {}
+
+  // Evals implementation:
+  std::ostream& AppendStream(std::ostream& stream) const override {
+    return stream << "c" << cr_ << "r";
+  }
+  Expr* DoEval(Env* /* env */, Expr** args, size_t num_args) const override {
+    EXPECT_ARGS_NUM(1);
+    EXPECT_TYPE(PAIR, args[0]);
+    return args[0]->AsPair()->Cr(cr_);
+  }
+
+  ~CrImpl() override = default;
+
+ private:
+  std::string cr_;
+};
+
+void LoadCr(Env* env, size_t depth, std::string* cur) {
+  if (depth == 0)
+    return;
+  if (!cur->empty()) {
+    auto sym_name = "c" + *cur + "r";
+    env->DefineVar(new Symbol(sym_name), new CrImpl(*cur));
+  }
+
+  cur->push_back('a');
+  LoadCr(env, depth - 1, cur);
+  cur->pop_back();
+
+  cur->push_back('d');
+  LoadCr(env, depth - 1, cur);
+  cur->pop_back();
 }
 
 }  // namespace
@@ -325,30 +383,25 @@ Expr* Cond::DoEval(Env* env, Expr** args, size_t num_args) const {
     }
 
     auto* first = pair->car();
-    bool has_else = false;
     if (i == num_args - 1) {
       auto* first_sym = first->AsSymbol();
       if (first_sym && first_sym->val() == "else" &&
           env->Lookup(first_sym) == primitive::Else()) {
-        has_else = true;
+        return ExecuteList(env, pair->cdr());
       }
     }
 
-    auto* test = has_else ? nullptr : Eval(first, env);
+    auto* test = Eval(first, env);
     if (test == False()) {
       continue;
     }
 
     if (pair->cdr() == Nil()) {
-      if (has_else) {
-        throw RuntimeException("cond: missing expressions in `else' clause",
-                               pair);
-      }
       return test;
     }
     auto* second = pair->Cr("ad");
     auto* second_sym = second ? second->AsSymbol() : nullptr;
-    if (!has_else && second_sym && second_sym->val() == "=>" &&
+    if (second_sym && second_sym->val() == "=>" &&
         env->Lookup(second_sym) == primitive::Arrow()) {
       auto* trailing = pair->Cr("ddd");
       if (trailing != Nil()) {
@@ -364,17 +417,45 @@ Expr* Cond::DoEval(Env* env, Expr** args, size_t num_args) const {
       return func->DoEval(env, &test, 1);
     }
 
-    auto* cur = pair->cdr();
-    Expr* last_eval = nullptr;
-    while (auto* link = cur->AsPair()) {
-      last_eval = Eval(link->car(), env);
-      cur = link->cdr();
+    return ExecuteList(env, pair->cdr());
+  }
+
+  return Nil();
+}
+
+Expr* Case::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_GE(1);
+  auto* key = Eval(args[0], env);
+  for (size_t i = 1; i < num_args; ++i) {
+    auto* clause = args[i]->AsPair();
+    if (!clause) {
+      throw RuntimeException("cond: bad syntax, expected clause", args[i]);
+    }
+
+    if (i == num_args - 1) {
+      auto* first_sym = clause->car()->AsSymbol();
+      if (first_sym && first_sym->val() == "else" &&
+          env->Lookup(first_sym) == primitive::Else()) {
+        return ExecuteList(env, clause->cdr());
+      }
+    }
+    auto* test_list = clause->car()->AsPair();
+    if (!test_list) {
+      throw RuntimeException("case: bad syntax (not a datum sequence)",
+                             args[i]);
+    }
+
+    Expr* cur = test_list;
+    while (auto* pair = cur->AsPair()) {
+      if (key->Eqv(pair->car())) {
+        return ExecuteList(env, clause->cdr());
+      }
+      cur = pair->cdr();
     }
 
     if (cur != Nil()) {
-      throw RuntimeException("Unexpected expression", cur);
+      throw RuntimeException("case: bad syntax (malformed clause)", cur);
     }
-    return last_eval;
   }
 
   return Nil();
@@ -395,6 +476,9 @@ void LoadPrimitives(Env* env) {
   for (const auto& primitive : kPrimitives) {
     env->DefineVar(new Symbol(primitive.name), primitive.expr());
   }
+
+  std::string tmp;
+  LoadCr(env, kCrDepth, &tmp);
 }
 
 }  // namespace primitive
