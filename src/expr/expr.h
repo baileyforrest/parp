@@ -340,7 +340,7 @@ class Env : public Expr {
 
 class Evals : public Expr {
  public:
-  virtual Expr* Eval(Env* env, Expr** exprs, size_t size) const = 0;
+  virtual Expr* DoEval(Env* env, Expr** exprs, size_t size) const = 0;
 
  protected:
   // Expr implementation:

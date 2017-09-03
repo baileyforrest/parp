@@ -37,7 +37,7 @@ Expr* DoEval(Expr* expr, expr::Env* env) {
   switch (expr->type()) {
     // If we are evaluating a EVALS directly, it must take no arguments.
     case Expr::Type::EVALS:
-      return expr->AsEvals()->Eval(env, nullptr, 0);
+      return expr->AsEvals()->DoEval(env, nullptr, 0);
     case Expr::Type::SYMBOL:
       return env->Lookup(expr->AsSymbol());
     default:
@@ -58,7 +58,7 @@ class Apply : public expr::Evals {
  private:
   // Evals implementation:
   std::ostream& AppendStream(std::ostream& stream) const override;
-  Expr* Eval(Env* env, Expr** exprs, size_t size) const override;
+  Expr* DoEval(Env* env, Expr** exprs, size_t size) const override;
 
   ~Apply() override = default;
 
@@ -76,16 +76,16 @@ std::ostream& Apply::AppendStream(std::ostream& stream) const {
   return stream;
 }
 
-Expr* Apply::Eval(Env* env, Expr** exprs, size_t size) const {
+Expr* Apply::DoEval(Env* env, Expr** exprs, size_t size) const {
   assert(!exprs);
   assert(size == 0);
-  auto* val = DoEval(op_, env);
+  auto* val = eval::DoEval(op_, env);
   auto* evals = val->AsEvals();
   if (!evals) {
     throw util::RuntimeException("Expected evaluating value", val);
   }
   auto args_copy = args_;
-  return evals->Eval(env, args_copy.data(), args_copy.size());
+  return evals->DoEval(env, args_copy.data(), args_copy.size());
 }
 
 }  // namespace

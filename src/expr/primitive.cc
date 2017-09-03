@@ -119,7 +119,7 @@ class LambdaImpl : public Evals {
  private:
   // Evals implementation:
   std::ostream& AppendStream(std::ostream& stream) const override;
-  Expr* Eval(Env* env, Expr** exprs, size_t size) const override;
+  Expr* DoEval(Env* env, Expr** exprs, size_t size) const override;
 
   ~LambdaImpl() override = default;
 
@@ -150,7 +150,7 @@ std::ostream& LambdaImpl::AppendStream(std::ostream& stream) const {
   return stream << ")";
 }
 
-Expr* LambdaImpl::Eval(Env* /* env */, Expr** args, size_t num_args) const {
+Expr* LambdaImpl::DoEval(Env* /* env */, Expr** args, size_t num_args) const {
   if (num_args < required_args_.size()) {
     std::ostringstream os;
     os << "Invalid number of arguments. expected ";
@@ -177,9 +177,9 @@ Expr* LambdaImpl::Eval(Env* /* env */, Expr** args, size_t num_args) const {
 
   assert(body_.size() >= 1);
   for (size_t i = 0; i < body_.size() - 1; ++i) {
-    ::Eval(body_[i], new_env);
+    Eval(body_[i], new_env);
   }
-  return ::Eval(body_.back(), new_env);
+  return Eval(body_.back(), new_env);
 }
 
 }  // namespace
@@ -187,22 +187,22 @@ Expr* LambdaImpl::Eval(Env* /* env */, Expr** args, size_t num_args) const {
 namespace impl {
 
 // Declare Class Base
-#define X(Name, str)                                                   \
-  class Name : public Evals {                                          \
-    Expr* Eval(Env* env, Expr** args, size_t num_args) const override; \
-    std::ostream& AppendStream(std::ostream& stream) const {           \
-      return stream << #str;                                           \
-    }                                                                  \
+#define X(Name, str)                                                     \
+  class Name : public Evals {                                            \
+    Expr* DoEval(Env* env, Expr** args, size_t num_args) const override; \
+    std::ostream& AppendStream(std::ostream& stream) const {             \
+      return stream << #str;                                             \
+    }                                                                    \
   };
 #include "expr/primitives.inc"  // NOLINT(build/include)
 #undef X
 
-Expr* Quote::Eval(Env* /* env */, Expr** args, size_t num_args) const {
+Expr* Quote::DoEval(Env* /* env */, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(1);
   return *args;
 }
 
-Expr* Lambda::Eval(Env* env, Expr** args, size_t num_args) const {
+Expr* Lambda::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
   std::vector<Symbol*> req_args;
   Symbol* var_arg = nullptr;
@@ -238,38 +238,38 @@ Expr* Lambda::Eval(Env* env, Expr** args, size_t num_args) const {
   return new LambdaImpl(req_args, var_arg, {args + 1, args + num_args}, env);
 }
 
-Expr* If::Eval(Env* env, Expr** args, size_t num_args) const {
+Expr* If::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
   EXPECT_ARGS_LE(3);
-  auto* cond = ::Eval(args[0], env);
+  auto* cond = Eval(args[0], env);
   if (cond == False()) {
     if (num_args == 3) {
-      return ::Eval(args[2], env);
+      return Eval(args[2], env);
     } else {
       return Nil();
     }
   }
-  return ::Eval(args[1], env);
+  return Eval(args[1], env);
 }
 
-Expr* Set::Eval(Env* env, Expr** args, size_t num_args) const {
+Expr* Set::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EXPECT_TYPE(SYMBOL, args[0]);
   env->SetVar(args[0]->AsSymbol(), args[1]);
   return Nil();
 }
 
-Expr* Begin::Eval(Env* env, Expr** args, size_t num_args) const {
+Expr* Begin::DoEval(Env* env, Expr** args, size_t num_args) const {
   if (num_args == 0) {
     return Nil();
   }
   for (; num_args > 1; --num_args, ++args) {
-    ::Eval(*args, env);
+    Eval(*args, env);
   }
-  return ::Eval(*args, env);
+  return Eval(*args, env);
 }
 
-Expr* Define::Eval(Env* env, Expr** args, size_t num_args) const {
+Expr* Define::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EXPECT_TYPE(SYMBOL, args[0]);
   env->DefineVar(args[0]->AsSymbol(), args[1]);
@@ -278,26 +278,26 @@ Expr* Define::Eval(Env* env, Expr** args, size_t num_args) const {
   return Nil();
 }
 
-Expr* Plus::Eval(Env* env, Expr** args, size_t num_args) const {
+Expr* Plus::DoEval(Env* env, Expr** args, size_t num_args) const {
   EvalArgs(env, args, num_args);
   return ArithOp<std::plus<int64_t>, std::plus<double>>(new Int(0), args,
                                                         num_args);
 }
 
-Expr* Star::Eval(Env* env, Expr** args, size_t num_args) const {
+Expr* Star::DoEval(Env* env, Expr** args, size_t num_args) const {
   EvalArgs(env, args, num_args);
   return ArithOp<std::multiplies<int64_t>, std::multiplies<double>>(
       new Int(1), args, num_args);
 }
 
-Expr* Minus::Eval(Env* env, Expr** args, size_t num_args) const {
+Expr* Minus::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(1);
   EvalArgs(env, args, num_args);
   return ArithOp<std::minus<int64_t>, std::minus<double>>(*args, args + 1,
                                                           num_args - 1);
 }
 
-Expr* Slash::Eval(Env* env, Expr** args, size_t num_args) const {
+Expr* Slash::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(1);
   EvalArgs(env, args, num_args);
   return ArithOp<std::divides<int64_t>, std::divides<double>>(*args, args + 1,
