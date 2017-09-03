@@ -45,8 +45,6 @@ class Env;
 class Evals;
 
 // TODO(bcf): Define interface to get all references.
-// TODO(bcf): Remove unnecessary getters.
-// TODO(bcf): Avoid move
 class Expr {
  public:
   enum class Type : char {
@@ -201,7 +199,9 @@ class Char : public Expr {
 class String : public Expr {
  public:
   explicit String(std::string val, bool read_only = false)
-      : Expr(Type::STRING), val_(std::move(val)), read_only_(read_only) {}
+      : Expr(Type::STRING), val_(std::move(val)), read_only_(read_only) {
+    val_.shrink_to_fit();
+  }
 
   const std::string& val() const { return val_; }
 
@@ -285,7 +285,9 @@ class Pair : public Expr {
 class Vector : public Expr {
  public:
   explicit Vector(std::vector<Expr*> vals)
-      : Expr(Type::VECTOR), vals_(std::move(vals)) {}
+      : Expr(Type::VECTOR), vals_(std::move(vals)) {
+    vals_.shrink_to_fit();
+  }
 
   const std::vector<Expr*>& vals() const { return vals_; }
 

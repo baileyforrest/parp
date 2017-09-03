@@ -22,7 +22,6 @@
 #include <cassert>
 #include <sstream>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "util/exceptions.h"
@@ -50,7 +49,9 @@ Expr* DoEval(Expr* expr, expr::Env* env) {
 
 class Apply : public expr::Evals {
  public:
-  Apply(Expr* op, std::vector<Expr*> args) : op_(op), args_(std::move(args)) {
+  Apply(Expr* op, const std::vector<Expr*>& args) : op_(op), args_(args) {
+    // We don't want to use std::move for args_ because we want to ensure it
+    // will be shrunk to the minimum size.
     assert(op);
   }
 

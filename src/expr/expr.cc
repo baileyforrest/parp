@@ -45,7 +45,6 @@ const char* TypeToString(Expr::Type type) {
     CASE_STR(SYMBOL);
     CASE_STR(PAIR);
     CASE_STR(VECTOR);
-    CASE_STR(LAMBDA);
     CASE_STR(ENV);
     CASE_STR(EVALS);
   }

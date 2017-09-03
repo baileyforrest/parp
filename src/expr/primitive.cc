@@ -97,11 +97,6 @@ class LambdaImpl : public Evals {
     assert(env);
   }
 
-  const std::vector<Symbol*>& required_args() const { return required_args_; }
-  Symbol* variable_arg() const { return variable_arg_; }
-  const std::vector<Expr*>& body() const { return body_; }
-  Env* env() const { return env_; }
-
  private:
   // Evals implementation:
   std::ostream& AppendStream(std::ostream& stream) const override;
