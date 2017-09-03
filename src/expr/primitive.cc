@@ -145,7 +145,7 @@ std::ostream& LambdaImpl::AppendStream(std::ostream& stream) const {
   }
 
   for (auto* expr : body_) {
-    stream << *expr << "\n";
+    stream << " " << *expr;
   }
   return stream << ")";
 }
@@ -302,6 +302,82 @@ Expr* Slash::DoEval(Env* env, Expr** args, size_t num_args) const {
   EvalArgs(env, args, num_args);
   return ArithOp<std::divides<int64_t>, std::divides<double>>(*args, args + 1,
                                                               num_args - 1);
+}
+
+Expr* Arrow::DoEval(Env* /* env */,
+                    Expr** /* args */,
+                    size_t /* num_args */) const {
+  throw RuntimeException("Arrow expression cannot be called", this);
+}
+
+Expr* Else::DoEval(Env* /* env */,
+                   Expr** /* args */,
+                   size_t /* num_args */) const {
+  throw RuntimeException("else expression cannot be called", this);
+}
+
+Expr* Cond::DoEval(Env* env, Expr** args, size_t num_args) const {
+  for (size_t i = 0; i < num_args; ++i) {
+    auto* pair = args[i]->AsPair();
+    if (!pair) {
+      throw RuntimeException(
+          "cond: bad syntax (clause is not a test-value pair)", args[i]);
+    }
+
+    auto* first = pair->car();
+    bool has_else = false;
+    if (i == num_args - 1) {
+      auto* first_sym = first->AsSymbol();
+      if (first_sym && first_sym->val() == "else" &&
+          env->Lookup(first_sym) == primitive::Else()) {
+        has_else = true;
+      }
+    }
+
+    auto* test = has_else ? nullptr : Eval(first, env);
+    if (test == False()) {
+      continue;
+    }
+
+    if (pair->cdr() == Nil()) {
+      if (has_else) {
+        throw RuntimeException("cond: missing expressions in `else' clause",
+                               pair);
+      }
+      return test;
+    }
+    auto* second = pair->Cr("ad");
+    auto* second_sym = second ? second->AsSymbol() : nullptr;
+    if (!has_else && second_sym && second_sym->val() == "=>" &&
+        env->Lookup(second_sym) == primitive::Arrow()) {
+      auto* trailing = pair->Cr("ddd");
+      if (trailing != Nil()) {
+        throw RuntimeException("Unexpected expression", trailing);
+      }
+
+      auto* val = Eval(pair->Cr("add"), env);
+      auto* func = val->AsEvals();
+      if (!func) {
+        throw RuntimeException("Expected procedure", val);
+      }
+
+      return func->DoEval(env, &test, 1);
+    }
+
+    auto* cur = pair->cdr();
+    Expr* last_eval = nullptr;
+    while (auto* link = cur->AsPair()) {
+      last_eval = Eval(link->car(), env);
+      cur = link->cdr();
+    }
+
+    if (cur != Nil()) {
+      throw RuntimeException("Unexpected expression", cur);
+    }
+    return last_eval;
+  }
+
+  return Nil();
 }
 
 }  // namespace impl

@@ -29,6 +29,7 @@
 using expr::Expr;
 using expr::Int;
 using expr::Symbol;
+using expr::Nil;
 
 namespace eval {
 
@@ -62,7 +63,7 @@ class EvalTest : public test::TestBase {
 };
 
 TEST_F(EvalTest, SelfEvaluating) {
-  EXPECT_EQ(expr::Nil(), Eval(expr::Nil(), env_));
+  EXPECT_EQ(Nil(), Eval(Nil(), env_));
   EXPECT_EQ(expr::True(), Eval(expr::True(), env_));
   EXPECT_EQ(expr::False(), Eval(expr::False(), env_));
 
@@ -105,7 +106,7 @@ TEST_F(EvalTest, Lambda) {
 TEST_F(EvalTest, If) {
   Expr* n42 = new Int(42);
   EXPECT_EQ(*n42, *EvalStr("(if #t 42)"));
-  EXPECT_EQ(*expr::Nil(), *EvalStr("(if #f 42)"));
+  EXPECT_EQ(*Nil(), *EvalStr("(if #f 42)"));
 
   Expr* n43 = new Int(43);
   EXPECT_EQ(*n42, *EvalStr("(if #t 42 43)"));
@@ -114,10 +115,22 @@ TEST_F(EvalTest, If) {
 
 TEST_F(EvalTest, Set) {
   auto* sym = new Symbol("foo");
-  env_->DefineVar(sym, expr::Nil());
+  env_->DefineVar(sym, Nil());
   EvalStr("(set! foo 42)");
 
   EXPECT_EQ(*IntExpr(42), *env_->Lookup(sym));
+}
+
+TEST_F(EvalTest, Cond) {
+  EXPECT_EQ(*Nil(), *EvalStr("(cond)"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(cond (#t 42))"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(cond (#f 3) (#t 42))"));
+  EXPECT_EQ(*Nil(), *EvalStr("(cond (#f 3) (#f 42))"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(cond (#f 3) (else 42))"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(cond (else 42))"));
+  EXPECT_EQ(
+      *IntExpr(10),
+      *EvalStr("(cond (#f 3) ((+ 4 3) => (lambda (x) (+ x 3))) (else 4))"));
 }
 
 TEST_F(EvalTest, Begin) {

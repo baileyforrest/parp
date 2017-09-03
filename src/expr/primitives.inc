@@ -32,7 +32,9 @@ X(If, if)
 X(Set, set!)
 
 // 4.2 Derived expression types
-Y(Cond)
+X(Arrow, =>) // Not defined in the standard, used for cond
+X(Else, else) // Not defined in the standard, used for cond
+X(Cond, cond)
 Y(Case)
 Y(And)
 Y(Or)
