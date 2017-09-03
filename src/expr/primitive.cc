@@ -207,6 +207,8 @@ Expr* Lambda::Eval(Env* env, Expr** args, size_t num_args) const {
   std::vector<Symbol*> req_args;
   Symbol* var_arg = nullptr;
   switch (args[0]->type()) {
+    case Type::EMPTY_LIST:
+      break;
     case Type::SYMBOL:
       req_args.push_back(args[0]->AsSymbol());
       break;

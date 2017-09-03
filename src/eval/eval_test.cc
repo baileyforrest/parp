@@ -95,7 +95,11 @@ TEST_F(EvalTest, Quote) {
 TEST_F(EvalTest, Lambda) {
   EXPECT_EQ(*IntExpr(42), *EvalStr("((lambda (x) x) 42)"));
   EXPECT_EQ(*IntExpr(8), *EvalStr("((lambda (x) (+ x x)) 4)"));
+  // Nested lambda
   EXPECT_EQ(*IntExpr(8), *EvalStr("((lambda (x) ((lambda (y) (+ x y)) 3)) 5)"));
+
+  // Lamda returning lambda
+  EXPECT_EQ(*IntExpr(12), *EvalStr("(((lambda () (lambda (x) (+ 5 x)))) 7)"));
 }
 
 TEST_F(EvalTest, If) {
