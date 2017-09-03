@@ -47,8 +47,7 @@ const char* TypeToString(Expr::Type type) {
     CASE_STR(VECTOR);
     CASE_STR(LAMBDA);
     CASE_STR(ENV);
-    CASE_STR(ANALYZED);
-    CASE_STR(PRIMITIVE);
+    CASE_STR(EVALS);
   }
 #undef CASE_STR
   assert(false);
@@ -115,27 +114,6 @@ bool Vector::EqualImpl(const Expr* other) const {
   }
 
   return true;
-}
-
-std::ostream& Lambda::AppendStream(std::ostream& stream) const {
-  stream << "(lambda ";
-  if (required_args_.size() == 0 && variable_arg_ != nullptr) {
-    stream << *variable_arg_;
-  } else {
-    stream << "(";
-    for (auto* arg : required_args_)
-      stream << *arg << " ";
-
-    if (variable_arg_) {
-      stream << ". " << *variable_arg_;
-    }
-    stream << ")";
-  }
-
-  for (auto* expr : body_) {
-    stream << *expr << "\n";
-  }
-  return stream << ")";
 }
 
 std::ostream& Env::AppendStream(std::ostream& stream) const {

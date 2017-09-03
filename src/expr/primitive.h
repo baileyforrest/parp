@@ -27,7 +27,7 @@ class Primitive;
 
 namespace primitive {
 
-#define X(name, str) Primitive* name();
+#define X(name, str) Evals* name();
 #include "expr/primitives.inc"
 #undef X
 

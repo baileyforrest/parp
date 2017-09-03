@@ -28,6 +28,7 @@
 #include "util/exceptions.h"
 
 using expr::Expr;
+using expr::Env;
 
 namespace eval {
 
@@ -35,8 +36,9 @@ namespace {
 
 Expr* DoEval(Expr* expr, expr::Env* env) {
   switch (expr->type()) {
-    case Expr::Type::ANALYZED:
-      return expr->AsAnalyzed()->func()(env);
+    // If we are evaluating a EVALS directly, it must take no arguments.
+    case Expr::Type::EVALS:
+      return expr->AsEvals()->Eval(env, nullptr, 0);
     case Expr::Type::SYMBOL:
       return env->Lookup(expr->AsSymbol());
     default:
@@ -44,6 +46,45 @@ Expr* DoEval(Expr* expr, expr::Env* env) {
   }
 
   return expr;
+}
+
+class Apply : public expr::Evals {
+ public:
+  Apply(Expr* op, std::vector<Expr*> args) : op_(op), args_(std::move(args)) {
+    assert(op);
+  }
+
+ private:
+  // Evals implementation:
+  std::ostream& AppendStream(std::ostream& stream) const override;
+  Expr* Eval(Env* env, Expr** exprs, size_t size) const override;
+
+  ~Apply() override = default;
+
+  Expr* op_;
+  const std::vector<Expr*> args_;
+};
+
+std::ostream& Apply::AppendStream(std::ostream& stream) const {
+  stream << "(" << *op_;
+  for (const auto* expr : args_) {
+    stream << " " << *expr;
+  }
+  stream << ")";
+
+  return stream;
+}
+
+Expr* Apply::Eval(Env* env, Expr** exprs, size_t size) const {
+  assert(!exprs);
+  assert(size == 0);
+  auto* val = DoEval(op_, env);
+  auto* evals = val->AsEvals();
+  if (!evals) {
+    throw util::RuntimeException("Expected evaluating value", val);
+  }
+  auto args_copy = args_;
+  return evals->Eval(env, args_copy.data(), args_copy.size());
 }
 
 }  // namespace
@@ -74,48 +115,7 @@ Expr* Analyze(Expr* expr) {
   auto refs = args;
   refs.push_back(op);
 
-  return new expr::Analyzed(
-      pair,
-      [op, args](expr::Env* env) {
-        auto* func = DoEval(op, env);
-        if (auto* primitive = func->AsPrimitive()) {
-          auto args_copy = args;
-          return primitive->Eval(env, args_copy.data(), args_copy.size());
-        }
-        auto* lambda = func->AsLambda();
-        if (!lambda) {
-          throw new util::RuntimeException("Expected a procedure", lambda);
-        }
-
-        if (args.size() < lambda->required_args().size()) {
-          std::ostringstream os;
-          os << "Invalid number of arguments. expected ";
-          if (lambda->variable_arg() != nullptr) {
-            os << "at least ";
-          }
-
-          os << lambda->required_args().size();
-          os << " given: " << args.size();
-          throw new util::RuntimeException(os.str(), lambda);
-        }
-        auto arg_it = args.begin();
-        auto* new_env = new expr::Env(lambda->env());
-
-        for (auto* sym : lambda->required_args()) {
-          new_env->DefineVar(sym, *arg_it++);
-        }
-        if (lambda->variable_arg() != nullptr) {
-          auto* rest = ListFromIt(arg_it, args.end());
-          new_env->DefineVar(lambda->variable_arg(), rest);
-        }
-
-        assert(lambda->body().size() >= 1);
-        for (size_t i = 0; i < lambda->body().size() - 1; ++i) {
-          DoEval(lambda->body()[i], new_env);
-        }
-        return DoEval(lambda->body().back(), new_env);
-      },
-      std::move(refs));
+  return new Apply(op, args);
 }
 
 Expr* Eval(Expr* expr, expr::Env* env) {

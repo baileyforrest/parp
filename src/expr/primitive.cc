@@ -75,7 +75,7 @@ namespace primitive {
 namespace {
 
 struct {
-  Primitive* (*expr)();
+  Evals* (*expr)();
   const char* name;
 } kPrimitives[] = {
 #define X(name, str) {name, #str},
@@ -83,13 +83,96 @@ struct {
 #undef X
 };
 
+class LambdaImpl : public Evals {
+ public:
+  explicit LambdaImpl(const std::vector<Symbol*>& required_args,
+                      Symbol* variable_arg,
+                      const std::vector<Expr*>& body,
+                      Env* env)
+      : required_args_(required_args),
+        variable_arg_(variable_arg),
+        body_(body),
+        env_(env) {
+    assert(body_.size() > 0);
+    assert(env);
+  }
+
+  const std::vector<Symbol*>& required_args() const { return required_args_; }
+  Symbol* variable_arg() const { return variable_arg_; }
+  const std::vector<Expr*>& body() const { return body_; }
+  Env* env() const { return env_; }
+
+ private:
+  // Evals implementation:
+  std::ostream& AppendStream(std::ostream& stream) const override;
+  Expr* Eval(Env* env, Expr** exprs, size_t size) const override;
+
+  ~LambdaImpl() override = default;
+
+  const std::vector<Symbol*> required_args_;
+  Symbol* variable_arg_;
+  const std::vector<Expr*> body_;
+  Env* env_;
+};
+
+std::ostream& LambdaImpl::AppendStream(std::ostream& stream) const {
+  stream << "(lambda ";
+  if (required_args_.size() == 0 && variable_arg_ != nullptr) {
+    stream << *variable_arg_;
+  } else {
+    stream << "(";
+    for (auto* arg : required_args_)
+      stream << *arg << " ";
+
+    if (variable_arg_) {
+      stream << ". " << *variable_arg_;
+    }
+    stream << ")";
+  }
+
+  for (auto* expr : body_) {
+    stream << *expr << "\n";
+  }
+  return stream << ")";
+}
+
+Expr* LambdaImpl::Eval(Env* /* env */, Expr** exprs, size_t size) const {
+  if (size < required_args_.size()) {
+    std::ostringstream os;
+    os << "Invalid number of arguments. expected ";
+    if (variable_arg_ != nullptr) {
+      os << "at least ";
+    }
+
+    os << required_args_.size();
+    os << " given: " << size;
+    throw new util::RuntimeException(os.str(), this);
+  }
+  auto arg_it = exprs;
+  auto* new_env = new expr::Env(env_);
+
+  for (auto* sym : required_args_) {
+    new_env->DefineVar(sym, *arg_it++);
+  }
+  if (variable_arg_ != nullptr) {
+    auto* rest = ListFromIt(arg_it, exprs + size);
+    new_env->DefineVar(variable_arg_, rest);
+  }
+
+  assert(body_.size() >= 1);
+  for (size_t i = 0; i < body_.size() - 1; ++i) {
+    eval::Eval(body_[i], new_env);
+  }
+  return eval::Eval(body_.back(), new_env);
+}
+
 }  // namespace
 
 namespace impl {
 
 // Declare Class Base
 #define X(Name, str)                                                   \
-  class Name : public Primitive {                                      \
+  class Name : public Evals {                                          \
     Expr* Eval(Env* env, Expr** args, size_t num_args) const override; \
     std::ostream& AppendStream(std::ostream& stream) const {           \
       return stream << #str;                                           \
@@ -134,7 +217,7 @@ Expr* Lambda::Eval(Env* env, Expr** args, size_t num_args) const {
     args[i] = eval::Analyze(args[i]);
   }
 
-  return new expr::Lambda(req_args, var_arg, {args + 1, args + num_args}, env);
+  return new LambdaImpl(req_args, var_arg, {args + 1, args + num_args}, env);
 }
 
 Expr* If::Eval(Env* env, Expr** args, size_t num_args) const {
@@ -181,7 +264,7 @@ Expr* Define::Eval(Env* env, Expr** args, size_t num_args) const {
 
 // Declare Factories
 #define X(Name, str)        \
-  Primitive* Name() {       \
+  Evals* Name() {           \
     static impl::Name impl; \
     return &impl;           \
   }

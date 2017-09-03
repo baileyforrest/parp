@@ -22,7 +22,6 @@
 
 #include <cassert>
 #include <cstddef>
-#include <functional>
 #include <iostream>
 #include <string>
 #include <unordered_map>
@@ -42,16 +41,16 @@ class String;
 class Symbol;
 class Pair;
 class Vector;
-class Lambda;
 class Env;
-class Analyzed;
-class Primitive;
+class Evals;
 
 // TODO(bcf): Define interface to get all references.
+// TODO(bcf): Remove unnecessary getters.
+// TODO(bcf): Avoid move
 class Expr {
  public:
   enum class Type : char {
-    // Expr values
+    // Base types
     EMPTY_LIST,
     BOOL,
     NUMBER,
@@ -61,11 +60,9 @@ class Expr {
     PAIR,
     VECTOR,
 
-    // Analyzed types
-    LAMBDA,     // (lambda <formals> <body>)
-    ENV,        // Environment
-    ANALYZED,   // Analyzed expression
-    PRIMITIVE,  // Primitive expression
+    // Special types
+    ENV,    // Environment
+    EVALS,  // Type which is not self evaluating.
   };
 
   Type type() const { return type_; }
@@ -98,14 +95,10 @@ class Expr {
   virtual Pair* AsPair() { return nullptr; }
   virtual const Vector* AsVector() const { return nullptr; }
   virtual Vector* AsVector() { return nullptr; }
-  virtual const Lambda* AsLambda() const { return nullptr; }
-  virtual Lambda* AsLambda() { return nullptr; }
   virtual const Env* AsEnv() const { return nullptr; }
   virtual Env* AsEnv() { return nullptr; }
-  virtual const Analyzed* AsAnalyzed() const { return nullptr; }
-  virtual Analyzed* AsAnalyzed() { return nullptr; }
-  virtual const Primitive* AsPrimitive() const { return nullptr; }
-  virtual Primitive* AsPrimitive() { return nullptr; }
+  virtual const Evals* AsEvals() const { return nullptr; }
+  virtual Evals* AsEvals() { return nullptr; }
 
   static void* operator new(std::size_t size) {
     return gc::Gc::Get().AllocExpr(size);
@@ -181,7 +174,7 @@ class Bool : public Expr {
 
   ~Bool() override = default;
 
-  bool val_;
+  const bool val_;
 };
 
 class Char : public Expr {
@@ -201,7 +194,7 @@ class Char : public Expr {
 
   ~Char() override = default;
 
-  char val_;
+  const char val_;
 };
 
 // TODO(bcf): Optimize for readonly strings.
@@ -226,7 +219,7 @@ class String : public Expr {
   ~String() override = default;
 
   std::string val_;
-  bool read_only_;
+  const bool read_only_;
 };
 
 // TODO(bcf): Optimize for read only.
@@ -251,7 +244,7 @@ class Symbol : public Expr {
 
   ~Symbol() override = default;
 
-  std::string val_;
+  const std::string val_;
 };
 
 class Pair : public Expr {
@@ -311,40 +304,6 @@ class Vector : public Expr {
   std::vector<Expr*> vals_;
 };
 
-class Lambda : public Expr {
- public:
-  explicit Lambda(std::vector<Symbol*> required_args,
-                  Symbol* variable_arg,
-                  std::vector<Expr*> body,
-                  Env* env)
-      : Expr(Type::LAMBDA),
-        required_args_(std::move(required_args)),
-        variable_arg_(variable_arg),
-        body_(std::move(body)),
-        env_(env) {
-    assert(body_.size() > 0);
-    assert(env);
-  }
-
-  const std::vector<Symbol*>& required_args() const { return required_args_; }
-  Symbol* variable_arg() const { return variable_arg_; }
-  const std::vector<Expr*>& body() const { return body_; }
-  Env* env() const { return env_; }
-
- private:
-  // Expr implementation:
-  const Lambda* AsLambda() const override { return this; }
-  Lambda* AsLambda() override { return this; }
-  std::ostream& AppendStream(std::ostream& stream) const override;
-
-  ~Lambda() override = default;
-
-  std::vector<Symbol*> required_args_;
-  Symbol* variable_arg_;
-  std::vector<Expr*> body_;
-  Env* env_;
-};
-
 class Env : public Expr {
  public:
   explicit Env(Env* enclosing = nullptr)
@@ -377,47 +336,17 @@ class Env : public Expr {
   std::unordered_map<Symbol*, Expr*, VarHash, VarEqual> map_;
 };
 
-class Analyzed : public Expr {
- public:
-  using Evaluation = std::function<Expr*(Env*)>;
-
-  Analyzed(Expr* orig_expr, Evaluation func, std::vector<Expr*> refs)
-      : Expr(Type::ANALYZED),
-        orig_expr_(orig_expr),
-        func_(std::move(func)),
-        refs_(std::move(refs)) {
-    assert(orig_expr);
-    assert(func_);
-  }
-
-  const Evaluation& func() const { return func_; }
-
- private:
-  // Expr implementation:
-  const Analyzed* AsAnalyzed() const override { return this; }
-  Analyzed* AsAnalyzed() override { return this; }
-  std::ostream& AppendStream(std::ostream& stream) const override {
-    return stream << "Analyzed(" << *orig_expr_ << ")";
-  }
-
-  ~Analyzed() override = default;
-
-  Expr* orig_expr_;
-  Evaluation func_;
-  std::vector<Expr*> refs_;
-};
-
-class Primitive : public Expr {
+class Evals : public Expr {
  public:
   virtual Expr* Eval(Env* env, Expr** exprs, size_t size) const = 0;
 
  protected:
   // Expr implementation:
-  const Primitive* AsPrimitive() const override { return this; }
-  Primitive* AsPrimitive() override { return this; }
+  const Evals* AsEvals() const override { return this; }
+  Evals* AsEvals() override { return this; }
 
-  Primitive() : Expr(Type::PRIMITIVE) {}
-  virtual ~Primitive() = default;
+  Evals() : Expr(Type::EVALS) {}
+  virtual ~Evals() = default;
 };
 
 // Special constants

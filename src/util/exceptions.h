@@ -43,12 +43,12 @@ class SyntaxException : public std::exception {
 // TODO(bcf): Add marks for this
 class RuntimeException : public std::exception {
  public:
-  RuntimeException(const std::string& msg, expr::Expr* expr);
+  RuntimeException(const std::string& msg, const expr::Expr* expr);
 
   const char* what() const throw() override { return full_msg_.c_str(); }
 
  private:
-  expr::Expr* const expr_;
+  const expr::Expr* const expr_;
   std::string full_msg_;
 };
 

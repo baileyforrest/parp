@@ -33,7 +33,8 @@ SyntaxException::SyntaxException(const std::string& msg,
   full_msg_ = ss.str();
 }
 
-RuntimeException::RuntimeException(const std::string& msg, expr::Expr* expr)
+RuntimeException::RuntimeException(const std::string& msg,
+                                   const expr::Expr* expr)
     : expr_(expr), full_msg_(msg) {
   std::ostringstream os;
   os << msg;
