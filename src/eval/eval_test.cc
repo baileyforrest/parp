@@ -45,15 +45,15 @@ expr::Expr* ParseExpr(const std::string& str) {
 }
 
 Expr* IntExpr(int64_t val) {
-  return new Int(val);
+  return Int::New(val);
 }
 
 Expr* FloatExpr(double d) {
-  return new expr::Float(d);
+  return expr::Float::New(d);
 }
 
 Expr* SymExpr(std::string str) {
-  return new Symbol(std::move(str));
+  return Symbol::New(std::move(str));
 }
 
 }  // namespace
@@ -61,7 +61,7 @@ Expr* SymExpr(std::string str) {
 class EvalTest : public test::TestBase {
  protected:
   virtual void TestSetUp() {
-    env_ = new expr::Env;
+    env_ = expr::Env::New();
     expr::primitive::LoadPrimitives(env_);
   }
   virtual void TestTearDown() { env_ = nullptr; }
@@ -78,21 +78,21 @@ TEST_F(EvalTest, SelfEvaluating) {
   EXPECT_EQ(expr::True(), Eval(expr::True(), env_));
   EXPECT_EQ(expr::False(), Eval(expr::False(), env_));
 
-  Expr* num = new Int(42);
+  Expr* num = Int::New(42);
   EXPECT_EQ(num, Eval(num, env_));
 
-  Expr* character = new expr::Char('a');
+  Expr* character = expr::Char::New('a');
   EXPECT_EQ(character, Eval(character, env_));
 
-  Expr* str = new expr::String("abc");
+  Expr* str = expr::String::New("abc");
   EXPECT_EQ(str, Eval(str, env_));
 
-  Expr* vec = new expr::Vector({num, character, str});
+  Expr* vec = expr::Vector::New({num, character, str});
   EXPECT_EQ(vec, Eval(vec, env_));
 }
 
 TEST_F(EvalTest, Symbol) {
-  Expr* num = new Int(42);
+  Expr* num = Int::New(42);
   auto* symbol = ParseExpr("abc");
   env_->DefineVar(symbol->AsSymbol(), num);
 
@@ -101,17 +101,17 @@ TEST_F(EvalTest, Symbol) {
 
 TEST_F(EvalTest, Quote) {
   EXPECT_EQ(*IntExpr(42), *EvalStr("(quote 42)"));
-  Expr* e = new Symbol("a");
+  Expr* e = Symbol::New("a");
   EXPECT_EQ(*e, *EvalStr("(quote a)"));
   EXPECT_EQ(*e, *EvalStr("'a"));
-  e = new expr::Vector({new Symbol("a"), new Symbol("b"), new Symbol("c")});
+  e = expr::Vector::New({Symbol::New("a"), Symbol::New("b"), Symbol::New("c")});
   EXPECT_EQ(*e, *EvalStr("(quote #(a b c))"));
   EXPECT_EQ(*e, *EvalStr("'#(a b c)"));
-  e = Cons(new Symbol("+"), Cons(new Int(1), Cons(new Int(2), Nil())));
+  e = Cons(Symbol::New("+"), Cons(Int::New(1), Cons(Int::New(2), Nil())));
   EXPECT_EQ(*Nil(), *EvalStr("'()"));
   EXPECT_EQ(*e, *EvalStr("(quote (+ 1 2))"));
   EXPECT_EQ(*e, *EvalStr("'(+ 1 2)"));
-  e = Cons(new Symbol("quote"), Cons(new Symbol("a"), Nil()));
+  e = Cons(Symbol::New("quote"), Cons(Symbol::New("a"), Nil()));
   EXPECT_EQ(*e, *EvalStr("'(quote a)"));
   EXPECT_EQ(*e, *EvalStr("''a"));
 }
@@ -127,25 +127,26 @@ TEST_F(EvalTest, Lambda) {
 }
 
 TEST_F(EvalTest, If) {
-  Expr* n42 = new Int(42);
+  Expr* n42 = Int::New(42);
   EXPECT_EQ(*n42, *EvalStr("(if #t 42)"));
   EXPECT_EQ(*Nil(), *EvalStr("(if #f 42)"));
 
-  Expr* n43 = new Int(43);
+  Expr* n43 = Int::New(43);
   EXPECT_EQ(*n42, *EvalStr("(if #t 42 43)"));
   EXPECT_EQ(*n43, *EvalStr("(if #f 42 43)"));
   EXPECT_EQ(*IntExpr(12), *EvalStr("((if #f + *) 3 4)"));
 
-  Expr* e = Cons(new Int(3),
-                 Cons(new Int(4), Cons(new Int(5), Cons(new Int(6), Nil()))));
+  Expr* e =
+      Cons(Int::New(3),
+           Cons(Int::New(4), Cons(Int::New(5), Cons(Int::New(6), Nil()))));
   EXPECT_EQ(*e, *EvalStr("((lambda x x) 3 4 5 6)"));
 
-  e = Cons(new Int(5), Cons(new Int(6), Nil()));
+  e = Cons(Int::New(5), Cons(Int::New(6), Nil()));
   EXPECT_EQ(*e, *EvalStr("((lambda (x y . z) z) 3 4 5 6)"));
 }
 
 TEST_F(EvalTest, Set) {
-  auto* sym = new Symbol("foo");
+  auto* sym = Symbol::New("foo");
   env_->DefineVar(sym, Nil());
   EvalStr("(set! foo 42)");
 
@@ -186,7 +187,7 @@ TEST_F(EvalTest, Case) {
 TEST_F(EvalTest, And) {
   EXPECT_EQ(*True(), *EvalStr("(and (= 2 2) (> 2 1))"));
   EXPECT_EQ(*False(), *EvalStr("(and (= 2 2) (< 2 1))"));
-  Expr* e = Cons(new Symbol("f"), Cons(new Symbol("g"), Nil()));
+  Expr* e = Cons(Symbol::New("f"), Cons(Symbol::New("g"), Nil()));
   EXPECT_EQ(*e, *EvalStr("(and 1 2 'c '(f g))"));
   EXPECT_EQ(*True(), *EvalStr("(and)"));
 }
@@ -196,7 +197,7 @@ TEST_F(EvalTest, Or) {
   EXPECT_EQ(*True(), *EvalStr("(or (= 2 2) (< 2 1))"));
   EXPECT_EQ(*False(), *EvalStr("(or #f #f #f)"));
 #if 0  // TODO(bcf): Enable when memq implemented.
-  Expr* e = Cons(new Symbol("b"), Cons(new Symbol("c"), Nil()));
+  Expr* e = Cons(Symbol::New("b"), Cons(Symbol::New("c"), Nil()));
   EXPECT_EQ(*e, *EvalStr("(or (memq 'b '(a b c)) (/ 3 0))"));
 #endif
   EXPECT_EQ(*False(), *EvalStr("(or)"));
@@ -209,7 +210,7 @@ TEST_F(EvalTest, Begin) {
 TEST_F(EvalTest, Define) {
   // TODO(bcf): Test define function
   EvalStr("(define foo 42)");
-  EXPECT_EQ(*IntExpr(42), *env_->Lookup(new Symbol("foo")));
+  EXPECT_EQ(*IntExpr(42), *env_->Lookup(Symbol::New("foo")));
 }
 
 TEST_F(EvalTest, OpEq) {

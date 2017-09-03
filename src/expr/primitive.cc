@@ -21,6 +21,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <utility>
 
 #include "expr/expr.h"
 #include "expr/number.h"
@@ -143,16 +144,14 @@ Expr* ExecuteList(Env* env, Expr* cur) {
 
 class LambdaImpl : public Evals {
  public:
-  explicit LambdaImpl(const std::vector<Symbol*>& required_args,
-                      Symbol* variable_arg,
-                      const std::vector<Expr*>& body,
-                      Env* env)
-      : required_args_(required_args),
-        variable_arg_(variable_arg),
-        body_(body),
-        env_(env) {
-    assert(body_.size() > 0);
-    assert(env);
+  static LambdaImpl* New(std::vector<Symbol*> required_args,
+                         Symbol* variable_arg,
+                         std::vector<Expr*> body,
+                         Env* env) {
+    required_args.shrink_to_fit();
+    body.shrink_to_fit();
+    return new LambdaImpl(std::move(required_args), variable_arg,
+                          std::move(body), env);
   }
 
  private:
@@ -160,6 +159,17 @@ class LambdaImpl : public Evals {
   std::ostream& AppendStream(std::ostream& stream) const override;
   Expr* DoEval(Env* env, Expr** args, size_t num_args) const override;
 
+  explicit LambdaImpl(std::vector<Symbol*> required_args,
+                      Symbol* variable_arg,
+                      std::vector<Expr*> body,
+                      Env* env)
+      : required_args_(std::move(required_args)),
+        variable_arg_(variable_arg),
+        body_(std::move(body)),
+        env_(env) {
+    assert(body_.size() > 0);
+    assert(env);
+  }
   ~LambdaImpl() override = default;
 
   const std::vector<Symbol*> required_args_;
@@ -204,7 +214,7 @@ Expr* LambdaImpl::DoEval(Env* /* env */, Expr** args, size_t num_args) const {
   EvalArgs(env_, args, num_args);
 
   auto arg_it = args;
-  auto* new_env = new expr::Env(env_);
+  auto* new_env = expr::Env::New(env_);
 
   for (auto* sym : required_args_) {
     new_env->DefineVar(sym, *arg_it++);
@@ -223,7 +233,10 @@ Expr* LambdaImpl::DoEval(Env* /* env */, Expr** args, size_t num_args) const {
 
 class CrImpl : public Evals {
  public:
-  explicit CrImpl(std::string cr) : cr_(cr) {}
+  static CrImpl* New(std::string cr) {
+    cr.shrink_to_fit();
+    return new CrImpl(std::move(cr));
+  }
 
   // Evals implementation:
   std::ostream& AppendStream(std::ostream& stream) const override {
@@ -235,6 +248,7 @@ class CrImpl : public Evals {
     return args[0]->AsPair()->Cr(cr_);
   }
 
+  explicit CrImpl(std::string cr) : cr_(cr) {}
   ~CrImpl() override = default;
 
  private:
@@ -246,7 +260,7 @@ void LoadCr(Env* env, size_t depth, std::string* cur) {
     return;
   if (!cur->empty()) {
     auto sym_name = "c" + *cur + "r";
-    env->DefineVar(new Symbol(sym_name), new CrImpl(*cur));
+    env->DefineVar(Symbol::New(sym_name), CrImpl::New(*cur));
   }
 
   cur->push_back('a');
@@ -311,7 +325,7 @@ Expr* Lambda::DoEval(Env* env, Expr** args, size_t num_args) const {
     args[i] = eval::Analyze(args[i]);
   }
 
-  return new LambdaImpl(req_args, var_arg, {args + 1, args + num_args}, env);
+  return LambdaImpl::New(req_args, var_arg, {args + 1, args + num_args}, env);
 }
 
 Expr* If::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -476,6 +490,17 @@ Expr* Or::DoEval(Env* env, Expr** args, size_t num_args) const {
   return False();
 }
 
+Expr* Let::DoEval(Env* env, Expr** args, size_t num_args) const {
+  for (size_t i = 0; i < num_args; ++i) {
+    auto* e = Eval(args[i], env);
+    if (e != False()) {
+      return e;
+    }
+  }
+
+  return False();
+}
+
 Expr* OpEq::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
   return CmpOp<std::equal_to<int64_t>, std::equal_to<double>>(env, args,
@@ -506,13 +531,13 @@ Expr* OpGe::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Plus::DoEval(Env* env, Expr** args, size_t num_args) const {
-  return ArithOp<std::plus<int64_t>, std::plus<double>>(env, new Int(0), args,
+  return ArithOp<std::plus<int64_t>, std::plus<double>>(env, Int::New(0), args,
                                                         num_args);
 }
 
 Expr* Star::DoEval(Env* env, Expr** args, size_t num_args) const {
   return ArithOp<std::multiplies<int64_t>, std::multiplies<double>>(
-      env, new Int(1), args, num_args);
+      env, Int::New(1), args, num_args);
 }
 
 Expr* Minus::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -540,9 +565,11 @@ Expr* Slash::DoEval(Env* env, Expr** args, size_t num_args) const {
 
 void LoadPrimitives(Env* env) {
   for (const auto& primitive : kPrimitives) {
-    env->DefineVar(new Symbol(primitive.name), primitive.expr());
+    env->DefineVar(Symbol::New(primitive.name), primitive.expr());
   }
 
+  // TODO(bcf): Have special case for car and cdr since they will be more
+  // common.
   std::string tmp;
   LoadCr(env, kCrDepth, &tmp);
 }

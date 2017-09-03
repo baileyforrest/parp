@@ -252,9 +252,9 @@ expr::Number* NumLexer::ParseReal() {
   if (Eof() || *it_ != '/') {
     try {
       if (exact_) {
-        return new expr::Int(neum_str, radix_);
+        return expr::Int::New(neum_str, radix_);
       } else {
-        return new expr::Float(neum_str, radix_);
+        return expr::Float::New(neum_str, radix_);
       }
     } catch (std::exception& e) {
       ThrowException(e.what());
@@ -402,7 +402,7 @@ void Lexer::LexId() {
   }
 
   token_.type = Token::Type::ID;
-  token_.expr = new expr::Symbol(lexbuf_);
+  token_.expr = expr::Symbol::New(lexbuf_);
 }
 
 void Lexer::LexNum() {
@@ -429,7 +429,7 @@ void Lexer::LexChar() {
   }
 
   token_.type = Token::Type::CHAR;
-  token_.expr = new expr::Char(lexbuf_[1]);
+  token_.expr = expr::Char::New(lexbuf_[1]);
 }
 
 // Lex string after getting '"'
@@ -448,7 +448,7 @@ void Lexer::LexString() {
   }
 
   token_.type = Token::Type::STRING;
-  token_.expr = new expr::String(lexbuf_, true);
+  token_.expr = expr::String::New(lexbuf_, true);
 }
 
 const Token& Lexer::NextToken() {
@@ -561,7 +561,7 @@ const Token& Lexer::NextToken() {
       if (util::IsDelim(stream_.Peek())) {
         lexbuf_.push_back(c);
         token_.type = Token::Type::ID;
-        token_.expr = new expr::Symbol(lexbuf_);
+        token_.expr = expr::Symbol::New(lexbuf_);
         break;
       }
 

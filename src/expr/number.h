@@ -71,8 +71,8 @@ class Number : public Expr {
 // TODO(bcf): Expand this to be arbitrary precision rational
 class Int : public Number {
  public:
-  explicit Int(int64_t val) : Number(Type::INT), val_(val) {}
-  explicit Int(const std::string& str, int radix);
+  static Int* New(int64_t val) { return new Int(val); }
+  static Int* New(const std::string& str, int radix);
 
   int64_t val() const { return val_; }
   void set_val(int64_t val) { val_ = val; }
@@ -87,6 +87,7 @@ class Int : public Number {
     return val_ == other->AsInt()->val_;
   }
 
+  explicit Int(int64_t val) : Number(Type::INT), val_(val) {}
   ~Int() override = default;
 
   int64_t val_;
@@ -94,8 +95,8 @@ class Int : public Number {
 
 class Float : public Number {
  public:
-  explicit Float(double val) : Number(Type::FLOAT), val_(val) {}
-  explicit Float(const std::string& str, int radix);
+  static Float* New(double val) { return new Float(val); }
+  static Float* New(const std::string& str, int radix);
 
   double val() const { return val_; }
   void set_val(double val) { val_ = val; }
@@ -110,6 +111,7 @@ class Float : public Number {
     return val_ == other->AsFloat()->val_;
   }
 
+  explicit Float(double val) : Number(Type::FLOAT), val_(val) {}
   ~Float() override = default;
 
   double val_;
@@ -132,7 +134,7 @@ Number* OpInPlace(Number* target, Number* other) {
     ftarget->set_val(op(ftarget->val(), iother->val()));
     return target;
   }
-  auto* ftarget = itarget ? new Float(itarget->val()) : target->AsFloat();
+  auto* ftarget = itarget ? Float::New(itarget->val()) : target->AsFloat();
   auto* fother = other->AsFloat();
 
   ftarget->set_val(op(ftarget->val(), fother->val()));

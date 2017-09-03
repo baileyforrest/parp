@@ -22,6 +22,7 @@
 #include <cassert>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "util/exceptions.h"
@@ -49,10 +50,9 @@ Expr* DoEval(Expr* expr, expr::Env* env) {
 
 class Apply : public expr::Evals {
  public:
-  Apply(Expr* op, const std::vector<Expr*>& args) : op_(op), args_(args) {
-    // We don't want to use std::move for args_ because we want to ensure it
-    // will be shrunk to the minimum size.
-    assert(op);
+  static Apply* New(Expr* op, std::vector<Expr*> args) {
+    args.shrink_to_fit();
+    return new Apply(op, std::move(args));
   }
 
  private:
@@ -60,6 +60,9 @@ class Apply : public expr::Evals {
   std::ostream& AppendStream(std::ostream& stream) const override;
   Expr* DoEval(Env* env, Expr** exprs, size_t size) const override;
 
+  Apply(Expr* op, std::vector<Expr*> args) : op_(op), args_(args) {
+    assert(op);
+  }
   ~Apply() override = default;
 
   Expr* op_;
@@ -101,7 +104,7 @@ Expr* Analyze(Expr* expr) {
   auto refs = args;
   refs.push_back(op);
 
-  return new Apply(op, args);
+  return Apply::New(op, args);
 }
 
 Expr* Eval(Expr* expr, expr::Env* env) {

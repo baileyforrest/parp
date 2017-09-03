@@ -157,13 +157,13 @@ class EmptyList : public Expr {
 
 class Bool : public Expr {
  public:
-  explicit Bool(bool val) : Expr(Type::BOOL), val_(val) {}
-
   bool val() const { return val_; }
 
  private:
   friend Bool* True();
   friend Bool* False();
+
+  explicit Bool(bool val) : Expr(Type::BOOL), val_(val) {}
 
   // Expr implementation:
   const Bool* AsBool() const override { return this; }
@@ -177,7 +177,7 @@ class Bool : public Expr {
 
 class Char : public Expr {
  public:
-  explicit Char(char val) : Expr(Type::CHAR), val_(val) {}
+  static Char* New(char c) { return new Char(c); }
 
   char val() const { return val_; }
 
@@ -190,6 +190,7 @@ class Char : public Expr {
     return val_ == other->AsChar()->val_;
   }
 
+  explicit Char(char val) : Expr(Type::CHAR), val_(val) {}
   ~Char() override = default;
 
   const char val_;
@@ -198,9 +199,8 @@ class Char : public Expr {
 // TODO(bcf): Optimize for readonly strings.
 class String : public Expr {
  public:
-  explicit String(std::string val, bool read_only = false)
-      : Expr(Type::STRING), val_(std::move(val)), read_only_(read_only) {
-    val_.shrink_to_fit();
+  static String* New(std::string val, bool read_only = false) {
+    return new String(std::move(val), read_only);
   }
 
   const std::string& val() const { return val_; }
@@ -216,6 +216,10 @@ class String : public Expr {
     return val_ == other->AsString()->val_;
   }
 
+  explicit String(std::string val, bool read_only)
+      : Expr(Type::STRING), val_(std::move(val)), read_only_(read_only) {
+    val_.shrink_to_fit();
+  }
   ~String() override = default;
 
   std::string val_;
@@ -225,8 +229,9 @@ class String : public Expr {
 // TODO(bcf): Optimize for read only.
 class Symbol : public Expr {
  public:
-  explicit Symbol(std::string val) : Expr(Type::SYMBOL), val_(std::move(val)) {
-    assert(val_.size() > 0);
+  static Symbol* New(std::string val) {
+    val.shrink_to_fit();
+    return new Symbol(std::move(val));
   }
 
   const std::string& val() const { return val_; }
@@ -242,6 +247,9 @@ class Symbol : public Expr {
     return val_ == other->AsSymbol()->val_;
   }
 
+  explicit Symbol(std::string val) : Expr(Type::SYMBOL), val_(std::move(val)) {
+    assert(val_.size() > 0);
+  }
   ~Symbol() override = default;
 
   const std::string val_;
@@ -249,10 +257,7 @@ class Symbol : public Expr {
 
 class Pair : public Expr {
  public:
-  Pair(Expr* car, Expr* cdr) : Expr(Type::PAIR), car_(car), cdr_(cdr) {
-    assert(car);
-    assert(cdr);
-  }
+  static Pair* New(Expr* car, Expr* cdr) { return new Pair(car, cdr); }
 
   expr::Expr* Cr(const std::string& str) const;
 
@@ -262,8 +267,6 @@ class Pair : public Expr {
   void set_cdr(Expr* expr) { cdr_ = expr; }
 
  private:
-  ~Pair() override = default;
-
   // Expr implementation:
   const Pair* AsPair() const override { return this; }
   Pair* AsPair() override { return this; }
@@ -278,15 +281,21 @@ class Pair : public Expr {
            cdr_->Equal(other->AsPair()->cdr_);
   }
 
+  Pair(Expr* car, Expr* cdr) : Expr(Type::PAIR), car_(car), cdr_(cdr) {
+    assert(car);
+    assert(cdr);
+  }
+
+  ~Pair() override = default;
+
   Expr* car_;
   Expr* cdr_;
 };
 
 class Vector : public Expr {
  public:
-  explicit Vector(std::vector<Expr*> vals)
-      : Expr(Type::VECTOR), vals_(std::move(vals)) {
-    vals_.shrink_to_fit();
+  static Vector* New(std::vector<Expr*> vals) {
+    return new Vector(std::move(vals));
   }
 
   const std::vector<Expr*>& vals() const { return vals_; }
@@ -301,6 +310,10 @@ class Vector : public Expr {
   }
   bool EqualImpl(const Expr* other) const override;
 
+  explicit Vector(std::vector<Expr*> vals)
+      : Expr(Type::VECTOR), vals_(std::move(vals)) {
+    vals_.shrink_to_fit();
+  }
   ~Vector() override = default;
 
   std::vector<Expr*> vals_;
@@ -308,8 +321,7 @@ class Vector : public Expr {
 
 class Env : public Expr {
  public:
-  explicit Env(Env* enclosing = nullptr)
-      : Expr(Type::ENV), enclosing_(enclosing) {}
+  static Env* New(Env* enclosing = nullptr) { return new Env(enclosing); }
 
   Expr* Lookup(Symbol* var) const;
   const Env* enclosing() const { return enclosing_; }
@@ -322,6 +334,7 @@ class Env : public Expr {
   Env* AsEnv() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
+  explicit Env(Env* enclosing) : Expr(Type::ENV), enclosing_(enclosing) {}
   ~Env() override = default;
 
   struct VarHash {
@@ -373,7 +386,7 @@ Expr* ListFromIt(T it, T e) {
 
 // Alias for new Pair
 inline Pair* Cons(Expr* e1, Expr* e2) {
-  return new Pair(e1, e2);
+  return Pair::New(e1, e2);
 }
 
 }  // namespace expr
