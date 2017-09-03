@@ -86,23 +86,41 @@ struct {
 #undef X
 };
 
+void EvalArgs(Env* env, Expr** args, size_t num_args) {
+  for (size_t i = 0; i < num_args; ++i) {
+    args[i] = Eval(args[i], env);
+  }
+}
+
 template <typename OpInt, typename OpFloat>
-Number* ArithOp(Expr* initial, Expr** args, size_t num_args) {
+Number* ArithOp(Env* env, Expr* initial, Expr** args, size_t num_args) {
+  EvalArgs(env, args, num_args);
   EXPECT_TYPE(NUMBER, initial);
   Number* result = initial->AsNumber();
   for (size_t i = 0; i < num_args; ++i) {
     auto* arg = args[i];
     EXPECT_TYPE(NUMBER, arg);
-    OpInPlace<OpInt, OpFloat>(result, arg->AsNumber());
+    result = OpInPlace<OpInt, OpFloat>(result, arg->AsNumber());
   }
 
   return result;
 }
 
-void EvalArgs(Env* env, Expr** args, size_t num_args) {
-  for (size_t i = 0; i < num_args; ++i) {
-    args[i] = Eval(args[i], env);
+template <typename OpInt, typename OpFloat>
+Expr* CmpOp(Env* env, Expr** args, size_t num_args) {
+  EvalArgs(env, args, num_args);
+  EXPECT_TYPE(NUMBER, args[0]);
+  auto* last = args[0];
+  for (size_t i = 1; i < num_args; ++i) {
+    auto* cur = args[i];
+    EXPECT_TYPE(NUMBER, cur);
+    if (!OpCmp<OpInt, OpFloat>(last->AsNumber(), cur->AsNumber())) {
+      return False();
+    }
+    last = cur;
   }
+
+  return True();
 }
 
 Expr* ExecuteList(Env* env, Expr* cur) {
@@ -336,32 +354,6 @@ Expr* Define::DoEval(Env* env, Expr** args, size_t num_args) const {
   return Nil();
 }
 
-Expr* Plus::DoEval(Env* env, Expr** args, size_t num_args) const {
-  EvalArgs(env, args, num_args);
-  return ArithOp<std::plus<int64_t>, std::plus<double>>(new Int(0), args,
-                                                        num_args);
-}
-
-Expr* Star::DoEval(Env* env, Expr** args, size_t num_args) const {
-  EvalArgs(env, args, num_args);
-  return ArithOp<std::multiplies<int64_t>, std::multiplies<double>>(
-      new Int(1), args, num_args);
-}
-
-Expr* Minus::DoEval(Env* env, Expr** args, size_t num_args) const {
-  EXPECT_ARGS_GE(1);
-  EvalArgs(env, args, num_args);
-  return ArithOp<std::minus<int64_t>, std::minus<double>>(*args, args + 1,
-                                                          num_args - 1);
-}
-
-Expr* Slash::DoEval(Env* env, Expr** args, size_t num_args) const {
-  EXPECT_ARGS_GE(1);
-  EvalArgs(env, args, num_args);
-  return ArithOp<std::divides<int64_t>, std::divides<double>>(*args, args + 1,
-                                                              num_args - 1);
-}
-
 Expr* Arrow::DoEval(Env* /* env */,
                     Expr** /* args */,
                     size_t /* num_args */) const {
@@ -459,6 +451,80 @@ Expr* Case::DoEval(Env* env, Expr** args, size_t num_args) const {
   }
 
   return Nil();
+}
+
+Expr* And::DoEval(Env* env, Expr** args, size_t num_args) const {
+  Expr* e = nullptr;
+  for (size_t i = 0; i < num_args; ++i) {
+    e = Eval(args[i], env);
+    if (e == False()) {
+      return e;
+    }
+  }
+
+  return e ? e : True();
+}
+
+Expr* Or::DoEval(Env* env, Expr** args, size_t num_args) const {
+  for (size_t i = 0; i < num_args; ++i) {
+    auto* e = Eval(args[i], env);
+    if (e != False()) {
+      return e;
+    }
+  }
+
+  return False();
+}
+
+Expr* OpEq::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_GE(2);
+  return CmpOp<std::equal_to<int64_t>, std::equal_to<double>>(env, args,
+                                                              num_args);
+}
+
+Expr* OpLt::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_GE(2);
+  return CmpOp<std::less<int64_t>, std::less<double>>(env, args, num_args);
+}
+
+Expr* OpGt::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_GE(2);
+  return CmpOp<std::greater<int64_t>, std::greater<double>>(env, args,
+                                                            num_args);
+}
+
+Expr* OpLe::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_GE(2);
+  return CmpOp<std::less_equal<int64_t>, std::less_equal<double>>(env, args,
+                                                                  num_args);
+}
+
+Expr* OpGe::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_GE(2);
+  return CmpOp<std::greater_equal<int64_t>, std::greater_equal<double>>(
+      env, args, num_args);
+}
+
+Expr* Plus::DoEval(Env* env, Expr** args, size_t num_args) const {
+  return ArithOp<std::plus<int64_t>, std::plus<double>>(env, new Int(0), args,
+                                                        num_args);
+}
+
+Expr* Star::DoEval(Env* env, Expr** args, size_t num_args) const {
+  return ArithOp<std::multiplies<int64_t>, std::multiplies<double>>(
+      env, new Int(1), args, num_args);
+}
+
+Expr* Minus::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_GE(1);
+  return ArithOp<std::minus<int64_t>, std::minus<double>>(env, *args, args + 1,
+                                                          num_args - 1);
+}
+
+Expr* Slash::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_GE(1);
+  return ArithOp<std::divides<int64_t>, std::divides<double>>(
+      env, *args, args + 1, num_args - 1);
 }
 
 }  // namespace impl

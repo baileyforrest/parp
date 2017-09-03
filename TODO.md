@@ -1,5 +1,6 @@
 # TODOs
 
++ Code coverage tool
 + Marks for Exprs
 + Tests for Expr:
     - Equal, Eqv

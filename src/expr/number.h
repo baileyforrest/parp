@@ -139,6 +139,26 @@ Number* OpInPlace(Number* target, Number* other) {
   return ftarget;
 }
 
+template <typename OpInt, typename OpFloat>
+bool OpCmp(Number* a, Number* b) {
+  auto* ia = a->AsInt();
+  auto* ib = b->AsInt();
+
+  if (ia && ib) {
+    OpInt op;
+    return op(ia->val(), ib->val());
+  }
+
+  OpFloat op;
+  if (ib) {
+    return op(a->AsFloat()->val(), ib->val());
+  } else if (ia) {
+    return op(ia->val(), b->AsFloat()->val());
+  }
+
+  return op(a->AsFloat()->val(), b->AsFloat()->val());
+}
+
 }  // namespace expr
 
 #endif  // EXPR_NUMBER_H_

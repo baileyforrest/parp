@@ -28,9 +28,11 @@
 #include "test/util.h"
 
 using expr::Expr;
+using expr::False;
 using expr::Int;
-using expr::Symbol;
 using expr::Nil;
+using expr::Symbol;
+using expr::True;
 
 namespace eval {
 
@@ -44,6 +46,10 @@ expr::Expr* ParseExpr(const std::string& str) {
 
 Expr* IntExpr(int64_t val) {
   return new Int(val);
+}
+
+Expr* FloatExpr(double d) {
+  return new expr::Float(d);
 }
 
 Expr* SymExpr(std::string str) {
@@ -177,6 +183,25 @@ TEST_F(EvalTest, Case) {
   // clang-format on
 }
 
+TEST_F(EvalTest, And) {
+  EXPECT_EQ(*True(), *EvalStr("(and (= 2 2) (> 2 1))"));
+  EXPECT_EQ(*False(), *EvalStr("(and (= 2 2) (< 2 1))"));
+  Expr* e = Cons(new Symbol("f"), Cons(new Symbol("g"), Nil()));
+  EXPECT_EQ(*e, *EvalStr("(and 1 2 'c '(f g))"));
+  EXPECT_EQ(*True(), *EvalStr("(and)"));
+}
+
+TEST_F(EvalTest, Or) {
+  EXPECT_EQ(*True(), *EvalStr("(or (= 2 2) (> 2 1))"));
+  EXPECT_EQ(*True(), *EvalStr("(or (= 2 2) (< 2 1))"));
+  EXPECT_EQ(*False(), *EvalStr("(or #f #f #f)"));
+#if 0  // TODO(bcf): Enable when memq implemented.
+  Expr* e = Cons(new Symbol("b"), Cons(new Symbol("c"), Nil()));
+  EXPECT_EQ(*e, *EvalStr("(or (memq 'b '(a b c)) (/ 3 0))"));
+#endif
+  EXPECT_EQ(*False(), *EvalStr("(or)"));
+}
+
 TEST_F(EvalTest, Begin) {
   // TODO(bcf)
 }
@@ -187,11 +212,81 @@ TEST_F(EvalTest, Define) {
   EXPECT_EQ(*IntExpr(42), *env_->Lookup(new Symbol("foo")));
 }
 
+TEST_F(EvalTest, OpEq) {
+  EXPECT_EQ(*False(), *EvalStr("(= 3 4)"));
+  EXPECT_EQ(*True(), *EvalStr("(= 3 3 3)"));
+  EXPECT_EQ(*True(), *EvalStr("(= 3 3 (+ 2 1))"));
+  EXPECT_EQ(*False(), *EvalStr("(= 3 3 3 1)"));
+
+  EXPECT_EQ(*False(), *EvalStr("(= 3.0 4)"));
+  EXPECT_EQ(*True(), *EvalStr("(= 3.0 3.0 3.0)"));
+  EXPECT_EQ(*False(), *EvalStr("(= 3.0 3 3.0 1)"));
+}
+
+TEST_F(EvalTest, OpLt) {
+  EXPECT_EQ(*False(), *EvalStr("(< 4 3)"));
+  EXPECT_EQ(*False(), *EvalStr("(< 4 4)"));
+  EXPECT_EQ(*True(), *EvalStr("(< 3 4)"));
+  EXPECT_EQ(*True(), *EvalStr("(< 1 2 3 4)"));
+  EXPECT_EQ(*False(), *EvalStr("(< 1 2 3 3)"));
+  EXPECT_EQ(*True(), *EvalStr("(< 1 2 3 (+ 4 5))"));
+
+  EXPECT_EQ(*False(), *EvalStr("(< 4.0 3)"));
+  EXPECT_EQ(*False(), *EvalStr("(< 4.0 4.0)"));
+  EXPECT_EQ(*True(), *EvalStr("(< 3.0 4)"));
+  EXPECT_EQ(*True(), *EvalStr("(< 1.0 2.0 3.0 4.0)"));
+  EXPECT_EQ(*False(), *EvalStr("(< 1 2.0 3 3.0)"));
+  EXPECT_EQ(*True(), *EvalStr("(< 1.0 2 3.0 (+ 4 5.0))"));
+}
+
+TEST_F(EvalTest, OpGt) {
+  EXPECT_EQ(*False(), *EvalStr("(> 3 4)"));
+  EXPECT_EQ(*False(), *EvalStr("(> 3 3)"));
+  EXPECT_EQ(*False(), *EvalStr("(> 4 4 3)"));
+  EXPECT_EQ(*True(), *EvalStr("(> 4 3)"));
+  EXPECT_EQ(*True(), *EvalStr("(> 4 3 1)"));
+  EXPECT_EQ(*True(), *EvalStr("(> 4 3 (+ 1 1) 1)"));
+
+  EXPECT_EQ(*False(), *EvalStr("(> 3.0 4.0)"));
+  EXPECT_EQ(*False(), *EvalStr("(> 3 3.0)"));
+  EXPECT_EQ(*False(), *EvalStr("(> 4.0 4.0 3)"));
+  EXPECT_EQ(*True(), *EvalStr("(> 4 3.0)"));
+  EXPECT_EQ(*True(), *EvalStr("(> 4.0 3 1.0)"));
+  EXPECT_EQ(*True(), *EvalStr("(> 4.0 3 (+ 1 1.0) 1.0)"));
+}
+
+TEST_F(EvalTest, OpLe) {
+  EXPECT_EQ(*False(), *EvalStr("(<= 5 4)"));
+  EXPECT_EQ(*False(), *EvalStr("(<= 5 6 7 8 1)"));
+  EXPECT_EQ(*True(), *EvalStr("(<= 5 6 7 8)"));
+  EXPECT_EQ(*True(), *EvalStr("(<= 5 8)"));
+  EXPECT_EQ(*True(), *EvalStr("(<= 5 8 (+ 5 13))"));
+
+  EXPECT_EQ(*False(), *EvalStr("(<= 5.0 4.0)"));
+  EXPECT_EQ(*False(), *EvalStr("(<= 5.0 6 7.0 8 1.0)"));
+  EXPECT_EQ(*True(), *EvalStr("(<= 5.0 6 7.0 8)"));
+  EXPECT_EQ(*True(), *EvalStr("(<= 5.0 8.0)"));
+  EXPECT_EQ(*True(), *EvalStr("(<= 5.0 8.0 (+ 5.0 13.0))"));
+}
+
+TEST_F(EvalTest, OpGe) {
+  EXPECT_EQ(*False(), *EvalStr("(>= 4 5)"));
+  EXPECT_EQ(*False(), *EvalStr("(>= (- 8 17) 5 5 3 3 2 2)"));
+  EXPECT_EQ(*True(), *EvalStr("(>= 3 3 3 3 )"));
+  EXPECT_EQ(*True(), *EvalStr("(>= 8 3 1 0 -5)"));
+
+  EXPECT_EQ(*False(), *EvalStr("(>= 4.0 5)"));
+  EXPECT_EQ(*False(), *EvalStr("(>= (- 8 17.0) 5.0 5 3.0 3.0 2.0 2)"));
+  EXPECT_EQ(*True(), *EvalStr("(>= 3.0 3 3.0 3 )"));
+  EXPECT_EQ(*True(), *EvalStr("(>= 8.0 3 1.0 0 -5.0)"));
+}
+
 TEST_F(EvalTest, Plus) {
   EXPECT_EQ(*IntExpr(0), *EvalStr("(+)"));
   EXPECT_EQ(*IntExpr(42), *EvalStr("(+ 22 20)"));
   EXPECT_EQ(*IntExpr(42), *EvalStr("(+ 22 12 3 5)"));
   EXPECT_EQ(*IntExpr(42), *EvalStr("(+ 60 -18)"));
+  EXPECT_EQ(*FloatExpr(2.0), *EvalStr("(+ 1 1.0)"));
 }
 
 TEST_F(EvalTest, Star) {
