@@ -91,26 +91,11 @@ Expr* Apply::Eval(Env* env, Expr** exprs, size_t size) const {
 }  // namespace
 
 Expr* Analyze(Expr* expr) {
-  switch (expr->type()) {
-    case Expr::Type::EMPTY_LIST:
-    case Expr::Type::BOOL:
-    case Expr::Type::NUMBER:
-    case Expr::Type::CHAR:
-    case Expr::Type::STRING:
-    case Expr::Type::VECTOR:
-    case Expr::Type::SYMBOL:
-      return expr;
-
-    case Expr::Type::PAIR:
-      break;
-
-    default:
-      // Analyze called twice
-      assert(false);
-      break;
+  auto* pair = expr->AsPair();
+  if (!pair) {
+    return expr;
   }
 
-  auto* pair = expr->AsPair();
   auto* op = Analyze(pair->car());
   auto args = ExprVecFromList(pair->cdr());
   auto refs = args;

@@ -29,18 +29,12 @@
 #include "util/exceptions.h"
 #include "util/util.h"
 
-#define THROW_EXCEPTION(msg)                         \
-  do {                                               \
-    auto error = std::string(__func__) + ": " + msg; \
-    throw util::RuntimeException(error, nullptr);    \
-  } while (0)
-
 #define EXPECT_ARGS_NUM(expected)                            \
   do {                                                       \
     if (num_args != expected) {                              \
       std::ostringstream os;                                 \
       os << "Expected " #expected " args. Got " << num_args; \
-      THROW_EXCEPTION(os.str());                             \
+      throw RuntimeException(os.str(), this);                \
     }                                                        \
   } while (0)
 
@@ -49,7 +43,7 @@
     if (num_args > expected) {                                       \
       std::ostringstream os;                                         \
       os << "Expected at most " #expected " args. Got " << num_args; \
-      THROW_EXCEPTION(os.str());                                     \
+      throw RuntimeException(os.str(), this);                        \
     }                                                                \
   } while (0)
 
@@ -58,7 +52,7 @@
     if (num_args < expected) {                                        \
       std::ostringstream os;                                          \
       os << "Expected at least " #expected " args. Got " << num_args; \
-      THROW_EXCEPTION(os.str());                                      \
+      throw RuntimeException(os.str(), this);                         \
     }                                                                 \
   } while (0)
 
@@ -68,8 +62,12 @@
       std::ostringstream os;                                     \
       os << "Expected type " << Expr::Type::expected << ". Got " \
          << expr->type();                                        \
+      throw RuntimeException(os.str(), expr);                    \
     }                                                            \
   } while (0)
+
+using eval::Eval;
+using util::RuntimeException;
 
 namespace expr {
 namespace primitive {
@@ -96,6 +94,12 @@ Number* ArithOp(Expr* initial, Expr** args, size_t num_args) {
   }
 
   return result;
+}
+
+void EvalArgs(Env* env, Expr** args, size_t num_args) {
+  for (size_t i = 0; i < num_args; ++i) {
+    args[i] = Eval(args[i], env);
+  }
 }
 
 class LambdaImpl : public Evals {
@@ -146,8 +150,8 @@ std::ostream& LambdaImpl::AppendStream(std::ostream& stream) const {
   return stream << ")";
 }
 
-Expr* LambdaImpl::Eval(Env* /* env */, Expr** exprs, size_t size) const {
-  if (size < required_args_.size()) {
+Expr* LambdaImpl::Eval(Env* /* env */, Expr** args, size_t num_args) const {
+  if (num_args < required_args_.size()) {
     std::ostringstream os;
     os << "Invalid number of arguments. expected ";
     if (variable_arg_ != nullptr) {
@@ -155,25 +159,27 @@ Expr* LambdaImpl::Eval(Env* /* env */, Expr** exprs, size_t size) const {
     }
 
     os << required_args_.size();
-    os << " given: " << size;
-    throw new util::RuntimeException(os.str(), this);
+    os << " given: " << num_args;
+    throw RuntimeException(os.str(), this);
   }
-  auto arg_it = exprs;
+  EvalArgs(env_, args, num_args);
+
+  auto arg_it = args;
   auto* new_env = new expr::Env(env_);
 
   for (auto* sym : required_args_) {
     new_env->DefineVar(sym, *arg_it++);
   }
   if (variable_arg_ != nullptr) {
-    auto* rest = ListFromIt(arg_it, exprs + size);
+    auto* rest = ListFromIt(arg_it, args + num_args);
     new_env->DefineVar(variable_arg_, rest);
   }
 
   assert(body_.size() >= 1);
   for (size_t i = 0; i < body_.size() - 1; ++i) {
-    eval::Eval(body_[i], new_env);
+    ::Eval(body_[i], new_env);
   }
-  return eval::Eval(body_.back(), new_env);
+  return ::Eval(body_.back(), new_env);
 }
 
 }  // namespace
@@ -219,7 +225,7 @@ Expr* Lambda::Eval(Env* env, Expr** args, size_t num_args) const {
       break;
     };
     default:
-      THROW_EXCEPTION("Expected arguments");
+      throw RuntimeException("Expected arguments", this);
   }
 
   // TODO(bcf): Analyze in other places as appropriate.
@@ -233,15 +239,15 @@ Expr* Lambda::Eval(Env* env, Expr** args, size_t num_args) const {
 Expr* If::Eval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
   EXPECT_ARGS_LE(3);
-  auto* cond = eval::Eval(args[0], env);
+  auto* cond = ::Eval(args[0], env);
   if (cond == False()) {
     if (num_args == 3) {
-      return eval::Eval(args[2], env);
+      return ::Eval(args[2], env);
     } else {
       return Nil();
     }
   }
-  return eval::Eval(args[1], env);
+  return ::Eval(args[1], env);
 }
 
 Expr* Set::Eval(Env* env, Expr** args, size_t num_args) const {
@@ -256,9 +262,9 @@ Expr* Begin::Eval(Env* env, Expr** args, size_t num_args) const {
     return Nil();
   }
   for (; num_args > 1; --num_args, ++args) {
-    eval::Eval(*args, env);
+    ::Eval(*args, env);
   }
-  return eval::Eval(*args, env);
+  return ::Eval(*args, env);
 }
 
 Expr* Define::Eval(Env* env, Expr** args, size_t num_args) const {
@@ -270,24 +276,28 @@ Expr* Define::Eval(Env* env, Expr** args, size_t num_args) const {
   return Nil();
 }
 
-Expr* Plus::Eval(Env* /* env */, Expr** args, size_t num_args) const {
+Expr* Plus::Eval(Env* env, Expr** args, size_t num_args) const {
+  EvalArgs(env, args, num_args);
   return ArithOp<std::plus<int64_t>, std::plus<double>>(new Int(0), args,
                                                         num_args);
 }
 
-Expr* Star::Eval(Env* /* env */, Expr** args, size_t num_args) const {
+Expr* Star::Eval(Env* env, Expr** args, size_t num_args) const {
+  EvalArgs(env, args, num_args);
   return ArithOp<std::multiplies<int64_t>, std::multiplies<double>>(
       new Int(1), args, num_args);
 }
 
-Expr* Minus::Eval(Env* /* env */, Expr** args, size_t num_args) const {
+Expr* Minus::Eval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(1);
+  EvalArgs(env, args, num_args);
   return ArithOp<std::minus<int64_t>, std::minus<double>>(*args, args + 1,
                                                           num_args - 1);
 }
 
-Expr* Slash::Eval(Env* /* env */, Expr** args, size_t num_args) const {
+Expr* Slash::Eval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(1);
+  EvalArgs(env, args, num_args);
   return ArithOp<std::divides<int64_t>, std::divides<double>>(*args, args + 1,
                                                               num_args - 1);
 }
