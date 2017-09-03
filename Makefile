@@ -139,8 +139,7 @@ format:
 	@$(CLANG_FORMAT) -i -style=Chromium $(ALL_SRC_FILES)
 
 .PHONY: presubmit
-.NOTPARALLEL:
-presubmit: lint format
+presubmit: format lint
 
 .PHONY: run_test
 run_test: test

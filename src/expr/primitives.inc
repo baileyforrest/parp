@@ -32,7 +32,6 @@ X(If, if)
 X(Set, set!)
 
 // 4.2 Derived expression types
-// TODO(bcf): Implement as lisp expressions?
 Y(Cond)
 Y(Case)
 Y(And)

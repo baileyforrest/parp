@@ -32,7 +32,6 @@
 #include "gc/gc.h"
 #include "util/macros.h"
 
-// TODO(bcf): assert Error checking on constructors
 namespace expr {
 
 class EmptyList;
@@ -233,7 +232,9 @@ class String : public Expr {
 // TODO(bcf): Optimize for read only.
 class Symbol : public Expr {
  public:
-  explicit Symbol(std::string val) : Expr(Type::SYMBOL), val_(std::move(val)) {}
+  explicit Symbol(std::string val) : Expr(Type::SYMBOL), val_(std::move(val)) {
+    assert(val_.size() > 0);
+  }
 
   const std::string& val() const { return val_; }
 
@@ -255,7 +256,10 @@ class Symbol : public Expr {
 
 class Pair : public Expr {
  public:
-  Pair(Expr* car, Expr* cdr) : Expr(Type::PAIR), car_(car), cdr_(cdr) {}
+  Pair(Expr* car, Expr* cdr) : Expr(Type::PAIR), car_(car), cdr_(cdr) {
+    assert(car);
+    assert(cdr);
+  }
 
   expr::Expr* Cr(const std::string& str) const;
 
@@ -317,7 +321,10 @@ class Lambda : public Expr {
         required_args_(std::move(required_args)),
         variable_arg_(variable_arg),
         body_(std::move(body)),
-        env_(env) {}
+        env_(env) {
+    assert(body_.size() > 0);
+    assert(env);
+  }
 
   const std::vector<Symbol*>& required_args() const { return required_args_; }
   Symbol* variable_arg() const { return variable_arg_; }
@@ -378,7 +385,10 @@ class Analyzed : public Expr {
       : Expr(Type::ANALYZED),
         orig_expr_(orig_expr),
         func_(std::move(func)),
-        refs_(std::move(refs)) {}
+        refs_(std::move(refs)) {
+    assert(orig_expr);
+    assert(func_);
+  }
 
   const Evaluation& func() const { return func_; }
 
