@@ -86,11 +86,11 @@ Y(IsEven)
 Y(Max)
 Y(Min)
 
-Y(Plus)
-Y(Star)
+X(Plus, +)
+X(Star, *)
 
-Y(Minus)
-Y(Slash)
+X(Minus, -)
+X(Slash, /)
 
 Y(Abs)
 

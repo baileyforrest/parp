@@ -17,11 +17,13 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <functional>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "expr/expr.h"
+#include "expr/number.h"
 #include "expr/primitive.h"
 #include "eval/eval.h"
 #include "util/exceptions.h"
@@ -82,6 +84,19 @@ struct {
 #include "expr/primitives.inc"  // NOLINT(build/include)
 #undef X
 };
+
+template <typename OpInt, typename OpFloat>
+Number* ArithOp(Expr* initial, Expr** args, size_t num_args) {
+  EXPECT_TYPE(NUMBER, initial);
+  Number* result = initial->AsNumber();
+  for (size_t i = 0; i < num_args; ++i) {
+    auto* arg = args[i];
+    EXPECT_TYPE(NUMBER, arg);
+    OpInPlace<OpInt, OpFloat>(result, arg->AsNumber());
+  }
+
+  return result;
+}
 
 class LambdaImpl : public Evals {
  public:
@@ -253,6 +268,28 @@ Expr* Define::Eval(Env* env, Expr** args, size_t num_args) const {
   // TODO(bcf): handle define lambda.
 
   return Nil();
+}
+
+Expr* Plus::Eval(Env* /* env */, Expr** args, size_t num_args) const {
+  return ArithOp<std::plus<int64_t>, std::plus<double>>(new Int(0), args,
+                                                        num_args);
+}
+
+Expr* Star::Eval(Env* /* env */, Expr** args, size_t num_args) const {
+  return ArithOp<std::multiplies<int64_t>, std::multiplies<double>>(
+      new Int(1), args, num_args);
+}
+
+Expr* Minus::Eval(Env* /* env */, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_GE(1);
+  return ArithOp<std::minus<int64_t>, std::minus<double>>(*args, args + 1,
+                                                          num_args - 1);
+}
+
+Expr* Slash::Eval(Env* /* env */, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_GE(1);
+  return ArithOp<std::divides<int64_t>, std::divides<double>>(*args, args + 1,
+                                                              num_args - 1);
 }
 
 }  // namespace impl

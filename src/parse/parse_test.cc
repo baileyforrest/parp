@@ -52,7 +52,7 @@ TEST_F(ParserTest, ReadSimpleDatum) {
   const ExprVec kExpected = {
       new expr::Symbol("hello"),
       expr::True(),
-      new expr::NumReal(1),
+      new expr::Int(1),
       new expr::Char('c'),
       new expr::String("world"),
   };

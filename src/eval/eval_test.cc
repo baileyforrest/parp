@@ -27,6 +27,8 @@
 #include "test/util.h"
 
 using expr::Expr;
+using expr::Int;
+using expr::Symbol;
 
 namespace eval {
 
@@ -36,6 +38,10 @@ expr::Expr* ParseExpr(const std::string& str) {
   auto exprs = parse::Read(str);
   assert(exprs.size() == 1);
   return exprs[0];
+}
+
+Expr* IntExpr(int64_t val) {
+  return new Int(val);
 }
 
 }  // namespace
@@ -60,7 +66,7 @@ TEST_F(EvalTest, SelfEvaluating) {
   EXPECT_EQ(expr::True(), Eval(expr::True(), env_));
   EXPECT_EQ(expr::False(), Eval(expr::False(), env_));
 
-  Expr* num = new expr::NumReal(42);
+  Expr* num = new Int(42);
   EXPECT_EQ(num, Eval(num, env_));
 
   Expr* character = new expr::Char('a');
@@ -74,7 +80,7 @@ TEST_F(EvalTest, SelfEvaluating) {
 }
 
 TEST_F(EvalTest, Symbol) {
-  Expr* num = new expr::NumReal(42);
+  Expr* num = new Int(42);
   auto* symbol = ParseExpr("abc");
   env_->DefineVar(symbol->AsSymbol(), num);
 
@@ -82,35 +88,30 @@ TEST_F(EvalTest, Symbol) {
 }
 
 TEST_F(EvalTest, Quote) {
-  Expr* expected = new expr::NumReal(42);
   Expr* expr = EvalStr("(quote 42)");
-
-  EXPECT_EQ(*expected, *expr);
+  EXPECT_EQ(*IntExpr(42), *expr);
 }
 
 TEST_F(EvalTest, LambdaBasic) {
-  Expr* n = new expr::NumReal(42);
-  EXPECT_EQ(*n, *EvalStr("((lambda (x) x) 42)"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("((lambda (x) x) 42)"));
 }
 
 TEST_F(EvalTest, If) {
-  Expr* n42 = new expr::NumReal(42);
-
+  Expr* n42 = new Int(42);
   EXPECT_EQ(*n42, *EvalStr("(if #t 42)"));
   EXPECT_EQ(*expr::Nil(), *EvalStr("(if #f 42)"));
 
-  Expr* n43 = new expr::NumReal(43);
+  Expr* n43 = new Int(43);
   EXPECT_EQ(*n42, *EvalStr("(if #t 42 43)"));
   EXPECT_EQ(*n43, *EvalStr("(if #f 42 43)"));
 }
 
 TEST_F(EvalTest, Set) {
-  Expr* expected = new expr::NumReal(42);
-  auto* sym = new expr::Symbol("foo");
+  auto* sym = new Symbol("foo");
   env_->DefineVar(sym, expr::Nil());
   EvalStr("(set! foo 42)");
 
-  EXPECT_EQ(*expected, *env_->Lookup(sym));
+  EXPECT_EQ(*IntExpr(42), *env_->Lookup(sym));
 }
 
 TEST_F(EvalTest, Begin) {
@@ -119,11 +120,34 @@ TEST_F(EvalTest, Begin) {
 
 TEST_F(EvalTest, Define) {
   // TODO(bcf): Test define function
-  Expr* expected = new expr::NumReal(42);
-  auto* sym = new expr::Symbol("foo");
   EvalStr("(define foo 42)");
+  EXPECT_EQ(*IntExpr(42), *env_->Lookup(new Symbol("foo")));
+}
 
-  EXPECT_EQ(*expected, *env_->Lookup(sym));
+TEST_F(EvalTest, Plus) {
+  EXPECT_EQ(*IntExpr(0), *EvalStr("(+)"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(+ 22 20)"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(+ 22 12 3 5)"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(+ 60 -18)"));
+}
+
+TEST_F(EvalTest, Star) {
+  EXPECT_EQ(*IntExpr(1), *EvalStr("(*)"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(* 21 2)"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(* 2 3 7)"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(* 21 -2 -1)"));
+}
+
+TEST_F(EvalTest, Minus) {
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(- 84 42)"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(- 84 20 22)"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(- 22 -20)"));
+}
+
+TEST_F(EvalTest, Slash) {
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(/ 84 2)"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(/ 252 2 3)"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(/ 504 -6 -2)"));
 }
 
 }  // namespace eval

@@ -55,17 +55,16 @@ double strtod_whole(const std::string& str, int radix) {
 
 }  // namespace
 
-NumReal::NumReal(const std::string& str, int radix)
-    : NumReal(stoi64_whole(str, radix)) {}
+Int::Int(const std::string& str, int radix) : Int(stoi64_whole(str, radix)) {}
 
-std::ostream& NumReal::AppendStream(std::ostream& stream) const {
+std::ostream& Int::AppendStream(std::ostream& stream) const {
   return stream << val_;
 }
 
-NumFloat::NumFloat(const std::string& str, int radix)
-    : NumFloat(strtod_whole(str, radix)) {}
+Float::Float(const std::string& str, int radix)
+    : Float(strtod_whole(str, radix)) {}
 
-std::ostream& NumFloat::AppendStream(std::ostream& stream) const {
+std::ostream& Float::AppendStream(std::ostream& stream) const {
   return stream << val_;
 }
 

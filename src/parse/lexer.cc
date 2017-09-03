@@ -252,9 +252,9 @@ expr::Number* NumLexer::ParseReal() {
   if (Eof() || *it_ != '/') {
     try {
       if (exact_) {
-        return new expr::NumReal(neum_str, radix_);
+        return new expr::Int(neum_str, radix_);
       } else {
-        return new expr::NumFloat(neum_str, radix_);
+        return new expr::Float(neum_str, radix_);
       }
     } catch (std::exception& e) {
       ThrowException(e.what());
