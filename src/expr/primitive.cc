@@ -210,7 +210,7 @@ Expr* Lambda::DoEval(Env* env, Expr** args, size_t num_args) const {
     case Type::EMPTY_LIST:
       break;
     case Type::SYMBOL:
-      req_args.push_back(args[0]->AsSymbol());
+      var_arg = args[0]->AsSymbol();
       break;
     case Type::PAIR: {
       Expr* cur_arg = args[0];

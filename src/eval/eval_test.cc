@@ -89,8 +89,20 @@ TEST_F(EvalTest, Symbol) {
 }
 
 TEST_F(EvalTest, Quote) {
-  Expr* expr = EvalStr("(quote 42)");
-  EXPECT_EQ(*IntExpr(42), *expr);
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(quote 42)"));
+  Expr* e = new Symbol("a");
+  EXPECT_EQ(*e, *EvalStr("(quote a)"));
+  EXPECT_EQ(*e, *EvalStr("'a"));
+  e = new expr::Vector({new Symbol("a"), new Symbol("b"), new Symbol("c")});
+  EXPECT_EQ(*e, *EvalStr("(quote #(a b c))"));
+  EXPECT_EQ(*e, *EvalStr("'#(a b c)"));
+  e = Cons(new Symbol("+"), Cons(new Int(1), Cons(new Int(2), Nil())));
+  EXPECT_EQ(*Nil(), *EvalStr("'()"));
+  EXPECT_EQ(*e, *EvalStr("(quote (+ 1 2))"));
+  EXPECT_EQ(*e, *EvalStr("'(+ 1 2)"));
+  e = Cons(new Symbol("quote"), Cons(new Symbol("a"), Nil()));
+  EXPECT_EQ(*e, *EvalStr("'(quote a)"));
+  EXPECT_EQ(*e, *EvalStr("''a"));
 }
 
 TEST_F(EvalTest, Lambda) {
@@ -111,6 +123,14 @@ TEST_F(EvalTest, If) {
   Expr* n43 = new Int(43);
   EXPECT_EQ(*n42, *EvalStr("(if #t 42 43)"));
   EXPECT_EQ(*n43, *EvalStr("(if #f 42 43)"));
+  EXPECT_EQ(*IntExpr(12), *EvalStr("((if #f + *) 3 4)"));
+
+  Expr* e = Cons(new Int(3),
+                 Cons(new Int(4), Cons(new Int(5), Cons(new Int(6), Nil()))));
+  EXPECT_EQ(*e, *EvalStr("((lambda x x) 3 4 5 6)"));
+
+  e = Cons(new Int(5), Cons(new Int(6), Nil()));
+  EXPECT_EQ(*e, *EvalStr("((lambda (x y . z) z) 3 4 5 6)"));
 }
 
 TEST_F(EvalTest, Set) {
