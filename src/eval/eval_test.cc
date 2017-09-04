@@ -203,6 +203,44 @@ TEST_F(EvalTest, Or) {
   EXPECT_EQ(*False(), *EvalStr("(or)"));
 }
 
+TEST_F(EvalTest, Let) {
+  EXPECT_EQ(*IntExpr(6), *EvalStr("(let ((x 2) (y 3)) (* x y))"));
+  // clang-format off
+  EXPECT_EQ(*IntExpr(35), *EvalStr(
+      "(let ((x 2) (y 3))"
+      "  (let ((x 7)"
+      "        (z (+ x y)))"
+      "    (* z x)))"));
+  // clang-format on
+}
+
+TEST_F(EvalTest, LetStar) {
+  // clang-format off
+  EXPECT_EQ(*IntExpr(70), *EvalStr(
+      "(let ((x 2) (y 3))"
+      "  (let* ((x 7)"
+      "        (z (+ x y)))"
+      "    (* z x)))"));
+  // clang-format on
+}
+
+TEST_F(EvalTest, LetRec) {
+  // clang-format off
+  EXPECT_EQ(*True(), *EvalStr(
+      "(letrec ((even?"
+      "          (lambda (n)"
+      "             (if (zero? n)"
+      "                 #t"
+      "                 (odd? (- n 1)))))"
+      "         (odd?"
+      "          (lambda (n)"
+      "            (if (zero? n)"
+      "                #f"
+      "                (even? (- n 1))))))"
+      "  (even? 88))"));
+  // clang-format on
+}
+
 TEST_F(EvalTest, Begin) {
   // TODO(bcf)
 }
@@ -280,6 +318,45 @@ TEST_F(EvalTest, OpGe) {
   EXPECT_EQ(*False(), *EvalStr("(>= (- 8 17.0) 5.0 5 3.0 3.0 2.0 2)"));
   EXPECT_EQ(*True(), *EvalStr("(>= 3.0 3 3.0 3 )"));
   EXPECT_EQ(*True(), *EvalStr("(>= 8.0 3 1.0 0 -5.0)"));
+}
+
+TEST_F(EvalTest, IsZero) {
+  EXPECT_EQ(*False(), *EvalStr("(zero? 1)"));
+  EXPECT_EQ(*False(), *EvalStr("(zero? 0.1)"));
+  EXPECT_EQ(*True(), *EvalStr("(zero? 0)"));
+  EXPECT_EQ(*True(), *EvalStr("(zero? (- 1.1 1.1))"));
+}
+
+TEST_F(EvalTest, IsPositive) {
+  EXPECT_EQ(*False(), *EvalStr("(positive? 0)"));
+  EXPECT_EQ(*False(), *EvalStr("(positive? -1)"));
+  EXPECT_EQ(*False(), *EvalStr("(positive? (- 1.1 1.1))"));
+  EXPECT_EQ(*False(), *EvalStr("(positive? -0.1)"));
+
+  EXPECT_EQ(*True(), *EvalStr("(positive? 1)"));
+  EXPECT_EQ(*True(), *EvalStr("(positive? (- 1.1 1.0))"));
+  EXPECT_EQ(*True(), *EvalStr("(positive? 0.1)"));
+}
+
+TEST_F(EvalTest, IsNegative) {
+  EXPECT_EQ(*False(), *EvalStr("(negative? 0)"));
+  EXPECT_EQ(*False(), *EvalStr("(negative? 1)"));
+  EXPECT_EQ(*False(), *EvalStr("(negative? (- 1.1 1.1))"));
+  EXPECT_EQ(*False(), *EvalStr("(negative? 0.1)"));
+
+  EXPECT_EQ(*True(), *EvalStr("(negative? -1)"));
+  EXPECT_EQ(*True(), *EvalStr("(negative? (- 1.0 1.1))"));
+  EXPECT_EQ(*True(), *EvalStr("(negative? -0.1)"));
+}
+
+TEST_F(EvalTest, IsOdd) {
+  EXPECT_EQ(*False(), *EvalStr("(odd? 2)"));
+  EXPECT_EQ(*True(), *EvalStr("(odd? 3)"));
+}
+
+TEST_F(EvalTest, IsEven) {
+  EXPECT_EQ(*True(), *EvalStr("(even? 2)"));
+  EXPECT_EQ(*False(), *EvalStr("(even? 3)"));
 }
 
 TEST_F(EvalTest, Plus) {

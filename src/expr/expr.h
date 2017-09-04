@@ -24,12 +24,14 @@
 #include <cstddef>
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "gc/gc.h"
 #include "util/macros.h"
+#include "util/exceptions.h"
 
 namespace expr {
 
@@ -76,7 +78,6 @@ class Expr {
   virtual std::ostream& AppendStream(
       std::ostream& stream) const = 0;  // NOLINT(runtime/references)
 
-  // TODO(bcf): Rename as AsX.
   virtual const EmptyList* AsEmptyList() const { return nullptr; }
   virtual EmptyList* AsEmptyList() { return nullptr; }
   virtual const Bool* AsBool() const { return nullptr; }
@@ -388,6 +389,37 @@ Expr* ListFromIt(T it, T e) {
 inline Pair* Cons(Expr* e1, Expr* e2) {
   return Pair::New(e1, e2);
 }
+
+#define TRY_AS_IMPL(op, etype)                                               \
+  {                                                                          \
+    auto* ret = expr->op();                                                  \
+    if (!ret) {                                                              \
+      std::ostringstream os;                                                 \
+      os << "Expected " << Expr::Type::etype << ". Given: " << expr->type(); \
+      throw util::RuntimeException(os.str(), expr);                          \
+    }                                                                        \
+    return ret;                                                              \
+  }
+
+// TODO(bcf): Replace similar pattern with these.
+inline EmptyList* TryEmptyList(Expr* expr)
+    TRY_AS_IMPL(AsEmptyList, EMPTY_LIST) inline Bool* TryBool(
+        Expr* expr) TRY_AS_IMPL(AsBool,
+                                BOOL) inline Number* TryNumber(Expr* expr)
+        TRY_AS_IMPL(AsNumber, NUMBER) inline Char* TryChar(
+            Expr* expr) TRY_AS_IMPL(AsChar,
+                                    CHAR) inline String* TryString(Expr* expr)
+            TRY_AS_IMPL(AsString, STRING) inline Symbol* TrySymbol(Expr* expr)
+                TRY_AS_IMPL(AsSymbol, SYMBOL) inline Pair* TryPair(Expr* expr)
+                    TRY_AS_IMPL(AsPair,
+                                PAIR) inline Vector* TryVector(Expr* expr)
+                        TRY_AS_IMPL(AsVector,
+                                    VECTOR) inline Env* TryEnv(Expr* expr)
+                            TRY_AS_IMPL(AsEnv,
+                                        ENV) inline Evals* TryEvals(Expr* expr)
+                                TRY_AS_IMPL(AsEvals, EVALS)
+
+#undef TRY_AS_IMPL
 
 }  // namespace expr
 

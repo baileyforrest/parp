@@ -95,6 +95,7 @@ void EvalArgs(Env* env, Expr** args, size_t num_args) {
 
 template <typename OpInt, typename OpFloat>
 Number* ArithOp(Env* env, Expr* initial, Expr** args, size_t num_args) {
+  initial = Eval(initial, env);
   EvalArgs(env, args, num_args);
   EXPECT_TYPE(NUMBER, initial);
   Number* result = initial->AsNumber();
@@ -124,6 +125,19 @@ Expr* CmpOp(Env* env, Expr** args, size_t num_args) {
   return True();
 }
 
+template <typename OpInt, typename OpFloat>
+Expr* TestOp(Env* env, Expr** args, size_t num_args) {
+  EvalArgs(env, args, num_args);
+  auto* num = TryNumber(args[0]);
+  if (auto* as_int = num->AsInt()) {
+    OpInt op;
+    return op(as_int->val(), 0) ? True() : False();
+  }
+
+  OpFloat op;
+  return op(num->AsFloat()->val(), 0.0) ? True() : False();
+}
+
 Expr* ExecuteList(Env* env, Expr* cur) {
   Expr* last_eval = nullptr;
   while (auto* link = cur->AsPair()) {
@@ -137,6 +151,15 @@ Expr* ExecuteList(Env* env, Expr* cur) {
 
   if (!last_eval) {
     throw RuntimeException("Unexpected empty sequence", cur);
+  }
+
+  return last_eval;
+}
+
+Expr* EvalArray(Env* env, Expr** args, size_t num_args) {
+  Expr* last_eval = nullptr;
+  for (size_t i = 0; i < num_args; ++i) {
+    last_eval = Eval(args[i], env);
   }
 
   return last_eval;
@@ -491,14 +514,104 @@ Expr* Or::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Let::DoEval(Env* env, Expr** args, size_t num_args) const {
-  for (size_t i = 0; i < num_args; ++i) {
-    auto* e = Eval(args[i], env);
-    if (e != False()) {
-      return e;
+  EXPECT_ARGS_GE(2);
+  Expr* cur = args[0];
+  EXPECT_TYPE(PAIR, cur);
+  auto* new_env = Env::New(env);
+  while (auto* pair = cur->AsPair()) {
+    static const char kErrMessage[] = "let: Expected binding: (var val)";
+    auto* binding = pair->car()->AsPair();
+    if (!binding) {
+      throw RuntimeException(kErrMessage, pair->car());
     }
+    auto* var = binding->car()->AsSymbol();
+    if (!var) {
+      throw RuntimeException("let: Expected symbol for binding",
+                             binding->car());
+    }
+    auto* second_link = binding->cdr()->AsPair();
+    if (!second_link || second_link->cdr() != Nil()) {
+      throw RuntimeException(kErrMessage, binding->cdr());
+    }
+    auto* val = second_link->car();
+    new_env->DefineVar(var, Eval(val, env));
+
+    cur = pair->cdr();
+  }
+  if (cur != Nil()) {
+    throw RuntimeException("let: Malformed binding list", cur);
   }
 
-  return False();
+  return EvalArray(new_env, args + 1, num_args - 1);
+}
+
+Expr* LetStar::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_GE(2);
+  Expr* cur = args[0];
+  EXPECT_TYPE(PAIR, cur);
+  auto* new_env = Env::New(env);
+  while (auto* pair = cur->AsPair()) {
+    static const char kErrMessage[] = "let*: Expected binding: (var val)";
+    auto* binding = pair->car()->AsPair();
+    if (!binding) {
+      throw RuntimeException(kErrMessage, pair->car());
+    }
+    auto* var = binding->car()->AsSymbol();
+    if (!var) {
+      throw RuntimeException("let*: Expected symbol for binding",
+                             binding->car());
+    }
+    auto* second_link = binding->cdr()->AsPair();
+    if (!second_link || second_link->cdr() != Nil()) {
+      throw RuntimeException(kErrMessage, binding->cdr());
+    }
+    auto* val = second_link->car();
+    new_env->DefineVar(var, Eval(val, new_env));
+
+    cur = pair->cdr();
+  }
+  if (cur != Nil()) {
+    throw RuntimeException("let: Malformed binding list", cur);
+  }
+
+  return EvalArray(new_env, args + 1, num_args - 1);
+}
+
+Expr* LetRec::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_GE(2);
+  Expr* cur = args[0];
+  EXPECT_TYPE(PAIR, cur);
+  auto* new_env = Env::New(env);
+  std::vector<std::pair<Symbol*, Expr*>> bindings;
+  while (auto* pair = cur->AsPair()) {
+    static const char kErrMessage[] = "let*: Expected binding: (var val)";
+    auto* binding = pair->car()->AsPair();
+    if (!binding) {
+      throw RuntimeException(kErrMessage, pair->car());
+    }
+    auto* var = binding->car()->AsSymbol();
+    if (!var) {
+      throw RuntimeException("let*: Expected symbol for binding",
+                             binding->car());
+    }
+    auto* second_link = binding->cdr()->AsPair();
+    if (!second_link || second_link->cdr() != Nil()) {
+      throw RuntimeException(kErrMessage, binding->cdr());
+    }
+    auto* val = second_link->car();
+    bindings.emplace_back(var, val);
+    new_env->DefineVar(var, Nil());
+    cur = pair->cdr();
+  }
+  if (cur != Nil()) {
+    throw RuntimeException("let: Malformed binding list", cur);
+  }
+
+  for (const auto& binding : bindings) {
+    new_env->SetVar(binding.first, Eval(binding.second, env));
+  }
+
+  return EvalArray(new_env, args + 1, num_args - 1);
 }
 
 Expr* OpEq::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -528,6 +641,47 @@ Expr* OpGe::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
   return CmpOp<std::greater_equal<int64_t>, std::greater_equal<double>>(
       env, args, num_args);
+}
+
+Expr* IsZero::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(1);
+  return TestOp<std::equal_to<int64_t>, std::equal_to<double>>(env, args,
+                                                               num_args);
+}
+
+Expr* IsPositive::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(1);
+  return TestOp<std::greater<int64_t>, std::greater<double>>(env, args,
+                                                             num_args);
+}
+
+Expr* IsNegative::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(1);
+  return TestOp<std::less<int64_t>, std::less<double>>(env, args, num_args);
+}
+
+Expr* IsOdd::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  auto* num = TryNumber(args[0]);
+  auto* as_int = num->AsInt();
+  if (!as_int) {
+    throw RuntimeException("expected integer, given float", num);
+  }
+
+  return as_int->val() % 2 == 1 ? True() : False();
+}
+
+Expr* IsEven::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  auto* num = TryNumber(args[0]);
+  auto* as_int = num->AsInt();
+  if (!as_int) {
+    throw RuntimeException("expected integer, given float", num);
+  }
+
+  return as_int->val() % 2 == 0 ? True() : False();
 }
 
 Expr* Plus::DoEval(Env* env, Expr** args, size_t num_args) const {

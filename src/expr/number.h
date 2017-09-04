@@ -30,6 +30,7 @@ namespace expr {
 class Int;
 class Float;
 
+// TODO(bcf): Just put Float and Int directly into Expr.
 class Number : public Expr {
  public:
   // TODO(bcf): Add support for more types
