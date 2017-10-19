@@ -385,10 +385,28 @@ Expr* Begin::DoEval(Env* env, Expr** args, size_t num_args) const {
 Expr* Define::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EXPECT_TYPE(SYMBOL, args[0]);
-  env->DefineVar(args[0]->AsSymbol(), args[1]);
+  env->DefineVar(args[0]->AsSymbol(), Eval(args[1], env));
   // TODO(bcf): handle define lambda.
 
   return Nil();
+}
+
+Expr* IsEqv::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  return args[0]->Eqv(args[1]) ? True() : False();
+}
+
+Expr* IsEq::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  return args[0]->Eq(args[1]) ? True() : False();
+}
+
+Expr* IsEqual::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  return args[0]->Equal(args[1]) ? True() : False();
 }
 
 Expr* Arrow::DoEval(Env* /* env */,
@@ -513,6 +531,7 @@ Expr* Or::DoEval(Env* env, Expr** args, size_t num_args) const {
   return False();
 }
 
+// TODO(bcf): Named let.
 Expr* Let::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
   Expr* cur = args[0];

@@ -58,9 +58,9 @@ X(Define, define)
 Y(DefineSyntax)
 
 // 6.1. Equivalence predicates
-Y(IsEqv)
-Y(IsEq)
-Y(IsEqual)
+X(IsEqv, eqv?)
+X(IsEq, eq?)
+X(IsEqual, equal?)
 
 // 6.2. Numbers
 Y(IsNumber)

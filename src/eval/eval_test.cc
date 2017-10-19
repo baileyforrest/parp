@@ -219,7 +219,7 @@ TEST_F(EvalTest, LetStar) {
   EXPECT_EQ(*IntExpr(70), *EvalStr(
       "(let ((x 2) (y 3))"
       "  (let* ((x 7)"
-      "        (z (+ x y)))"
+      "         (z (+ x y)))"
       "    (* z x)))"));
   // clang-format on
 }
@@ -242,13 +242,87 @@ TEST_F(EvalTest, LetRec) {
 }
 
 TEST_F(EvalTest, Begin) {
-  // TODO(bcf)
+  EvalStr("(define x 0)");
+  EXPECT_EQ(*IntExpr(6), *EvalStr("(begin (set! x 5) (+ x 1))"));
 }
 
 TEST_F(EvalTest, Define) {
   // TODO(bcf): Test define function
   EvalStr("(define foo 42)");
   EXPECT_EQ(*IntExpr(42), *env_->Lookup(Symbol::New("foo")));
+}
+
+TEST_F(EvalTest, IsEqv) {
+  EXPECT_EQ(*True(), *EvalStr("(eqv? #t #t)"));
+  EXPECT_EQ(*True(), *EvalStr("(eqv? #f #f)"));
+  EXPECT_EQ(*False(), *EvalStr("(eqv? #f #t)"));
+
+  EXPECT_EQ(*True(), *EvalStr("(eqv? 'x 'x)"));
+  EXPECT_EQ(*False(), *EvalStr("(eqv? 'x 'y)"));
+
+  EXPECT_EQ(*True(), *EvalStr("(eqv? 3 3)"));
+  EXPECT_EQ(*False(), *EvalStr("(eqv? 3 4)"));
+  EXPECT_EQ(*True(), *EvalStr("(eqv? 3.1 3.1)"));
+  EXPECT_EQ(*False(), *EvalStr("(eqv? 3.1 3.2)"));
+  EXPECT_EQ(*False(), *EvalStr("(eqv? 3.0 3)"));
+
+  EXPECT_EQ(*True(), *EvalStr("(eqv? #\\c #\\c)"));
+  EXPECT_EQ(*False(), *EvalStr("(eqv? #\\c #\\d)"));
+  EXPECT_EQ(*True(), *EvalStr("(eqv? '() '())"));
+
+#if 0  // TODO(bcf): Enable after cons implemented.
+  EXPECT_EQ(*False(), *EvalStr("(eqv? (cons 1 2) (cons 1 2))"));
+#endif
+  EXPECT_EQ(*False(), *EvalStr("(eqv? (lambda () 1) (lambda () 2))"));
+  EXPECT_EQ(*False(), *EvalStr("(eqv? #f 'nil)"));
+  EXPECT_EQ(*True(), *EvalStr("(let ((p (lambda (x) x))) (eqv? p p))"));
+  // clang-format off
+  EvalStr(
+    "(define gen-counter"
+    "  (lambda ()"
+    "    (let ((n 0))"
+    "      (lambda () (set! n (+ n 1)) n))))");
+  // clang-format on
+
+  EXPECT_EQ(*True(), *EvalStr("(let ((g (gen-counter))) (eqv? g g))"));
+  EXPECT_EQ(*False(), *EvalStr("(eqv? (gen-counter) (gen-counter))"));
+
+  // clang-format off
+  EvalStr(
+    "(define gen-loser"
+    "  (lambda ()"
+    "    (let ((n 0))"
+    "      (lambda () (set! n (+ n 1)) 27))))");
+  // clang-format on
+  EXPECT_EQ(*True(), *EvalStr("(let ((g (gen-loser))) (eqv? g g))"));
+  EXPECT_EQ(*True(), *EvalStr("(let ((x '(a))) (eqv? x x))"));
+
+  // TODO(bcf): obj1 and obj2 are pairs, vectors, or strings that denote
+  // the same locations in the store (section 3.4).
+
+  // TODO(bcf): obj1 and obj2 are procedures whose location tags are
+  // equal (section 4.1.4).
+}
+
+TEST_F(EvalTest, IsEq) {
+#if 0  // TODO(bcf): Symbols should be singleton.
+  EXPECT_EQ(*True(), *EvalStr("(eq? 'a 'a)"));
+#endif
+  EXPECT_EQ(*False(), *EvalStr("(eq? '(a) '(a))"));
+  EXPECT_EQ(*True(), *EvalStr("(eq? '() '())"));
+  EXPECT_EQ(*True(), *EvalStr("(eq? car car)"));
+  EXPECT_EQ(*True(), *EvalStr("(let ((x '(a))) (eq? x x))"));
+  EXPECT_EQ(*True(), *EvalStr("(let ((x '#())) (eq? x x)) "));
+  EXPECT_EQ(*True(), *EvalStr("(let ((p (lambda (x) x))) (eq? p p))"));
+}
+
+TEST_F(EvalTest, IsEqual) {
+  EXPECT_EQ(*True(), *EvalStr("(equal? 'a 'a)"));
+  EXPECT_EQ(*True(), *EvalStr("(equal? '(a) '(a))"));
+  EXPECT_EQ(*True(), *EvalStr("(equal? '(a (b) c) '(a (b) c))"));
+  EXPECT_EQ(*True(), *EvalStr("(equal? \"abc\" \"abc\")"));
+  EXPECT_EQ(*True(), *EvalStr("(equal? 2 2)"));
+  EXPECT_EQ(*True(), *EvalStr("(equal? '#(5 'a) '#(5 'a)) "));
 }
 
 TEST_F(EvalTest, OpEq) {
