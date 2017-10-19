@@ -406,6 +406,42 @@ Expr* Begin::DoEval(Env* env, Expr** args, size_t num_args) const {
   return Eval(*args, env);
 }
 
+Expr* Do::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Delay::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Quasiquote::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* LetSyntax::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* LetRecSyntax::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* SyntaxRules::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
 Expr* Define::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EXPECT_TYPE(SYMBOL, args[0]);
@@ -413,6 +449,12 @@ Expr* Define::DoEval(Env* env, Expr** args, size_t num_args) const {
   // TODO(bcf): handle define lambda.
 
   return Nil();
+}
+
+Expr* DefineSyntax::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
 }
 
 Expr* IsEqv::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -808,6 +850,882 @@ Expr* Minus::DoEval(Env* env, Expr** args, size_t num_args) const {
 Expr* Slash::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(1);
   return ArithOp<std::divides>(env, *args, args + 1, num_args - 1);
+}
+
+Expr* Abs::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Quotient::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Remainder::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Modulo::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Gcd::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Lcm::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Numerator::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Denominator::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Floor::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Ceiling::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Truncate::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Round::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Rationalize::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Exp::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Log::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Sin::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Cos::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Tan::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Asin::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* ACos::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* ATan::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Sqrt::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Expt::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* MakeRectangular::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* MakePolar::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* RealPart::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* ImagPart::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Magnitude::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Angle::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* ExactToInexact::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* InexactToExact::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* NumberToString::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* StringToNumber::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Not::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsBoolean::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsPair::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Cons::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Car::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Cdr::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* SetCar::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* SetCdr::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsNull::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsList::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* List::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Length::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Append::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Reverse::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* ListTail::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* ListRef::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Memq::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Memv::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Member::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Assq::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Assv::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Assoc::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* SymbolPrim::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* SymbolToString::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* StringToSymbol::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsChar::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharEq::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharLt::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharGt::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharLe::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharGe::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharCiEq::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharCiLt::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharCiGt::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharCiLe::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharCiGe::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharAlphabetic::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharNumeric::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharWhitespace::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharUpperCase::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharLowerCase::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* CharToInteger::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IntegerToChar::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* CharUpCase::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* CharDownCase::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsString::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* MakeString::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* String::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* StringLength::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* StringRef::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* StringSet::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsStringEq::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsStringEqCi::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsStringLt::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsStringGt::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsStringLe::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsStringGe::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsStringLtCi::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsStringGtCi::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsStringLeCi::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsStringGeCi::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Substring::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* StringAppend::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* StringToList::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* ListToString::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* StringCopy::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* StringFill::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsVector::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* MakeVector::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Vector::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* VectorLength::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* VectorRef::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* VectorSet::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* VectorToList::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* ListToVector::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* VectorFill::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsProcedure::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Map::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* ForEach::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Force::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* CallWithCurrentContinuation::DoEval(Env* env,
+                                          Expr** args,
+                                          size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Values::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* CallWithValues::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* DynamicWind::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* EvalPrim::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* SchemeReportEnvironment::DoEval(Env* env,
+                                      Expr** args,
+                                      size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* NullEnvironment::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* InteractionEnvironment::DoEval(Env* env,
+                                     Expr** args,
+                                     size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* CallWithInputFile::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* CallWithOutputFile::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsInputPort::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsOutputPort::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* CurrentInputPort::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* CurrentOutputPort::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* WithInputFromFile::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* WithOutputToFile::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* OpenInputFile::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* OpenOutputFile::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* CloseInputPort::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* CloseOutputPort::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Read::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* ReadChar::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* PeekChar::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsEofObject::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* IsCharReady::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Write::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Display::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Newline::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* WriteChar::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* Load::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* TranscriptOn::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
+}
+
+Expr* TranscriptOff::DoEval(Env* env, Expr** args, size_t num_args) const {
+  throw util::RuntimeException("Not implemented", this);
+  assert(false && env && args && num_args);
+  return nullptr;
 }
 
 }  // namespace impl
