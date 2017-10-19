@@ -69,8 +69,8 @@ X(IsReal, real?)
 X(IsRational, rational?)
 X(IsInteger, integer?)
 
-Y(IsExact)
-Y(IsInexact)
+X(IsExact, exact?)
+X(IsInexact, inexact?)
 
 X(OpEq, =)
 X(OpLt, <)

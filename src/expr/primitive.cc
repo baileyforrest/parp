@@ -455,6 +455,23 @@ Expr* IsInteger::DoEval(Env* env, Expr** args, size_t num_args) const {
   return as_float->val() == std::floor(as_float->val()) ? True() : False();
 }
 
+Expr* IsExact::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return args[0]->type() == Expr::Type::NUMBER && args[0]->AsNumber()->exact()
+             ? True()
+             : False();
+}
+
+Expr* IsInexact::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  EvalArgs(env, args, num_args);
+  return args[0]->type() == Expr::Type::NUMBER && args[0]->AsNumber()->exact()
+             ? False()
+             : True();
+}
+
 Expr* Arrow::DoEval(Env* /* env */,
                     Expr** /* args */,
                     size_t /* num_args */) const {

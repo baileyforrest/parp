@@ -346,6 +346,8 @@ TEST_F(EvalTest, NumberPredicates) {
 #if 0
   EXPECT_EQ(*True(), *EvalStr("(integer? 8/4)"));
 #endif
+  EXPECT_EQ(*True(), *EvalStr("(exact? 3)"));
+  EXPECT_EQ(*False(), *EvalStr("(exact? 3.0)"));
 }
 
 TEST_F(EvalTest, OpEq) {
