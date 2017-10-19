@@ -159,6 +159,7 @@ void NumLexer::ParsePrefix() {
 }
 
 std::string NumLexer::ExtractDigitStr(bool* has_dot) {
+  *has_dot = false;
   std::string out;
 
   if (!Eof() && (*it_ == '+' || *it_ == '-'))

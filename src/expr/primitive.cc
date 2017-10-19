@@ -17,6 +17,7 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <cmath>
 #include <functional>
 #include <sstream>
 #include <string>
@@ -407,6 +408,51 @@ Expr* IsEqual::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EvalArgs(env, args, num_args);
   return args[0]->Equal(args[1]) ? True() : False();
+}
+
+Expr* IsNumber::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return args[0]->type() == Expr::Type::NUMBER ? True() : False();
+}
+
+Expr* IsComplex::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  // We don't support complex.
+  return True();
+}
+
+Expr* IsReal::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  // We don't support complex.
+  return True();
+}
+
+Expr* IsRational::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  // We don't support rational.
+  return False();
+}
+
+Expr* IsInteger::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  auto* num = args[0]->AsNumber();
+  if (!num) {
+    return False();
+  }
+
+  if (num->num_type() == Number::Type::INT) {
+    return True();
+  }
+
+  auto* as_float = num->AsFloat();
+  assert(as_float);
+
+  return as_float->val() == std::floor(as_float->val()) ? True() : False();
 }
 
 Expr* Arrow::DoEval(Env* /* env */,

@@ -63,11 +63,11 @@ X(IsEq, eq?)
 X(IsEqual, equal?)
 
 // 6.2. Numbers
-Y(IsNumber)
-Y(IsComplex)
-Y(IsReal)
-Y(IsRational)
-Y(IsInteger)
+X(IsNumber, number?)
+X(IsComplex, complex?)
+X(IsReal, real?)
+X(IsRational, rational?)
+X(IsInteger, integer?)
 
 Y(IsExact)
 Y(IsInexact)

@@ -322,7 +322,30 @@ TEST_F(EvalTest, IsEqual) {
   EXPECT_EQ(*True(), *EvalStr("(equal? '(a (b) c) '(a (b) c))"));
   EXPECT_EQ(*True(), *EvalStr("(equal? \"abc\" \"abc\")"));
   EXPECT_EQ(*True(), *EvalStr("(equal? 2 2)"));
-  EXPECT_EQ(*True(), *EvalStr("(equal? '#(5 'a) '#(5 'a)) "));
+  EXPECT_EQ(*True(), *EvalStr("(equal? '#(5 'a) '#(5 'a))"));
+}
+
+TEST_F(EvalTest, NumberPredicates) {
+#if 0
+  EXPECT_EQ(*True(), *EvalStr("(complex? 3+4i)"));
+#endif
+  EXPECT_EQ(*True(), *EvalStr("(complex? 3)"));
+  EXPECT_EQ(*True(), *EvalStr("(real? 3)"));
+#if 0
+  EXPECT_EQ(*True(), *EvalStr("(real? -2.5+0.0i)"));
+#endif
+#if 0  // TODO(bcf): Support parsing this.
+  EXPECT_EQ(*True(), *EvalStr("(real? #e1e10)"));
+#endif
+#if 0
+  EXPECT_EQ(*True(), *EvalStr("(rational? 6/10)"));
+  EXPECT_EQ(*True(), *EvalStr("(rational? 6/3)"));
+  EXPECT_EQ(*True(), *EvalStr("(integer? 3+0i)"));
+#endif
+  EXPECT_EQ(*True(), *EvalStr("(integer? 3.0)"));
+#if 0
+  EXPECT_EQ(*True(), *EvalStr("(integer? 8/4)"));
+#endif
 }
 
 TEST_F(EvalTest, OpEq) {
