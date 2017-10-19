@@ -29,6 +29,7 @@
 
 using expr::Expr;
 using expr::False;
+using expr::Float;
 using expr::Int;
 using expr::Nil;
 using expr::Symbol;
@@ -44,11 +45,11 @@ expr::Expr* ParseExpr(const std::string& str) {
   return exprs[0];
 }
 
-Expr* IntExpr(int64_t val) {
+Expr* IntExpr(Int::ValType val) {
   return Int::New(val);
 }
 
-Expr* FloatExpr(double d) {
+Expr* FloatExpr(Float::ValType d) {
   return expr::Float::New(d);
 }
 
@@ -456,6 +457,18 @@ TEST_F(EvalTest, IsOdd) {
 TEST_F(EvalTest, IsEven) {
   EXPECT_EQ(*True(), *EvalStr("(even? 2)"));
   EXPECT_EQ(*False(), *EvalStr("(even? 3)"));
+}
+
+TEST_F(EvalTest, Min) {
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(min 42 43 44)"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(min 100 42)"));
+  EXPECT_EQ(*FloatExpr(2.0), *EvalStr("(min 3 2.0 10)"));
+  EXPECT_EQ(*IntExpr(42), *EvalStr("(min 100 42 42.1)"));
+}
+
+TEST_F(EvalTest, Max) {
+  EXPECT_EQ(*IntExpr(4), *EvalStr("(max 3 4)"));
+  EXPECT_EQ(*FloatExpr(4), *EvalStr("(max 3.9 4)"));
 }
 
 TEST_F(EvalTest, Plus) {

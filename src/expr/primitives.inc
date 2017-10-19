@@ -84,8 +84,8 @@ X(IsNegative, negative?)
 X(IsOdd, odd?)
 X(IsEven, even?)
 
-Y(Max)
-Y(Min)
+X(Max, min)
+X(Min, max)
 
 X(Plus, +)
 X(Star, *)

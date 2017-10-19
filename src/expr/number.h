@@ -72,11 +72,12 @@ class Number : public Expr {
 // TODO(bcf): Expand this to be arbitrary precision rational
 class Int : public Number {
  public:
-  static Int* New(int64_t val) { return new Int(val); }
+  using ValType = int64_t;
+  static Int* New(ValType val) { return new Int(val); }
   static Int* New(const std::string& str, int radix);
 
-  int64_t val() const { return val_; }
-  void set_val(int64_t val) { val_ = val; }
+  ValType val() const { return val_; }
+  void set_val(ValType val) { val_ = val; }
 
  private:
   // Override from Number
@@ -88,19 +89,21 @@ class Int : public Number {
     return val_ == other->AsInt()->val_;
   }
 
-  explicit Int(int64_t val) : Number(Type::INT), val_(val) {}
+  explicit Int(ValType val) : Number(Type::INT), val_(val) {}
   ~Int() override = default;
 
-  int64_t val_;
+  ValType val_;
 };
 
 class Float : public Number {
  public:
-  static Float* New(double val) { return new Float(val); }
+  using ValType = double;
+
+  static Float* New(ValType val) { return new Float(val); }
   static Float* New(const std::string& str, int radix);
 
-  double val() const { return val_; }
-  void set_val(double val) { val_ = val; }
+  ValType val() const { return val_; }
+  void set_val(ValType val) { val_ = val; }
 
  private:
   // Override from Number
@@ -112,24 +115,24 @@ class Float : public Number {
     return val_ == other->AsFloat()->val_;
   }
 
-  explicit Float(double val) : Number(Type::FLOAT), val_(val) {}
+  explicit Float(ValType val) : Number(Type::FLOAT), val_(val) {}
   ~Float() override = default;
 
-  double val_;
+  ValType val_;
 };
 
-template <typename OpInt, typename OpFloat>
+template <template <typename T> class Op>
 Number* OpInPlace(Number* target, Number* other) {
   auto* itarget = target->AsInt();
   auto* iother = other->AsInt();
 
   if (itarget && iother) {
-    OpInt op;
+    Op<Int::ValType> op;
     itarget->set_val(op(itarget->val(), iother->val()));
     return itarget;
   }
 
-  OpFloat op;
+  Op<Float::ValType> op;
   if (iother) {
     auto* ftarget = target->AsFloat();
     ftarget->set_val(op(ftarget->val(), iother->val()));
@@ -142,17 +145,17 @@ Number* OpInPlace(Number* target, Number* other) {
   return ftarget;
 }
 
-template <typename OpInt, typename OpFloat>
+template <template <typename T> class Op>
 bool OpCmp(Number* a, Number* b) {
   auto* ia = a->AsInt();
   auto* ib = b->AsInt();
 
   if (ia && ib) {
-    OpInt op;
+    Op<Int::ValType> op;
     return op(ia->val(), ib->val());
   }
 
-  OpFloat op;
+  Op<Float::ValType> op;
   if (ib) {
     return op(a->AsFloat()->val(), ib->val());
   } else if (ia) {
