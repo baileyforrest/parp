@@ -654,4 +654,18 @@ TEST_F(EvalTest, List) {
   EXPECT_EQ(*EvalStr("(list)"), *EvalStr("'()"));
 }
 
+TEST_F(EvalTest, Length) {
+  EXPECT_EQ(*IntExpr(3), *EvalStr("(length '(a b c))"));
+  EXPECT_EQ(*IntExpr(3), *EvalStr("(length '(a (b) (c d e)))"));
+  EXPECT_EQ(*IntExpr(0), *EvalStr("(length '())"));
+}
+
+TEST_F(EvalTest, Append) {
+  EXPECT_EQ(*EvalStr("(append '(x) '(y))"), *EvalStr("'(x y)"));
+  EXPECT_EQ(*EvalStr("(append '(a) '(b c d))"), *EvalStr("'(a b c d)"));
+  EXPECT_EQ(*EvalStr("(append '(a (b)) '((c)))"), *EvalStr("'(a (b) (c))"));
+  EXPECT_EQ(*EvalStr("(append '(a b) '(c . d))"), *EvalStr("'(a b c . d)"));
+  EXPECT_EQ(*EvalStr("(append '() 'a)"), *EvalStr("'a"));
+}
+
 }  // namespace eval

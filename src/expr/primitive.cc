@@ -347,6 +347,30 @@ Expr* EvalBinaryFloatOp(Env* env, Expr** args) {
   return new Float(Op(n1, n2));
 }
 
+Expr* CopyList(Expr* list, Pair** last_link) {
+  Expr* cur = list;
+  Expr* ret = Nil();
+  Pair* prev = nullptr;
+  while (auto* list = cur->AsPair()) {
+    Pair* copy = new Pair(list->car(), Nil());
+
+    if (prev) {
+      prev->set_cdr(copy);
+    } else {
+      ret = copy;
+    }
+    prev = copy;
+    cur = list->cdr();
+  }
+
+  if (cur != Nil()) {
+    throw new RuntimeException("Expected list", list);
+  }
+
+  *last_link = prev;
+  return ret;
+}
+
 }  // namespace
 
 namespace impl {
@@ -1283,15 +1307,53 @@ Expr* List::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Length::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  Int::ValType ret = 0;
+  Expr* cur = args[0];
+  while (auto* list = cur->AsPair()) {
+    cur = list->cdr();
+    ++ret;
+  }
+
+  if (cur != Nil()) {
+    throw new RuntimeException("Expected list", args[0]);
+  }
+
+  return new Int(ret);
 }
 
 Expr* Append::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_GE(1);
+  EvalArgs(env, args, num_args);
+  Expr* ret = Nil();
+  Pair* back = nullptr;
+
+  for (size_t i = 0; i < num_args - 1; ++i) {
+    Pair* cur_back = nullptr;
+    Expr* copy = CopyList(args[i], &cur_back);
+    if (copy == Nil()) {
+      continue;
+    }
+    if (ret == Nil()) {
+      ret = copy;
+    } else {
+      assert(cur_back);
+      assert(cur_back->cdr() == Nil());
+      cur_back->set_cdr(copy);
+    }
+    back = cur_back;
+  }
+
+  Expr* last = args[num_args - 1];
+  if (ret == Nil()) {
+    return last;
+  }
+
+  assert(back);
+  assert(back->cdr() == Nil());
+  back->set_cdr(last);
+  return ret;
 }
 
 Expr* Reverse::DoEval(Env* env, Expr** args, size_t num_args) const {
