@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <deque>
 #include <memory>
+#include <string>
 #include <unordered_map>
 
 #include "util/macros.h"

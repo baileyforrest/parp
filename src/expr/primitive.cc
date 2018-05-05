@@ -1449,21 +1449,45 @@ Expr* Member::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Assq::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  Expr* cur = args[1];
+  for (; auto* list = cur->AsPair(); cur = list->cdr()) {
+    Pair* head = TryPair(list->car());
+    if (head->car()->Eq(args[0])) {
+      return head;
+    }
+  }
+
+  return False();
 }
 
 Expr* Assv::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  Expr* cur = args[1];
+  for (; auto* list = cur->AsPair(); cur = list->cdr()) {
+    Pair* head = TryPair(list->car());
+    if (head->car()->Eqv(args[0])) {
+      return head;
+    }
+  }
+
+  return False();
 }
 
 Expr* Assoc::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  Expr* cur = args[1];
+  for (; auto* list = cur->AsPair(); cur = list->cdr()) {
+    Pair* head = TryPair(list->car());
+    if (head->car()->Equal(args[0])) {
+      return head;
+    }
+  }
+
+  return False();
 }
 
 Expr* SymbolPrim::DoEval(Env* env, Expr** args, size_t num_args) const {

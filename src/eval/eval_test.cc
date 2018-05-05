@@ -78,12 +78,7 @@ class EvalTest : public test::TestBase {
   virtual void TestTearDown() { env_ = nullptr; }
 
   expr::Expr* EvalStr(const std::string& str) {
-    auto exprs = parse::Read(str);
-    assert(exprs.size() >= 1u);
-    for (auto& expr : exprs) {
-      expr = Eval(expr, env_);
-    }
-    return exprs.back();
+    return Eval(ParseExpr(str), env_);
   }
 
   expr::Env* env_ = nullptr;
@@ -623,13 +618,10 @@ TEST_F(EvalTest, Cdr) {
 }
 
 TEST_F(EvalTest, SetCarSetCdr) {
-  // clang-format off
-  EXPECT_EQ(*EvalStr("'(3 . 4)"), *EvalStr(
-      "(define a '(1 . 2))"
-      "(set-car! a 3)"
-      "(set-cdr! a 4)"
-      "a"));
-  // clang-format on
+  (void)EvalStr("(define a '(1 . 2))");
+  (void)EvalStr("(set-car! a 3)");
+  (void)EvalStr("(set-cdr! a 4)");
+  EXPECT_EQ(*EvalStr("'(3 . 4)"), *EvalStr("a"));
 }
 
 TEST_F(EvalTest, IsList) {
@@ -696,6 +688,17 @@ TEST_F(EvalTest, Memv) {
 
 TEST_F(EvalTest, Member) {
   EXPECT_EQ(*EvalStr("(member (list 'a) '(b (a) c))"), *EvalStr("'((a) c)"));
+}
+
+TEST_F(EvalTest, AssTest) {
+  (void)EvalStr("(define e '((a 1) (b 2) (c 3)))");
+  EXPECT_EQ(*EvalStr("(assq 'a e)"), *EvalStr("'(a 1)"));
+  EXPECT_EQ(*EvalStr("(assq 'b e)"), *EvalStr("'(b 2)"));
+  EXPECT_EQ(*EvalStr("(assq 'd e)"), *False());
+  EXPECT_EQ(*EvalStr("(assq (list 'a) '(((a)) ((b)) ((c))))"), *False());
+  EXPECT_EQ(*EvalStr("(assoc (list 'a) '(((a)) ((b)) ((c))))"),
+            *EvalStr("'((a))"));
+  EXPECT_EQ(*EvalStr("(assv 5 '((2 3) (5 7) (11 13)))"), *EvalStr("'(5 7)"));
 }
 
 }  // namespace eval
