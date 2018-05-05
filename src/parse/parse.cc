@@ -44,7 +44,7 @@ class DatumParser {
   const Token& Tok() { return *cur_token_; }
   void AdvTok() { cur_token_ = &lexer_.NextToken(); }
   void ThrowException(const std::string& msg) {
-    throw util::SyntaxException("Parse error: " + msg, Tok().mark);
+    throw util::SyntaxException("Parse error: " + msg, &Tok().mark);
   }
 
   expr::Expr* ParseExpr();

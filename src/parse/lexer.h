@@ -30,6 +30,7 @@
 
 namespace expr {
 class Expr;
+class Number;
 }  // expr
 
 namespace parse {
@@ -76,6 +77,8 @@ class Lexer {
  public:
   explicit Lexer(util::TextStream& stream) : stream_(stream) {}
   ~Lexer() = default;
+
+  static expr::Number* LexNum(const std::string& str, int radix);
 
   const Token& NextToken();
 

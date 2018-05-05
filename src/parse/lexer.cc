@@ -39,8 +39,15 @@ namespace {
 
 class NumLexer {
  public:
-  NumLexer(const std::string& str, const util::Mark& mark)
-      : mark_(mark), str_(str), it_(str.begin()) {}
+  NumLexer(const std::string& str, const util::Mark* mark, int radix = -1)
+      : mark_(mark), str_(str), it_(str.begin()), radix_(radix) {
+    if (radix_ == -1) {
+      radix_ = 10;
+    } else {
+      has_radix_ = true;
+    }
+    assert(radix_ == 2 || radix_ == 8 || radix_ == 10 || radix_ == 16);
+  }
 
   expr::Number* LexNum();
 
@@ -56,14 +63,14 @@ class NumLexer {
   std::string ExtractDigitStr(bool* has_dot);
   expr::Number* ParseReal();
 
-  const util::Mark& mark_;
+  const util::Mark* mark_;
   const std::string& str_;
   std::string::const_iterator it_;
 
   bool has_exact_ = false;
   bool exact_ = true;
   bool has_radix_ = false;
-  int radix_ = 10;
+  int radix_ = -1;
   bool has_exp_ = false;
 };
 
@@ -258,9 +265,9 @@ expr::Number* NumLexer::ParseReal() {
   if (Eof() || *it_ != '/') {
     try {
       if (exact_) {
-        return new Int(neum_str, radix_);
+        return Int::Parse(neum_str, radix_);
       } else {
-        return new Float(neum_str, radix_);
+        return Float::Parse(neum_str, radix_);
       }
     } catch (std::exception& e) {
       ThrowException(e.what());
@@ -380,6 +387,12 @@ std::ostream& operator<<(std::ostream& stream, const Token& token) {
   return stream << "}";
 }
 
+// static
+expr::Number* Lexer::LexNum(const std::string& str, int radix) {
+  NumLexer num_lexer(str, nullptr /* mark */, radix);
+  return num_lexer.LexNum();
+}
+
 void Lexer::GetUntilDelim() {
   while (!stream_.Eof()) {
     int next = stream_.Peek();
@@ -404,7 +417,7 @@ void Lexer::LexId() {
 
   if (inval) {
     std::string msg = "Invalid identifier: " + lexbuf_;
-    throw util::SyntaxException(msg, token_.mark);
+    throw util::SyntaxException(msg, &token_.mark);
   }
 
   token_.type = Token::Type::ID;
@@ -413,7 +426,7 @@ void Lexer::LexId() {
 
 void Lexer::LexNum() {
   GetUntilDelim();
-  NumLexer num_lexer(lexbuf_, token_.mark);
+  NumLexer num_lexer(lexbuf_, &token_.mark);
 
   token_.type = Token::Type::NUMBER;
   token_.expr = num_lexer.LexNum();
@@ -431,7 +444,7 @@ void Lexer::LexChar() {
 
   if (lexbuf_.size() != 2) {  // 1 for \, one for the character
     std::string msg = "Invalid character literal: " + lexbuf_;
-    throw util::SyntaxException(msg, token_.mark);
+    throw util::SyntaxException(msg, &token_.mark);
   }
 
   token_.type = Token::Type::CHAR;
@@ -442,7 +455,7 @@ void Lexer::LexChar() {
 void Lexer::LexString() {
   while (true) {
     if (stream_.Eof())
-      throw util::SyntaxException("Unterminated string literal", token_.mark);
+      throw util::SyntaxException("Unterminated string literal", &token_.mark);
     int c = stream_.Get();
     if (c == '"')
       break;
@@ -558,7 +571,7 @@ const Token& Lexer::NextToken() {
         default:
           std::string msg = std::string("Invalid token: ") + '#' +
                             static_cast<char>(stream_.Peek());
-          throw util::SyntaxException(msg, token_.mark);
+          throw util::SyntaxException(msg, &token_.mark);
       }
       break;
 
@@ -582,7 +595,7 @@ const Token& Lexer::NextToken() {
       break;
     default:
       GetUntilDelim();
-      throw util::SyntaxException("Invalid token: " + lexbuf_, token_.mark);
+      throw util::SyntaxException("Invalid token: " + lexbuf_, &token_.mark);
   }
 
   assert(token_.type != Token::Type::INVAL);

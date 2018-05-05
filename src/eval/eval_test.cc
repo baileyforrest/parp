@@ -49,12 +49,18 @@ expr::Expr* ParseExpr(const std::string& str) {
   return exprs[0];
 }
 
+// These are needed for gtest to correctly print the values when there's an
+// EXPECT mismatch
 Expr* IntExpr(Int::ValType val) {
   return new Int(val);
 }
 
 Expr* FloatExpr(Float::ValType d) {
   return new Float(d);
+}
+
+Expr* StringExpr(std::string str) {
+  return new String(std::move(str));
 }
 
 Expr* SymExpr(std::string str) {
@@ -558,6 +564,19 @@ TEST_F(EvalTest, ExactToInexact) {
 TEST_F(EvalTest, InexactToExact) {
   EXPECT_EQ(*IntExpr(4), *EvalStr("(inexact->exact 4)"));
   EXPECT_EQ(*IntExpr(4), *EvalStr("(inexact->exact 4.0)"));
+}
+
+TEST_F(EvalTest, NumberToString) {
+  EXPECT_EQ(*StringExpr("4"), *EvalStr("(number->string 4)"));
+  EXPECT_EQ(*StringExpr("4.25"), *EvalStr("(number->string 4.25)"));
+}
+
+TEST_F(EvalTest, StringToNumber) {
+  EXPECT_EQ(*IntExpr(100), *EvalStr("(string->number \"100\")"));
+  EXPECT_EQ(*IntExpr(256), *EvalStr("(string->number \"100\" 16)"));
+  EXPECT_EQ(*FloatExpr(100.0), *EvalStr("(string->number \"1e2\")"));
+  EXPECT_EQ(*FloatExpr(1500.0), *EvalStr("(string->number \"15##\")"));
+  EXPECT_EQ(*False(), *EvalStr("(string->number \"gg\")"));
 }
 
 }  // namespace eval

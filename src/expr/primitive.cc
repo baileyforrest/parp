@@ -28,6 +28,7 @@
 #include "expr/number.h"
 #include "expr/primitive.h"
 #include "eval/eval.h"
+#include "parse/lexer.h"
 #include "util/exceptions.h"
 #include "util/util.h"
 
@@ -302,7 +303,7 @@ void LoadCr(Env* env, size_t depth, std::string* cur) {
   cur->pop_back();
 }
 
-Int::ValType TryIntOrRound(Expr* expr, bool* is_exact) {
+Int::ValType TryGetIntValOrRound(Expr* expr, bool* is_exact) {
   auto* num = TryNumber(expr);
   if (auto* as_int = num->AsInt()) {
     return as_int->val();
@@ -318,7 +319,7 @@ Int::ValType TryIntOrRound(Expr* expr, bool* is_exact) {
   return as_float->val();
 }
 
-Float::ValType TryGetFloat(Expr* expr) {
+Float::ValType TryGetFloatVal(Expr* expr) {
   auto* num = TryNumber(expr);
   if (auto* as_float = num->AsFloat()) {
     return as_float->val();
@@ -332,14 +333,14 @@ Float::ValType TryGetFloat(Expr* expr) {
 template <Float::ValType (*Op)(Float::ValType)>
 Expr* EvalUnaryFloatOp(Env* env, Expr** args) {
   EvalArgs(env, args, 1);
-  return new Float(Op(TryGetFloat(args[0])));
+  return new Float(Op(TryGetFloatVal(args[0])));
 }
 
 template <Float::ValType (*Op)(Float::ValType, Float::ValType)>
 Expr* EvalBinaryFloatOp(Env* env, Expr** args) {
   EvalArgs(env, args, 2);
-  Float::ValType n1 = TryGetFloat(args[0]);
-  Float::ValType n2 = TryGetFloat(args[1]);
+  Float::ValType n1 = TryGetFloatVal(args[0]);
+  Float::ValType n2 = TryGetFloatVal(args[1]);
   return new Float(Op(n1, n2));
 }
 
@@ -887,8 +888,8 @@ Expr* Quotient::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EvalArgs(env, args, num_args);
   bool is_exact = true;
-  Int::ValType arg1 = TryIntOrRound(args[0], &is_exact);
-  Int::ValType arg2 = TryIntOrRound(args[1], &is_exact);
+  Int::ValType arg1 = TryGetIntValOrRound(args[0], &is_exact);
+  Int::ValType arg2 = TryGetIntValOrRound(args[1], &is_exact);
   Int::ValType ret = arg1 / arg2;
 
   if (is_exact) {
@@ -901,8 +902,8 @@ Expr* Remainder::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EvalArgs(env, args, num_args);
   bool is_exact = true;
-  Int::ValType arg1 = TryIntOrRound(args[0], &is_exact);
-  Int::ValType arg2 = TryIntOrRound(args[1], &is_exact);
+  Int::ValType arg1 = TryGetIntValOrRound(args[0], &is_exact);
+  Int::ValType arg2 = TryGetIntValOrRound(args[1], &is_exact);
 
   Int::ValType quotient = arg1 / arg2;
   Int::ValType ret = arg1 - arg2 * quotient;
@@ -917,8 +918,8 @@ Expr* Modulo::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EvalArgs(env, args, num_args);
   bool is_exact = true;
-  Int::ValType arg1 = TryIntOrRound(args[0], &is_exact);
-  Int::ValType arg2 = TryIntOrRound(args[1], &is_exact);
+  Int::ValType arg1 = TryGetIntValOrRound(args[0], &is_exact);
+  Int::ValType arg2 = TryGetIntValOrRound(args[1], &is_exact);
 
   Int::ValType quotient = arg1 / arg2;
   Int::ValType ret = arg1 - arg2 * quotient;
@@ -1129,15 +1130,69 @@ Expr* InexactToExact::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* NumberToString::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_LE(2);
+  EvalArgs(env, args, num_args);
+  auto* num = TryNumber(args[0]);
+
+  int radix = num_args == 2 ? TryInt(args[1])->val() : 10;
+  if (auto* as_float = num->AsFloat()) {
+    if (radix != 10) {
+      throw new RuntimeException(
+          "inexact numbers can only be printed in base 10", this);
+    }
+
+    std::ostringstream oss;
+    oss << as_float->val();
+
+    return new expr::String(oss.str());
+  }
+
+  auto* as_int = num->AsInt();
+  assert(as_int);
+
+  std::string ret;
+  switch (radix) {
+    case 2:
+      for (Int::ValType cur = as_int->val(); cur; cur /= 10) {
+        if (cur & 0x1) {
+          ret.push_back('1');
+        }
+      }
+      ret.reserve();
+      break;
+    case 8: {
+      std::ostringstream oss;
+      oss << std::oct << as_int->val();
+      ret = oss.str();
+      break;
+    }
+    case 10: {
+      ret = std::to_string(as_int->val());
+      break;
+    }
+    case 16: {
+      std::ostringstream oss;
+      oss << std::hex << as_int->val();
+      ret = oss.str();
+      break;
+    }
+    default:
+      throw new RuntimeException("radix must be one of 2 8 10 16", this);
+  }
+
+  return new expr::String(ret);
 }
 
 Expr* StringToNumber::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_LE(2);
+  EvalArgs(env, args, num_args);
+  int radix = num_args == 2 ? TryInt(args[1])->val() : 10;
+  const auto& str_val = TryString(args[0])->val();
+  try {
+    return parse::Lexer::LexNum(str_val, radix);
+  } catch (const util::SyntaxException& e) {
+    return False();
+  }
 }
 
 Expr* Not::DoEval(Env* env, Expr** args, size_t num_args) const {

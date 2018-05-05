@@ -1,12 +1,4 @@
-*.o
-*.pyc
-a.out
-GPATH
-GRTAGS
-GTAGS
-doxygen.warn
-\#*\#
-doc
+.gdb_history
 bin
 build
 coverage

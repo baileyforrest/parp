@@ -69,19 +69,30 @@ class Number : public Expr {
   Type num_type_;
 };
 
+const char* TypeToString(Number::Type type);
+
+inline std::ostream& operator<<(std::ostream& stream,
+                                const Number::Type& type) {
+  return stream << TypeToString(type);
+}
+
 // TODO(bcf): Expand this to be arbitrary precision rational
 class Int : public Number {
  public:
   using ValType = int64_t;
+
+  static Int* Parse(const std::string& str, int radix);
+
   explicit Int(ValType val) : Number(Type::INT), val_(val) {}
-  Int(const std::string& str, int radix);
 
   ValType val() const { return val_; }
   void set_val(ValType val) { val_ = val; }
 
  private:
   // Override from Number
-  std::ostream& AppendStream(std::ostream& stream) const override;
+  std::ostream& AppendStream(std::ostream& stream) const override {
+    return stream << val_;
+  }
   const Int* AsInt() const override { return this; }
   Int* AsInt() override { return this; }
   Number* Clone() override { return new Int(val_); }
@@ -98,15 +109,18 @@ class Float : public Number {
  public:
   using ValType = double;
 
+  static Float* Parse(const std::string& str, int radix);
+
   explicit Float(ValType val) : Number(Type::FLOAT), val_(val) {}
-  Float(const std::string& str, int radix);
 
   ValType val() const { return val_; }
   void set_val(ValType val) { val_ = val; }
 
  private:
   // Override from Number
-  std::ostream& AppendStream(std::ostream& stream) const override;
+  std::ostream& AppendStream(std::ostream& stream) const override {
+    return stream << val_;
+  }
   const Float* AsFloat() const override { return this; }
   Float* AsFloat() override { return this; }
   Number* Clone() override { return new Float(val_); }
@@ -118,6 +132,18 @@ class Float : public Number {
 
   ValType val_;
 };
+
+inline Int* TryInt(Expr* expr) {
+  auto* num = TryNumber(expr);
+  auto* ret = num->AsInt();
+  if (!ret) {
+    std::ostringstream os;
+    os << "Expected " << Number::Type::INT << ". Given: " << expr->type();
+    throw util::RuntimeException(os.str(), expr);
+  }
+
+  return ret;
+}
 
 template <template <typename T> class Op>
 Number* OpInPlace(Number* target, Number* other) {

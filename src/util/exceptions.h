@@ -33,7 +33,7 @@ struct Mark;
 
 class SyntaxException : public std::exception {
  public:
-  SyntaxException(const std::string& msg, const util::Mark& mark);
+  SyntaxException(const std::string& msg, const util::Mark* mark);
   const char* what() const throw() override { return full_msg_.c_str(); }
 
  private:

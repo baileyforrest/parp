@@ -130,8 +130,8 @@ X(Angle, angle)
 X(ExactToInexact, exact->inexact)
 X(InexactToExact, inexact->exact)
 
-X(NumberToString, number-to-string)
-X(StringToNumber, string-to-number)
+X(NumberToString, number->string)
+X(StringToNumber, string->number)
 
 // 6.3.1. Booleans
 X(Not, not)
