@@ -214,7 +214,13 @@ class String : public Expr {
     return val_ == other->AsString()->val_;
   }
 
+  void set_val_idx(size_t idx, char c) {
+    assert(!read_only_);
+    assert(idx < val_.size());
+    val_[c] = c;
+  }
   const std::string& val() const { return val_; }
+  bool read_only() const { return read_only_; }
 
  private:
   ~String() override = default;

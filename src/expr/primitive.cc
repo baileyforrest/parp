@@ -17,6 +17,8 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <strings.h>
+
 #include <cmath>
 #include <cctype>
 #include <functional>
@@ -398,6 +400,32 @@ Expr* CheckUnaryCharOp(Env* env, Expr** args, size_t num_args) {
   EvalArgs(env, args, num_args);
   return Op(TryChar(args[0])->val()) ? True() : False();
 }
+
+Int::ValType TryGetNonNegExactIntVal(Expr* expr) {
+  auto ret = TryInt(expr)->val();
+  if (ret < 0) {
+    throw RuntimeException("Expected exact positive integer", expr);
+  }
+  return ret;
+}
+
+template <typename Op>
+Expr* EvalStringOp(Env* env, Expr** args, size_t num_args) {
+  EvalArgs(env, args, num_args);
+  auto* s1 = TryString(args[0]);
+  auto* s2 = TryString(args[1]);
+
+  Op op;
+  return op(s1->val(), s2->val()) ? True() : False();
+}
+
+template <template <typename T> class Op>
+struct ICaseCmpStr {
+  bool operator()(const std::string& s1, const std::string& s2) {
+    Op<int> op;
+    return op(strcasecmp(s1.c_str(), s2.c_str()), 0);
+  }
+};
 
 }  // namespace
 
@@ -1649,99 +1677,112 @@ Expr* CharDownCase::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* IsString::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return args[0]->type() == Expr::Type::STRING ? True() : False();
 }
 
 Expr* MakeString::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_LE(2);
+  EvalArgs(env, args, num_args);
+
+  auto len = TryGetNonNegExactIntVal(args[0]);
+  char init_value = ' ';
+  if (num_args == 2) {
+    init_value = TryChar(args[1])->val();
+  }
+
+  return new expr::String(std::string(len, init_value));
 }
 
 Expr* String::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EvalArgs(env, args, num_args);
+  std::string val;
+  for (size_t i = 0; i < num_args; ++i) {
+    val.push_back(TryChar(args[i])->val());
+  }
+
+  return new expr::String(std::move(val));
 }
 
 Expr* StringLength::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return new Int(TryString(args[0])->val().size());
 }
 
 Expr* StringRef::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  auto idx = TryGetNonNegExactIntVal(args[1]);
+  auto& string_val = TryString(args[0])->val();
+  if (static_cast<size_t>(idx) >= string_val.size()) {
+    throw new RuntimeException("index out of range", args[1]);
+  }
+  return new Char(string_val[idx]);
 }
 
 Expr* StringSet::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(3);
+  EvalArgs(env, args, num_args);
+  auto* str = TryString(args[0]);
+  if (str->read_only()) {
+    throw new RuntimeException("Attempt to write read only string", str);
+  }
+
+  auto idx = TryGetNonNegExactIntVal(args[1]);
+  str->set_val_idx(idx, TryChar(args[2])->val());
+  return Nil();
 }
 
 Expr* IsStringEq::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalStringOp<std::equal_to<std::string>>(env, args, num_args);
 }
 
 Expr* IsStringEqCi::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalStringOp<ICaseCmpStr<std::equal_to>>(env, args, num_args);
 }
 
 Expr* IsStringLt::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalStringOp<std::less<std::string>>(env, args, num_args);
 }
 
 Expr* IsStringGt::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalStringOp<std::greater<std::string>>(env, args, num_args);
 }
 
 Expr* IsStringLe::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalStringOp<std::less_equal<std::string>>(env, args, num_args);
 }
 
 Expr* IsStringGe::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalStringOp<std::greater_equal<std::string>>(env, args, num_args);
 }
 
 Expr* IsStringLtCi::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalStringOp<ICaseCmpStr<std::less>>(env, args, num_args);
 }
 
 Expr* IsStringGtCi::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalStringOp<ICaseCmpStr<std::greater>>(env, args, num_args);
 }
 
 Expr* IsStringLeCi::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalStringOp<ICaseCmpStr<std::less_equal>>(env, args, num_args);
 }
 
 Expr* IsStringGeCi::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalStringOp<ICaseCmpStr<std::greater_equal>>(env, args, num_args);
 }
 
 Expr* Substring::DoEval(Env* env, Expr** args, size_t num_args) const {
