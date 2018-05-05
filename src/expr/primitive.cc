@@ -1103,15 +1103,29 @@ Expr* Angle::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* ExactToInexact::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  auto* num = TryNumber(args[0]);
+  if (auto* as_float = num->AsFloat()) {
+    return as_float;
+  }
+
+  auto* as_int = num->AsInt();
+  assert(as_int);
+  return new Float(as_int->val());
 }
 
 Expr* InexactToExact::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  auto* num = TryNumber(args[0]);
+  if (auto* as_int = num->AsInt()) {
+    return as_int;
+  }
+
+  auto* as_float = num->AsFloat();
+  assert(as_float);
+  return new Int(as_float->val());
 }
 
 Expr* NumberToString::DoEval(Env* env, Expr** args, size_t num_args) const {

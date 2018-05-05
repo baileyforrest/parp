@@ -127,8 +127,8 @@ X(ImagPart, imag-part)
 X(Magnitude, magnitude)
 X(Angle, angle)
 
-X(ExactToInexact, exact-to-inexact)
-X(InexactToExact, inexact-to-exact)
+X(ExactToInexact, exact->inexact)
+X(InexactToExact, inexact->exact)
 
 X(NumberToString, number-to-string)
 X(StringToNumber, string-to-number)

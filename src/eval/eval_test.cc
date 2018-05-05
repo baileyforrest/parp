@@ -550,4 +550,14 @@ TEST_F(EvalTest, Round) {
   EXPECT_EQ(*IntExpr(7), *EvalStr("(round 7)"));
 }
 
+TEST_F(EvalTest, ExactToInexact) {
+  EXPECT_EQ(*FloatExpr(4.0), *EvalStr("(exact->inexact 4)"));
+  EXPECT_EQ(*FloatExpr(4.0), *EvalStr("(exact->inexact 4.0)"));
+}
+
+TEST_F(EvalTest, InexactToExact) {
+  EXPECT_EQ(*IntExpr(4), *EvalStr("(inexact->exact 4)"));
+  EXPECT_EQ(*IntExpr(4), *EvalStr("(inexact->exact 4.0)"));
+}
+
 }  // namespace eval
