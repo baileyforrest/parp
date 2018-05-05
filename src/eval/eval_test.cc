@@ -211,10 +211,8 @@ TEST_F(EvalTest, Or) {
   EXPECT_EQ(*True(), *EvalStr("(or (= 2 2) (> 2 1))"));
   EXPECT_EQ(*True(), *EvalStr("(or (= 2 2) (< 2 1))"));
   EXPECT_EQ(*False(), *EvalStr("(or #f #f #f)"));
-#if 0  // TODO(bcf): Enable when memq implemented.
   Expr* e = Cons(Symbol::New("b"), Cons(Symbol::New("c"), Nil()));
   EXPECT_EQ(*e, *EvalStr("(or (memq 'b '(a b c)) (/ 3 0))"));
-#endif
   EXPECT_EQ(*False(), *EvalStr("(or)"));
 }
 
@@ -318,9 +316,7 @@ TEST_F(EvalTest, IsEqv) {
 }
 
 TEST_F(EvalTest, IsEq) {
-#if 0  // TODO(bcf): Symbols should be singleton.
   EXPECT_EQ(*True(), *EvalStr("(eq? 'a 'a)"));
-#endif
   EXPECT_EQ(*False(), *EvalStr("(eq? '(a) '(a))"));
   EXPECT_EQ(*True(), *EvalStr("(eq? '() '())"));
   EXPECT_EQ(*True(), *EvalStr("(eq? car car)"));
@@ -692,6 +688,14 @@ TEST_F(EvalTest, Memq) {
   EXPECT_EQ(*EvalStr("(memq 'b '(a b c))"), *EvalStr("'(b c)"));
   EXPECT_EQ(*EvalStr("(memq 'a '(b c d))"), *EvalStr("#f"));
   EXPECT_EQ(*EvalStr("(memq (list 'a) '(b (a) c))"), *EvalStr("#f"));
+}
+
+TEST_F(EvalTest, Memv) {
+  EXPECT_EQ(*EvalStr("(memv 101 '(100 101 102))"), *EvalStr("'(101 102)"));
+}
+
+TEST_F(EvalTest, Member) {
+  EXPECT_EQ(*EvalStr("(member (list 'a) '(b (a) c))"), *EvalStr("'((a) c)"));
 }
 
 }  // namespace eval
