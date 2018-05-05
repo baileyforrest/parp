@@ -681,4 +681,17 @@ TEST_F(EvalTest, ListTail) {
                util::RuntimeException);
 }
 
+TEST_F(EvalTest, ListRef) {
+  EXPECT_EQ(*EvalStr("(list-ref '(a b c d) 2)"), *EvalStr("'c"));
+  EXPECT_EQ(*EvalStr("(list-ref '(a b c d) (inexact->exact (round 1.8)))"),
+            *EvalStr("'c"));
+}
+
+TEST_F(EvalTest, Memq) {
+  EXPECT_EQ(*EvalStr("(memq 'a '(a b c))"), *EvalStr("'(a b c)"));
+  EXPECT_EQ(*EvalStr("(memq 'b '(a b c))"), *EvalStr("'(b c)"));
+  EXPECT_EQ(*EvalStr("(memq 'a '(b c d))"), *EvalStr("#f"));
+  EXPECT_EQ(*EvalStr("(memq (list 'a) '(b (a) c))"), *EvalStr("#f"));
+}
+
 }  // namespace eval

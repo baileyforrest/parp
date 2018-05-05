@@ -71,7 +71,7 @@ namespace {
 // Depth for car, cdr, caar etc
 const int kCrDepth = 4;
 
-struct {
+const struct {
   Evals* (*expr)();
   const char* name;
 } kPrimitives[] = {
@@ -1386,7 +1386,6 @@ Expr* ListTail::DoEval(Env* env, Expr** args, size_t num_args) const {
   }
 
   if (k != 0) {
-    std::cout << k << "\n";
     throw RuntimeException("index too large for list", this);
   }
 
@@ -1394,27 +1393,59 @@ Expr* ListTail::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* ListRef::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  Expr* tail = primitive::ListTail()->DoEval(env, args, num_args);
+  return TryPair(tail)->car();
 }
 
 Expr* Memq::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  Expr* cur = args[1];
+  for (; auto* list = cur->AsPair(); cur = list->cdr()) {
+    if (args[0]->Eq(list->car())) {
+      return list;
+    }
+  }
+
+  if (cur != Nil()) {
+    throw RuntimeException("Expected list", args[0]);
+  }
+
+  return False();
 }
 
 Expr* Memv::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  Expr* cur = args[1];
+  for (; auto* list = cur->AsPair(); cur = list->cdr()) {
+    if (args[0]->Eqv(list->car())) {
+      return list;
+    }
+  }
+
+  if (cur != Nil()) {
+    throw RuntimeException("Expected list", args[0]);
+  }
+
+  return False();
 }
 
 Expr* Member::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  Expr* cur = args[1];
+  for (; auto* list = cur->AsPair(); cur = list->cdr()) {
+    if (args[0]->Equal(list->car())) {
+      return list;
+    }
+  }
+
+  if (cur != Nil()) {
+    throw RuntimeException("Expected list", args[0]);
+  }
+
+  return False();
 }
 
 Expr* Assq::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -1997,8 +2028,6 @@ void LoadPrimitives(Env* env) {
     env->DefineVar(Symbol::New(primitive.name), primitive.expr());
   }
 
-  // TODO(bcf): Have special case for car and cdr since they will be more
-  // common.
   std::string tmp;
   LoadCr(env, kCrDepth, &tmp);
 }

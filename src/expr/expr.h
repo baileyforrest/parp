@@ -221,13 +221,13 @@ class String : public Expr {
   const bool read_only_;
 };
 
-// TODO(bcf): Optimize for read only.
 class Symbol : public Expr {
  public:
-  static Symbol* New(std::string val) {
-    val.shrink_to_fit();
-    return new Symbol(std::move(val));
+  static Symbol* New(const std::string& val) {
+    return gc::Gc::Get().GetSymbol(val);
   }
+
+  ~Symbol() override = default;
 
   // Expr implementation:
   const Symbol* AsSymbol() const override { return this; }
@@ -239,15 +239,18 @@ class Symbol : public Expr {
     return val_ == other->AsSymbol()->val_;
   }
 
-  const std::string& val() const { return val_; }
+  const std::string& val() const { return *val_; }
+
+  // Just use default new/delete for symbols
+  static void* operator new(std::size_t size) { return new char[size]; }
+  static void operator delete(void* ptr) { delete[] static_cast<char*>(ptr); }
 
  private:
-  explicit Symbol(std::string val) : Expr(Type::SYMBOL), val_(std::move(val)) {
-    assert(val_.size() > 0);
-  }
-  ~Symbol() override = default;
+  friend expr::Symbol* gc::Gc::GetSymbol(const std::string& name);
 
-  const std::string val_;
+  explicit Symbol(const std::string* val) : Expr(Type::SYMBOL), val_(val) {}
+
+  const std::string* const val_ = nullptr;
 };
 
 class Pair : public Expr {

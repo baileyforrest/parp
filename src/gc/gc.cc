@@ -34,8 +34,21 @@ Gc& Gc::Get() {
   return gc;
 }
 
+expr::Symbol* Gc::GetSymbol(const std::string& name) {
+  auto it = symbol_name_to_symbol_.find(name);
+  if (it != symbol_name_to_symbol_.end()) {
+    return it->second.get();
+  }
+
+  auto res = symbol_name_to_symbol_.emplace(name, nullptr);
+  assert(res.second);
+  auto& inserted_it = res.first;
+  inserted_it->second.reset(new expr::Symbol(&inserted_it->first));
+  return inserted_it->second.get();
+}
+
 void* Gc::AllocExpr(std::size_t size) {
-  auto* addr = reinterpret_cast<expr::Expr*>(std::malloc(size));
+  auto* addr = reinterpret_cast<expr::Expr*>(new char[size]);
   exprs_.push_back(addr);
   return addr;
 }
@@ -43,9 +56,10 @@ void* Gc::AllocExpr(std::size_t size) {
 void Gc::Purge() {
   for (auto* expr : exprs_) {
     expr->~Expr();
-    std::free(expr);
+    delete[] reinterpret_cast<char*>(expr);
   }
   exprs_.clear();
+  symbol_name_to_symbol_.clear();
 }
 
 }  // namespace gc

@@ -22,11 +22,14 @@
 
 #include <cstddef>
 #include <deque>
+#include <memory>
+#include <unordered_map>
 
 #include "util/macros.h"
 
 namespace expr {
 class Expr;
+class Symbol;
 }  // namespace expr
 
 namespace gc {
@@ -35,6 +38,8 @@ namespace gc {
 class Gc {
  public:
   static Gc& Get();
+
+  expr::Symbol* GetSymbol(const std::string& name);
   void* AllocExpr(std::size_t size);
   void Purge();
 
@@ -42,8 +47,11 @@ class Gc {
   Gc() = default;
   ~Gc();
 
-  DISALLOW_MOVE_COPY_AND_ASSIGN(Gc);
+  std::unordered_map<std::string, std::unique_ptr<expr::Symbol>>
+      symbol_name_to_symbol_;
   std::deque<expr::Expr*> exprs_;
+
+  DISALLOW_MOVE_COPY_AND_ASSIGN(Gc);
 };
 
 }  // namespace gc
