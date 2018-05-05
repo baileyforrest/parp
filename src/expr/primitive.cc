@@ -1196,9 +1196,9 @@ Expr* StringToNumber::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Not::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return args[0] == False() ? True() : False();
 }
 
 Expr* IsBoolean::DoEval(Env* env, Expr** args, size_t num_args) const {

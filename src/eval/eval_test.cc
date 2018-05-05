@@ -579,4 +579,18 @@ TEST_F(EvalTest, StringToNumber) {
   EXPECT_EQ(*False(), *EvalStr("(string->number \"gg\")"));
 }
 
+TEST_F(EvalTest, Not) {
+  EXPECT_EQ(*False(), *EvalStr("(not #t)"));
+  EXPECT_EQ(*False(), *EvalStr("(not 3)"));
+#if 0
+  EXPECT_EQ(*False(), *EvalStr("(not (list 3))"));
+#endif
+  EXPECT_EQ(*True(), *EvalStr("(not #f)"));
+  EXPECT_EQ(*False(), *EvalStr("(not '())"));
+#if 0
+  EXPECT_EQ(*False(), *EvalStr("(not (list))"));
+#endif
+  EXPECT_EQ(*False(), *EvalStr("(not 'nil)"));
+}
+
 }  // namespace eval
