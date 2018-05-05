@@ -1490,22 +1490,22 @@ Expr* Assoc::DoEval(Env* env, Expr** args, size_t num_args) const {
   return False();
 }
 
-Expr* SymbolPrim::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+Expr* IsSymbol::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return args[0]->type() == Expr::Type::SYMBOL ? True() : False();
 }
 
 Expr* SymbolToString::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return new expr::String(TrySymbol(args[0])->val(), true /* read_only */);
 }
 
 Expr* StringToSymbol::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return Symbol::New(TryString(args[0])->val());
 }
 
 Expr* IsChar::DoEval(Env* env, Expr** args, size_t num_args) const {

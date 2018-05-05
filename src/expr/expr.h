@@ -233,7 +233,7 @@ class Symbol : public Expr {
   const Symbol* AsSymbol() const override { return this; }
   Symbol* AsSymbol() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override {
-    return stream << val_;
+    return stream << val();
   }
   bool EqvImpl(const Expr* other) const override {
     return val_ == other->AsSymbol()->val_;

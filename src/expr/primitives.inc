@@ -161,9 +161,9 @@ X(Assv, assv)
 X(Assoc, assoc)
 
 // 6.3.3. Symbols
-X(SymbolPrim, symbol)
-X(SymbolToString, symbol-to-string)
-X(StringToSymbol, string-to-symbol)
+X(IsSymbol, symbol?)
+X(SymbolToString, symbol->string)
+X(StringToSymbol, string->symbol)
 
 // 6.3.4. Characters
 X(IsChar, char?)

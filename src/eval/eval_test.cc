@@ -701,4 +701,37 @@ TEST_F(EvalTest, AssTest) {
   EXPECT_EQ(*EvalStr("(assv 5 '((2 3) (5 7) (11 13)))"), *EvalStr("'(5 7)"));
 }
 
+TEST_F(EvalTest, IsSymbol) {
+  EXPECT_EQ(*EvalStr("(symbol? 'foo)"), *True());
+  EXPECT_EQ(*EvalStr("(symbol? (car '(a b)))"), *True());
+  EXPECT_EQ(*EvalStr("(symbol? \"bar\")"), *False());
+  EXPECT_EQ(*EvalStr("(symbol? 'nil)"), *True());
+  EXPECT_EQ(*EvalStr("(symbol? '())"), *False());
+  EXPECT_EQ(*EvalStr("(symbol? #f)"), *False());
+}
+
+TEST_F(EvalTest, SymbolToString) {
+  EXPECT_EQ(*EvalStr("(symbol->string 'flying-fish)"),
+            *StringExpr("flying-fish"));
+  EXPECT_EQ(*EvalStr("(symbol->string 'Martin)"), *StringExpr("Martin"));
+  EXPECT_EQ(*EvalStr("(symbol->string (string->symbol \"Malvina\"))"),
+            *StringExpr("Malvina"));
+}
+
+TEST_F(EvalTest, StringToSymbol) {
+  EXPECT_EQ(*EvalStr("(string->symbol \"mISSISSIppi\")"),
+            *Symbol::New("mISSISSIppi"));
+  EXPECT_EQ(
+      *EvalStr("(eq? 'JollyWog (string->symbol (symbol->string 'JollyWog)))"),
+      *True());
+#if 0
+  // clang-format off
+  EXPECT_EQ(*True(), *EvalStr(
+      "(string=? \"K. Harper, M.D.\""
+      "  (symbol->string"
+      "  (string->symbol \"K. Harper, M.D.\")))"));
+  // clang-format on
+#endif
+}
+
 }  // namespace eval
