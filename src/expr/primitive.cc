@@ -302,10 +302,10 @@ void LoadCr(Env* env, size_t depth, std::string* cur) {
   cur->pop_back();
 }
 
-Int* TryIntOrRounds(Expr* expr, bool* is_exact) {
+Int::ValType TryIntOrRound(Expr* expr, bool* is_exact) {
   auto* num = TryNumber(expr);
-  if (num->num_type() == Number::Type::INT) {
-    return num->AsInt();
+  if (auto* as_int = num->AsInt()) {
+    return as_int->val();
   }
 
   auto* as_float = num->AsFloat();
@@ -315,7 +315,32 @@ Int* TryIntOrRounds(Expr* expr, bool* is_exact) {
   }
 
   *is_exact = false;
-  return new Int(as_float->val());
+  return as_float->val();
+}
+
+Float::ValType TryGetFloat(Expr* expr) {
+  auto* num = TryNumber(expr);
+  if (auto* as_float = num->AsFloat()) {
+    return as_float->val();
+  }
+
+  auto* as_int = num->AsInt();
+  assert(as_int);
+  return as_int->val();
+}
+
+template <Float::ValType (*Op)(Float::ValType)>
+Expr* EvalUnaryFloatOp(Env* env, Expr** args) {
+  EvalArgs(env, args, 1);
+  return new Float(Op(TryGetFloat(args[0])));
+}
+
+template <Float::ValType (*Op)(Float::ValType, Float::ValType)>
+Expr* EvalBinaryFloatOp(Env* env, Expr** args) {
+  EvalArgs(env, args, 2);
+  Float::ValType n1 = TryGetFloat(args[0]);
+  Float::ValType n2 = TryGetFloat(args[1]);
+  return new Float(Op(n1, n2));
 }
 
 }  // namespace
@@ -862,10 +887,9 @@ Expr* Quotient::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EvalArgs(env, args, num_args);
   bool is_exact = true;
-  auto* arg1 = TryIntOrRounds(args[0], &is_exact);
-  auto* arg2 = TryIntOrRounds(args[1], &is_exact);
-
-  Int::ValType ret = arg1->val() / arg2->val();
+  Int::ValType arg1 = TryIntOrRound(args[0], &is_exact);
+  Int::ValType arg2 = TryIntOrRound(args[1], &is_exact);
+  Int::ValType ret = arg1 / arg2;
 
   if (is_exact) {
     return new Int(ret);
@@ -877,11 +901,11 @@ Expr* Remainder::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EvalArgs(env, args, num_args);
   bool is_exact = true;
-  auto* arg1 = TryIntOrRounds(args[0], &is_exact);
-  auto* arg2 = TryIntOrRounds(args[1], &is_exact);
+  Int::ValType arg1 = TryIntOrRound(args[0], &is_exact);
+  Int::ValType arg2 = TryIntOrRound(args[1], &is_exact);
 
-  Int::ValType quotient = arg1->val() / arg2->val();
-  Int::ValType ret = arg1->val() - arg2->val() * quotient;
+  Int::ValType quotient = arg1 / arg2;
+  Int::ValType ret = arg1 - arg2 * quotient;
 
   if (is_exact) {
     return new Int(ret);
@@ -893,13 +917,13 @@ Expr* Modulo::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EvalArgs(env, args, num_args);
   bool is_exact = true;
-  auto* arg1 = TryIntOrRounds(args[0], &is_exact);
-  auto* arg2 = TryIntOrRounds(args[1], &is_exact);
+  Int::ValType arg1 = TryIntOrRound(args[0], &is_exact);
+  Int::ValType arg2 = TryIntOrRound(args[1], &is_exact);
 
-  Int::ValType quotient = arg1->val() / arg2->val();
-  Int::ValType ret = arg1->val() - arg2->val() * quotient;
-  if ((ret < 0) ^ (arg2->val() < 0)) {
-    ret += arg2->val();
+  Int::ValType quotient = arg1 / arg2;
+  Int::ValType ret = arg1 - arg2 * quotient;
+  if ((ret < 0) ^ (arg2 < 0)) {
+    ret += arg2;
   }
 
   if (is_exact) {
@@ -989,63 +1013,57 @@ Expr* Rationalize::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Exp::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  return EvalUnaryFloatOp<std::exp>(env, args);
 }
 
 Expr* Log::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  return EvalUnaryFloatOp<std::exp>(env, args);
 }
 
 Expr* Sin::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  return EvalUnaryFloatOp<std::sin>(env, args);
 }
 
 Expr* Cos::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  return EvalUnaryFloatOp<std::cos>(env, args);
 }
 
 Expr* Tan::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  return EvalUnaryFloatOp<std::tan>(env, args);
 }
 
 Expr* Asin::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  return EvalUnaryFloatOp<std::asin>(env, args);
 }
 
 Expr* ACos::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  return EvalUnaryFloatOp<std::acos>(env, args);
 }
 
 Expr* ATan::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_LE(2);
+  if (num_args == 1) {
+    return EvalUnaryFloatOp<std::atan>(env, args);
+  }
+
+  return EvalBinaryFloatOp<std::atan2>(env, args);
 }
 
 Expr* Sqrt::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  return EvalUnaryFloatOp<std::sqrt>(env, args);
 }
 
 Expr* Expt::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalBinaryFloatOp<std::pow>(env, args);
 }
 
 Expr* MakeRectangular::DoEval(Env* env, Expr** args, size_t num_args) const {
