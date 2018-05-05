@@ -302,6 +302,22 @@ void LoadCr(Env* env, size_t depth, std::string* cur) {
   cur->pop_back();
 }
 
+Int* TryIntOrRounds(Expr* expr, bool* is_exact) {
+  auto* num = TryNumber(expr);
+  if (num->num_type() == Number::Type::INT) {
+    return num->AsInt();
+  }
+
+  auto* as_float = num->AsFloat();
+  assert(as_float);
+  if (std::trunc(as_float->val()) != as_float->val()) {
+    throw new RuntimeException("Expected integer", as_float);
+  }
+
+  *is_exact = false;
+  return Int::New(as_float->val());
+}
+
 }  // namespace
 
 namespace impl {
@@ -843,21 +859,53 @@ Expr* Abs::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Quotient::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  bool is_exact = true;
+  auto* arg1 = TryIntOrRounds(args[0], &is_exact);
+  auto* arg2 = TryIntOrRounds(args[1], &is_exact);
+
+  Int::ValType ret = arg1->val() / arg2->val();
+
+  if (is_exact) {
+    return Int::New(ret);
+  }
+  return Float::New(ret);
 }
 
 Expr* Remainder::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  bool is_exact = true;
+  auto* arg1 = TryIntOrRounds(args[0], &is_exact);
+  auto* arg2 = TryIntOrRounds(args[1], &is_exact);
+
+  Int::ValType quotient = arg1->val() / arg2->val();
+  Int::ValType ret = arg1->val() - arg2->val() * quotient;
+
+  if (is_exact) {
+    return Int::New(ret);
+  }
+  return Float::New(ret);
 }
 
 Expr* Modulo::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  bool is_exact = true;
+  auto* arg1 = TryIntOrRounds(args[0], &is_exact);
+  auto* arg2 = TryIntOrRounds(args[1], &is_exact);
+
+  Int::ValType quotient = arg1->val() / arg2->val();
+  Int::ValType ret = arg1->val() - arg2->val() * quotient;
+  if ((ret < 0) ^ (arg2->val() < 0)) {
+    ret += arg2->val();
+  }
+
+  if (is_exact) {
+    return Int::New(ret);
+  }
+  return Float::New(ret);
 }
 
 Expr* Gcd::DoEval(Env* env, Expr** args, size_t num_args) const {

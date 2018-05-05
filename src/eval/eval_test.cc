@@ -503,4 +503,24 @@ TEST_F(EvalTest, Abs) {
   EXPECT_EQ(*FloatExpr(42.0), *EvalStr("(abs -42.0)"));
 }
 
+TEST_F(EvalTest, Quotient) {
+  EXPECT_EQ(*IntExpr(3), *EvalStr("(quotient 13 4)"));
+  EXPECT_EQ(*IntExpr(-3), *EvalStr("(quotient -13 4)"));
+}
+
+TEST_F(EvalTest, Remainder) {
+  EXPECT_EQ(*IntExpr(1), *EvalStr("(remainder 13 4)"));
+  EXPECT_EQ(*IntExpr(-1), *EvalStr("(remainder -13 4)"));
+  EXPECT_EQ(*IntExpr(1), *EvalStr("(remainder 13 -4)"));
+  EXPECT_EQ(*IntExpr(-1), *EvalStr("(remainder -13 -4)"));
+  EXPECT_EQ(*FloatExpr(-1), *EvalStr("(remainder -13 -4.0)"));
+}
+
+TEST_F(EvalTest, Modulo) {
+  EXPECT_EQ(*IntExpr(1), *EvalStr("(modulo 13 4)"));
+  EXPECT_EQ(*IntExpr(3), *EvalStr("(modulo -13 4)"));
+  EXPECT_EQ(*IntExpr(-3), *EvalStr("(modulo 13 -4)"));
+  EXPECT_EQ(*IntExpr(-1), *EvalStr("(modulo -13 -4)"));
+}
+
 }  // namespace eval
