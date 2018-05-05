@@ -1786,39 +1786,64 @@ Expr* IsStringGeCi::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Substring::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(3);
+  EvalArgs(env, args, num_args);
+  auto start = TryGetNonNegExactIntVal(args[1]);
+  auto end = TryGetNonNegExactIntVal(args[2]);
+
+  return new expr::String(TryString(args[0])->val().substr(start, end - start));
 }
 
 Expr* StringAppend::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  return new expr::String(TryString(args[0])->val() +
+                          TryString(args[1])->val());
 }
 
 Expr* StringToList::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  auto& str_val = TryString(args[0])->val();
+
+  Expr* ret = Nil();
+  for (ssize_t i = str_val.size() - 1; i >= 0; --i) {
+    ret = new Pair(new Char(str_val[i]), ret);
+  }
+
+  return ret;
 }
 
 Expr* ListToString::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  std::string str;
+  Expr* cur = args[0];
+  for (; auto* list = cur->AsPair(); cur = list->cdr()) {
+    str.push_back(TryChar(list->car())->val());
+  }
+
+  return new expr::String(str);
 }
 
 Expr* StringCopy::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return new expr::String(TryString(args[0])->val());
 }
 
 Expr* StringFill::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  auto* str = TryString(args[0]);
+  if (str->read_only()) {
+    throw new RuntimeException("Attempt to write read only string", str);
+  }
+  auto char_val = TryChar(args[1])->val();
+  for (size_t i = 0; i < str->val().size(); ++i) {
+    str->set_val_idx(i, char_val);
+  }
+  return Nil();
 }
 
 Expr* IsVector::DoEval(Env* env, Expr** args, size_t num_args) const {
