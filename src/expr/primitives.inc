@@ -224,6 +224,7 @@ X(VectorFill, vector-fill)
 
 // 6.4. Control features
 X(IsProcedure, procedure?)
+X(Apply, apply)
 X(Map, map)
 X(ForEach, for-each)
 X(Force, force)

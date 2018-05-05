@@ -764,4 +764,28 @@ TEST_F(EvalTest, VectorListConversion) {
             *EvalStr("#(dididit dah)"));
 }
 
+TEST_F(EvalTest, IsProcedure) {
+  EXPECT_EQ(*True(), *EvalStr("(procedure? car)"));
+  EXPECT_EQ(*False(), *EvalStr("(procedure? 'car)"));
+  EXPECT_EQ(*True(), *EvalStr("(procedure? (lambda (x) (* x x)))"));
+  EXPECT_EQ(*False(), *EvalStr("(procedure? '(lambda (x) (* x x)))"));
+#if 0
+  EXPECT_EQ(*True(), *EvalStr("(call-with-current-continuation procedure?)"));
+#endif
+}
+
+TEST_F(EvalTest, Apply) {
+  EXPECT_EQ(*IntExpr(7), *EvalStr("(apply + (list 3 4))"));
+
+  // clang-format off
+  (void)EvalStr(
+  "(define compose"
+  "  (lambda (f g)"
+  "    (lambda args"
+  "      (f (apply g args)))))");
+  // clang-format on
+
+  EXPECT_EQ(*FloatExpr(30.0), *EvalStr("((compose sqrt *) 12 75)"));
+}
+
 }  // namespace eval

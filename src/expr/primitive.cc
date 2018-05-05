@@ -1932,9 +1932,26 @@ Expr* VectorFill::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* IsProcedure::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return args[0]->type() == Expr::Type::EVALS ? True() : False();
+}
+
+Expr* Apply::DoEval(Env* env, Expr** args, size_t num_args) const {
+  EXPECT_ARGS_GE(1);
+  EvalArgs(env, args, num_args);
+  std::vector<Expr*> new_args(args + 1, args + 1 + num_args - 2);
+  if (num_args > 1) {
+    Expr* cur = args[num_args - 1];
+    for (; auto* list = cur->AsPair(); cur = list->cdr()) {
+      new_args.push_back(list->car());
+    }
+    if (cur != Nil()) {
+      throw RuntimeException("Expected list", args[num_args - 1]);
+    }
+  }
+
+  return TryEvals(args[0])->DoEval(env, new_args.data(), new_args.size());
 }
 
 Expr* Map::DoEval(Env* env, Expr** args, size_t num_args) const {
