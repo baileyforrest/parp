@@ -593,4 +593,10 @@ TEST_F(EvalTest, Not) {
   EXPECT_EQ(*False(), *EvalStr("(not 'nil)"));
 }
 
+TEST_F(EvalTest, IsBoolean) {
+  EXPECT_EQ(*True(), *EvalStr("(boolean? #f)"));
+  EXPECT_EQ(*False(), *EvalStr("(boolean? 0)"));
+  EXPECT_EQ(*False(), *EvalStr("(boolean? '())"));
+}
+
 }  // namespace eval
