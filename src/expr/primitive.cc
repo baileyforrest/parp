@@ -21,6 +21,7 @@
 #include <functional>
 #include <sstream>
 #include <string>
+#include <set>
 #include <vector>
 #include <utility>
 
@@ -274,8 +275,9 @@ class CrImpl : public Evals {
   std::ostream& AppendStream(std::ostream& stream) const override {
     return stream << "c" << cr_ << "r";
   }
-  Expr* DoEval(Env* /* env */, Expr** args, size_t num_args) const override {
+  Expr* DoEval(Env* env, Expr** args, size_t num_args) const override {
     EXPECT_ARGS_NUM(1);
+    EvalArgs(env, args, num_args);
     return TryPair(args[0])->Cr(cr_);
   }
 
@@ -289,7 +291,8 @@ class CrImpl : public Evals {
 void LoadCr(Env* env, size_t depth, std::string* cur) {
   if (depth == 0)
     return;
-  if (!cur->empty()) {
+  // car and cdr are defined manually for performance reasons.
+  if (cur->size() > 1) {
     auto sym_name = "c" + *cur + "r";
     env->DefineVar(Symbol::New(sym_name), CrImpl::New(*cur));
   }
@@ -361,7 +364,7 @@ namespace impl {
 
 Expr* Quote::DoEval(Env* /* env */, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(1);
-  return *args;
+  return args[0];
 }
 
 Expr* Lambda::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -1208,57 +1211,75 @@ Expr* IsBoolean::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* IsPair::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return args[0]->type() == Expr::Type::PAIR ? True() : False();
 }
 
 Expr* Cons::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  return new Pair(args[0], args[1]);
 }
 
 Expr* Car::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return TryPair(args[0])->car();
 }
 
 Expr* Cdr::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return TryPair(args[0])->cdr();
 }
 
 Expr* SetCar::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  TryPair(args[0])->set_car(args[1]);
+  return Nil();
 }
 
 Expr* SetCdr::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  TryPair(args[0])->set_cdr(args[1]);
+  return Nil();
 }
 
 Expr* IsNull::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return args[0] == Nil() ? True() : False();
 }
 
 Expr* IsList::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  Expr* cur = args[0];
+
+  std::set<Expr*> seen;
+  while (auto* list = cur->AsPair()) {
+    // If we found a loop, it's not a list.
+    if (seen.find(list) != seen.end()) {
+      return False();
+    }
+    seen.insert(list);
+    cur = list->cdr();
+  }
+
+  return cur == Nil() ? True() : False();
 }
 
 Expr* List::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EvalArgs(env, args, num_args);
+  Expr* front = Nil();
+  for (ssize_t i = num_args - 1; i >= 0; --i) {
+    front = new Pair(args[i], front);
+  }
+
+  return front;
 }
 
 Expr* Length::DoEval(Env* env, Expr** args, size_t num_args) const {

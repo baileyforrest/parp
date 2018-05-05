@@ -78,7 +78,12 @@ class EvalTest : public test::TestBase {
   virtual void TestTearDown() { env_ = nullptr; }
 
   expr::Expr* EvalStr(const std::string& str) {
-    return Eval(ParseExpr(str), env_);
+    auto exprs = parse::Read(str);
+    assert(exprs.size() >= 1u);
+    for (auto& expr : exprs) {
+      expr = Eval(expr, env_);
+    }
+    return exprs.back();
   }
 
   expr::Env* env_ = nullptr;
@@ -280,9 +285,7 @@ TEST_F(EvalTest, IsEqv) {
   EXPECT_EQ(*False(), *EvalStr("(eqv? #\\c #\\d)"));
   EXPECT_EQ(*True(), *EvalStr("(eqv? '() '())"));
 
-#if 0  // TODO(bcf): Enable after cons implemented.
   EXPECT_EQ(*False(), *EvalStr("(eqv? (cons 1 2) (cons 1 2))"));
-#endif
   EXPECT_EQ(*False(), *EvalStr("(eqv? (lambda () 1) (lambda () 2))"));
   EXPECT_EQ(*False(), *EvalStr("(eqv? #f 'nil)"));
   EXPECT_EQ(*True(), *EvalStr("(let ((p (lambda (x) x))) (eqv? p p))"));
@@ -582,14 +585,10 @@ TEST_F(EvalTest, StringToNumber) {
 TEST_F(EvalTest, Not) {
   EXPECT_EQ(*False(), *EvalStr("(not #t)"));
   EXPECT_EQ(*False(), *EvalStr("(not 3)"));
-#if 0
   EXPECT_EQ(*False(), *EvalStr("(not (list 3))"));
-#endif
   EXPECT_EQ(*True(), *EvalStr("(not #f)"));
   EXPECT_EQ(*False(), *EvalStr("(not '())"));
-#if 0
   EXPECT_EQ(*False(), *EvalStr("(not (list))"));
-#endif
   EXPECT_EQ(*False(), *EvalStr("(not 'nil)"));
 }
 
@@ -597,6 +596,62 @@ TEST_F(EvalTest, IsBoolean) {
   EXPECT_EQ(*True(), *EvalStr("(boolean? #f)"));
   EXPECT_EQ(*False(), *EvalStr("(boolean? 0)"));
   EXPECT_EQ(*False(), *EvalStr("(boolean? '())"));
+}
+
+TEST_F(EvalTest, IsPair) {
+  EXPECT_EQ(*True(), *EvalStr("(pair? '(a . b))"));
+  EXPECT_EQ(*True(), *EvalStr("(pair? '(a b c))"));
+  EXPECT_EQ(*False(), *EvalStr("(pair? '())"));
+  EXPECT_EQ(*False(), *EvalStr("(pair? '#(a b))"));
+}
+
+TEST_F(EvalTest, Cons) {
+  EXPECT_EQ(*EvalStr("(cons 'a '())"), *EvalStr("'(a)"));
+  EXPECT_EQ(*EvalStr("(cons '(a) '(b c d))"), *EvalStr("'((a) b c d)"));
+  EXPECT_EQ(*EvalStr("(cons \"a\" '(b c))"), *EvalStr("'(\"a\" b c)"));
+  EXPECT_EQ(*EvalStr("(cons 'a 3)"), *EvalStr("'(a . 3)"));
+  EXPECT_EQ(*EvalStr("(cons '(a b) 'c)"), *EvalStr("'((a b) . c)"));
+}
+
+TEST_F(EvalTest, Car) {
+  EXPECT_EQ(*EvalStr("(car '(a b c))"), *EvalStr("'a"));
+  EXPECT_EQ(*EvalStr("(car '((a) b c d))"), *EvalStr("'(a)"));
+  EXPECT_EQ(*EvalStr("(car '(1 . 2))"), *EvalStr("1"));
+  EXPECT_THROW((void)EvalStr("(car '())"), util::RuntimeException);
+}
+
+TEST_F(EvalTest, Cdr) {
+  EXPECT_EQ(*EvalStr("(cdr '((a) b c d))"), *EvalStr("'(b c d)"));
+  EXPECT_EQ(*EvalStr("(cdr '(1 . 2))"), *EvalStr("2"));
+  EXPECT_THROW((void)EvalStr("(cdr '())"), util::RuntimeException);
+}
+
+TEST_F(EvalTest, SetCarSetCdr) {
+  // clang-format off
+  EXPECT_EQ(*EvalStr("'(3 . 4)"), *EvalStr(
+      "(define a '(1 . 2))"
+      "(set-car! a 3)"
+      "(set-cdr! a 4)"
+      "a"));
+  // clang-format on
+}
+
+TEST_F(EvalTest, IsList) {
+  EXPECT_EQ(*True(), *EvalStr("(list? '(a b c))"));
+  EXPECT_EQ(*True(), *EvalStr("(list? '())"));
+  EXPECT_EQ(*False(), *EvalStr("(list? '(a . b))"));
+
+  // clang-format off
+  EXPECT_EQ(*False(), *EvalStr(
+      "(let ((x (list 'a)))"
+      "  (set-cdr! x x)"
+      "  (list? x))"));
+  // clang-format on
+}
+
+TEST_F(EvalTest, List) {
+  EXPECT_EQ(*EvalStr("(list 'a (+ 3 4) 'c)"), *EvalStr("'(a 7 c)"));
+  EXPECT_EQ(*EvalStr("(list)"), *EvalStr("'()"));
 }
 
 }  // namespace eval

@@ -147,7 +147,7 @@ X(SetCdr, set-cdr!)
 
 X(IsNull, null?)
 X(IsList, list?)
-X(List, list?)
+X(List, list)
 X(Length, length)
 X(Append, append)
 X(Reverse, reverse)
