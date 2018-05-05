@@ -58,9 +58,9 @@ TEST_F(ParserTest, ReadSimpleDatum) {
   const ExprVec kExpected = {
       Symbol::New("hello"),
       expr::True(),
-      Int::New(1),
-      Char::New('c'),
-      String::New("world"),
+      new Int(1),
+      new Char('c'),
+      new String("world"),
   };
   // clang-format on
 
@@ -71,7 +71,7 @@ TEST_F(ParserTest, ReadVector) {
   const std::string kStr = "#(a b c d e)";
   // clang-format off
   const ExprVec kExpected = {
-    Vector::New({
+    new Vector({
           Symbol::New("a"),
           Symbol::New("b"),
           Symbol::New("c"),

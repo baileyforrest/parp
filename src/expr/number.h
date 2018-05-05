@@ -73,8 +73,8 @@ class Number : public Expr {
 class Int : public Number {
  public:
   using ValType = int64_t;
-  static Int* New(ValType val) { return new Int(val); }
-  static Int* New(const std::string& str, int radix);
+  explicit Int(ValType val) : Number(Type::INT), val_(val) {}
+  Int(const std::string& str, int radix);
 
   ValType val() const { return val_; }
   void set_val(ValType val) { val_ = val; }
@@ -89,7 +89,6 @@ class Int : public Number {
     return val_ == other->AsInt()->val_;
   }
 
-  explicit Int(ValType val) : Number(Type::INT), val_(val) {}
   ~Int() override = default;
 
   ValType val_;
@@ -99,8 +98,8 @@ class Float : public Number {
  public:
   using ValType = double;
 
-  static Float* New(ValType val) { return new Float(val); }
-  static Float* New(const std::string& str, int radix);
+  explicit Float(ValType val) : Number(Type::FLOAT), val_(val) {}
+  Float(const std::string& str, int radix);
 
   ValType val() const { return val_; }
   void set_val(ValType val) { val_ = val; }
@@ -115,7 +114,6 @@ class Float : public Number {
     return val_ == other->AsFloat()->val_;
   }
 
-  explicit Float(ValType val) : Number(Type::FLOAT), val_(val) {}
   ~Float() override = default;
 
   ValType val_;
@@ -138,7 +136,7 @@ Number* OpInPlace(Number* target, Number* other) {
     ftarget->set_val(op(ftarget->val(), iother->val()));
     return target;
   }
-  auto* ftarget = itarget ? Float::New(itarget->val()) : target->AsFloat();
+  auto* ftarget = itarget ? new Float(itarget->val()) : target->AsFloat();
   auto* fother = other->AsFloat();
 
   ftarget->set_val(op(ftarget->val(), fother->val()));

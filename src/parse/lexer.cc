@@ -28,6 +28,11 @@
 #include "util/char_class.h"
 #include "util/exceptions.h"
 
+using expr::Char;
+using expr::Float;
+using expr::Int;
+using expr::String;
+
 namespace parse {
 
 namespace {
@@ -253,9 +258,9 @@ expr::Number* NumLexer::ParseReal() {
   if (Eof() || *it_ != '/') {
     try {
       if (exact_) {
-        return expr::Int::New(neum_str, radix_);
+        return new Int(neum_str, radix_);
       } else {
-        return expr::Float::New(neum_str, radix_);
+        return new Float(neum_str, radix_);
       }
     } catch (std::exception& e) {
       ThrowException(e.what());
@@ -430,7 +435,7 @@ void Lexer::LexChar() {
   }
 
   token_.type = Token::Type::CHAR;
-  token_.expr = expr::Char::New(lexbuf_[1]);
+  token_.expr = new Char(lexbuf_[1]);
 }
 
 // Lex string after getting '"'
@@ -449,7 +454,7 @@ void Lexer::LexString() {
   }
 
   token_.type = Token::Type::STRING;
-  token_.expr = expr::String::New(lexbuf_, true);
+  token_.expr = new String(lexbuf_, true);
 }
 
 const Token& Lexer::NextToken() {

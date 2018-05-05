@@ -27,13 +27,17 @@
 #include "parse/parse.h"
 #include "test/util.h"
 
+using expr::Char;
 using expr::Expr;
+using expr::Env;
 using expr::False;
 using expr::Float;
 using expr::Int;
 using expr::Nil;
 using expr::Symbol;
+using expr::String;
 using expr::True;
+using expr::Vector;
 
 namespace eval {
 
@@ -46,11 +50,11 @@ expr::Expr* ParseExpr(const std::string& str) {
 }
 
 Expr* IntExpr(Int::ValType val) {
-  return Int::New(val);
+  return new Int(val);
 }
 
 Expr* FloatExpr(Float::ValType d) {
-  return expr::Float::New(d);
+  return new Float(d);
 }
 
 Expr* SymExpr(std::string str) {
@@ -62,7 +66,7 @@ Expr* SymExpr(std::string str) {
 class EvalTest : public test::TestBase {
  protected:
   virtual void TestSetUp() {
-    env_ = expr::Env::New();
+    env_ = new Env();
     expr::primitive::LoadPrimitives(env_);
   }
   virtual void TestTearDown() { env_ = nullptr; }
@@ -79,21 +83,21 @@ TEST_F(EvalTest, SelfEvaluating) {
   EXPECT_EQ(expr::True(), Eval(expr::True(), env_));
   EXPECT_EQ(expr::False(), Eval(expr::False(), env_));
 
-  Expr* num = Int::New(42);
+  Expr* num = new Int(42);
   EXPECT_EQ(num, Eval(num, env_));
 
-  Expr* character = expr::Char::New('a');
+  Expr* character = new Char('a');
   EXPECT_EQ(character, Eval(character, env_));
 
-  Expr* str = expr::String::New("abc");
+  Expr* str = new String("abc");
   EXPECT_EQ(str, Eval(str, env_));
 
-  Expr* vec = expr::Vector::New({num, character, str});
+  Expr* vec = new Vector({num, character, str});
   EXPECT_EQ(vec, Eval(vec, env_));
 }
 
 TEST_F(EvalTest, Symbol) {
-  Expr* num = Int::New(42);
+  Expr* num = new Int(42);
   auto* symbol = ParseExpr("abc");
   env_->DefineVar(symbol->AsSymbol(), num);
 
@@ -105,10 +109,10 @@ TEST_F(EvalTest, Quote) {
   Expr* e = Symbol::New("a");
   EXPECT_EQ(*e, *EvalStr("(quote a)"));
   EXPECT_EQ(*e, *EvalStr("'a"));
-  e = expr::Vector::New({Symbol::New("a"), Symbol::New("b"), Symbol::New("c")});
+  e = new Vector({Symbol::New("a"), Symbol::New("b"), Symbol::New("c")});
   EXPECT_EQ(*e, *EvalStr("(quote #(a b c))"));
   EXPECT_EQ(*e, *EvalStr("'#(a b c)"));
-  e = Cons(Symbol::New("+"), Cons(Int::New(1), Cons(Int::New(2), Nil())));
+  e = Cons(Symbol::New("+"), Cons(new Int(1), Cons(new Int(2), Nil())));
   EXPECT_EQ(*Nil(), *EvalStr("'()"));
   EXPECT_EQ(*e, *EvalStr("(quote (+ 1 2))"));
   EXPECT_EQ(*e, *EvalStr("'(+ 1 2)"));
@@ -128,21 +132,20 @@ TEST_F(EvalTest, Lambda) {
 }
 
 TEST_F(EvalTest, If) {
-  Expr* n42 = Int::New(42);
+  Expr* n42 = new Int(42);
   EXPECT_EQ(*n42, *EvalStr("(if #t 42)"));
   EXPECT_EQ(*Nil(), *EvalStr("(if #f 42)"));
 
-  Expr* n43 = Int::New(43);
+  Expr* n43 = new Int(43);
   EXPECT_EQ(*n42, *EvalStr("(if #t 42 43)"));
   EXPECT_EQ(*n43, *EvalStr("(if #f 42 43)"));
   EXPECT_EQ(*IntExpr(12), *EvalStr("((if #f + *) 3 4)"));
 
-  Expr* e =
-      Cons(Int::New(3),
-           Cons(Int::New(4), Cons(Int::New(5), Cons(Int::New(6), Nil()))));
+  Expr* e = Cons(new Int(3),
+                 Cons(new Int(4), Cons(new Int(5), Cons(new Int(6), Nil()))));
   EXPECT_EQ(*e, *EvalStr("((lambda x x) 3 4 5 6)"));
 
-  e = Cons(Int::New(5), Cons(Int::New(6), Nil()));
+  e = Cons(new Int(5), Cons(new Int(6), Nil()));
   EXPECT_EQ(*e, *EvalStr("((lambda (x y . z) z) 3 4 5 6)"));
 }
 

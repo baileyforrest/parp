@@ -176,7 +176,7 @@ class Bool : public Expr {
 
 class Char : public Expr {
  public:
-  static Char* New(char c) { return new Char(c); }
+  explicit Char(char val) : Expr(Type::CHAR), val_(val) {}
 
   // Expr implementation:
   const Char* AsChar() const override { return this; }
@@ -189,7 +189,6 @@ class Char : public Expr {
   char val() const { return val_; }
 
  private:
-  explicit Char(char val) : Expr(Type::CHAR), val_(val) {}
   ~Char() override = default;
 
   const char val_;
@@ -198,8 +197,9 @@ class Char : public Expr {
 // TODO(bcf): Optimize for readonly strings.
 class String : public Expr {
  public:
-  static String* New(std::string val, bool read_only = false) {
-    return new String(std::move(val), read_only);
+  explicit String(std::string val, bool read_only = false)
+      : Expr(Type::STRING), val_(std::move(val)), read_only_(read_only) {
+    val_.shrink_to_fit();
   }
 
   // Expr implementation:
@@ -215,10 +215,6 @@ class String : public Expr {
   const std::string& val() const { return val_; }
 
  private:
-  explicit String(std::string val, bool read_only)
-      : Expr(Type::STRING), val_(std::move(val)), read_only_(read_only) {
-    val_.shrink_to_fit();
-  }
   ~String() override = default;
 
   std::string val_;
@@ -256,7 +252,10 @@ class Symbol : public Expr {
 
 class Pair : public Expr {
  public:
-  static Pair* New(Expr* car, Expr* cdr) { return new Pair(car, cdr); }
+  Pair(Expr* car, Expr* cdr) : Expr(Type::PAIR), car_(car), cdr_(cdr) {
+    assert(car);
+    assert(cdr);
+  }
 
   // Expr implementation:
   const Pair* AsPair() const override { return this; }
@@ -280,11 +279,6 @@ class Pair : public Expr {
   void set_cdr(Expr* expr) { cdr_ = expr; }
 
  private:
-  Pair(Expr* car, Expr* cdr) : Expr(Type::PAIR), car_(car), cdr_(cdr) {
-    assert(car);
-    assert(cdr);
-  }
-
   ~Pair() override = default;
 
   Expr* car_;
@@ -293,8 +287,9 @@ class Pair : public Expr {
 
 class Vector : public Expr {
  public:
-  static Vector* New(std::vector<Expr*> vals) {
-    return new Vector(std::move(vals));
+  explicit Vector(std::vector<Expr*> vals)
+      : Expr(Type::VECTOR), vals_(std::move(vals)) {
+    vals_.shrink_to_fit();
   }
 
   // Expr implementation:
@@ -309,10 +304,6 @@ class Vector : public Expr {
   const std::vector<Expr*>& vals() const { return vals_; }
 
  private:
-  explicit Vector(std::vector<Expr*> vals)
-      : Expr(Type::VECTOR), vals_(std::move(vals)) {
-    vals_.shrink_to_fit();
-  }
   ~Vector() override = default;
 
   std::vector<Expr*> vals_;
@@ -320,7 +311,8 @@ class Vector : public Expr {
 
 class Env : public Expr {
  public:
-  static Env* New(Env* enclosing = nullptr) { return new Env(enclosing); }
+  explicit Env(Env* enclosing = nullptr)
+      : Expr(Type::ENV), enclosing_(enclosing) {}
 
   // Expr implementation:
   const Env* AsEnv() const override { return this; }
@@ -333,7 +325,6 @@ class Env : public Expr {
   void SetVar(Symbol* var, Expr* expr);
 
  private:
-  explicit Env(Env* enclosing) : Expr(Type::ENV), enclosing_(enclosing) {}
   ~Env() override = default;
 
   struct VarHash {
@@ -385,7 +376,7 @@ Expr* ListFromIt(T it, T e) {
 
 // Alias for new Pair
 inline Pair* Cons(Expr* e1, Expr* e2) {
-  return Pair::New(e1, e2);
+  return new Pair(e1, e2);
 }
 
 #define TRY_AS_IMPL(op, etype)                                               \

@@ -140,7 +140,7 @@ Expr* MostOp(Env* env, Expr** args, size_t num_args) {
   if (has_inexact && ret->exact()) {
     auto* int_ret = ret->AsInt();
     assert(int_ret);
-    return Float::New(int_ret->val());
+    return new Float(int_ret->val());
   }
 
   return ret;
@@ -245,7 +245,7 @@ Expr* LambdaImpl::DoEval(Env* /* env */, Expr** args, size_t num_args) const {
   EvalArgs(env_, args, num_args);
 
   auto arg_it = args;
-  auto* new_env = expr::Env::New(env_);
+  auto* new_env = new Env(env_);
 
   for (auto* sym : required_args_) {
     new_env->DefineVar(sym, *arg_it++);
@@ -315,7 +315,7 @@ Int* TryIntOrRounds(Expr* expr, bool* is_exact) {
   }
 
   *is_exact = false;
-  return Int::New(as_float->val());
+  return new Int(as_float->val());
 }
 
 }  // namespace
@@ -667,7 +667,7 @@ Expr* Or::DoEval(Env* env, Expr** args, size_t num_args) const {
 Expr* Let::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
   Expr* cur = TryPair(args[0]);
-  auto* new_env = Env::New(env);
+  auto* new_env = new Env(env);
   while (auto* pair = cur->AsPair()) {
     static const char kErrMessage[] = "let: Expected binding: (var val)";
     auto* binding = pair->car()->AsPair();
@@ -698,7 +698,7 @@ Expr* Let::DoEval(Env* env, Expr** args, size_t num_args) const {
 Expr* LetStar::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
   Expr* cur = TryPair(args[0]);
-  auto* new_env = Env::New(env);
+  auto* new_env = new Env(env);
   while (auto* pair = cur->AsPair()) {
     static const char kErrMessage[] = "let*: Expected binding: (var val)";
     auto* binding = pair->car()->AsPair();
@@ -729,7 +729,7 @@ Expr* LetStar::DoEval(Env* env, Expr** args, size_t num_args) const {
 Expr* LetRec::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
   Expr* cur = TryPair(args[0]);
-  auto* new_env = Env::New(env);
+  auto* new_env = new Env(env);
   std::vector<std::pair<Symbol*, Expr*>> bindings;
   while (auto* pair = cur->AsPair()) {
     static const char kErrMessage[] = "let*: Expected binding: (var val)";
@@ -827,11 +827,11 @@ Expr* IsEven::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Plus::DoEval(Env* env, Expr** args, size_t num_args) const {
-  return ArithOp<std::plus>(env, Int::New(0), args, num_args);
+  return ArithOp<std::plus>(env, new Int(0), args, num_args);
 }
 
 Expr* Star::DoEval(Env* env, Expr** args, size_t num_args) const {
-  return ArithOp<std::multiplies>(env, Int::New(1), args, num_args);
+  return ArithOp<std::multiplies>(env, new Int(1), args, num_args);
 }
 
 Expr* Minus::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -850,12 +850,12 @@ Expr* Abs::DoEval(Env* env, Expr** args, size_t num_args) const {
   auto* num = TryNumber(args[0]);
 
   if (auto* as_int = num->AsInt()) {
-    return as_int->val() >= 0 ? as_int : Int::New(-as_int->val());
+    return as_int->val() >= 0 ? as_int : new Int(-as_int->val());
   }
 
   auto* as_float = num->AsFloat();
   assert(as_float);
-  return as_float->val() >= 0.0 ? as_float : Float::New(-as_float->val());
+  return as_float->val() >= 0.0 ? as_float : new Float(-as_float->val());
 }
 
 Expr* Quotient::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -868,9 +868,9 @@ Expr* Quotient::DoEval(Env* env, Expr** args, size_t num_args) const {
   Int::ValType ret = arg1->val() / arg2->val();
 
   if (is_exact) {
-    return Int::New(ret);
+    return new Int(ret);
   }
-  return Float::New(ret);
+  return new Float(ret);
 }
 
 Expr* Remainder::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -884,9 +884,9 @@ Expr* Remainder::DoEval(Env* env, Expr** args, size_t num_args) const {
   Int::ValType ret = arg1->val() - arg2->val() * quotient;
 
   if (is_exact) {
-    return Int::New(ret);
+    return new Int(ret);
   }
-  return Float::New(ret);
+  return new Float(ret);
 }
 
 Expr* Modulo::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -903,9 +903,9 @@ Expr* Modulo::DoEval(Env* env, Expr** args, size_t num_args) const {
   }
 
   if (is_exact) {
-    return Int::New(ret);
+    return new Int(ret);
   }
-  return Float::New(ret);
+  return new Float(ret);
 }
 
 // TODO(bcf): Implement in lisp
@@ -943,7 +943,7 @@ Expr* Floor::DoEval(Env* env, Expr** args, size_t num_args) const {
   }
 
   assert(num->num_type() == Number::Type::FLOAT);
-  return Float::New(std::floor(num->AsFloat()->val()));
+  return new Float(std::floor(num->AsFloat()->val()));
 }
 
 Expr* Ceiling::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -955,7 +955,7 @@ Expr* Ceiling::DoEval(Env* env, Expr** args, size_t num_args) const {
   }
 
   assert(num->num_type() == Number::Type::FLOAT);
-  return Float::New(std::ceil(num->AsFloat()->val()));
+  return new Float(std::ceil(num->AsFloat()->val()));
 }
 
 Expr* Truncate::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -967,7 +967,7 @@ Expr* Truncate::DoEval(Env* env, Expr** args, size_t num_args) const {
   }
 
   assert(num->num_type() == Number::Type::FLOAT);
-  return Float::New(std::trunc(num->AsFloat()->val()));
+  return new Float(std::trunc(num->AsFloat()->val()));
 }
 
 Expr* Round::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -979,7 +979,7 @@ Expr* Round::DoEval(Env* env, Expr** args, size_t num_args) const {
   }
 
   assert(num->num_type() == Number::Type::FLOAT);
-  return Float::New(std::round(num->AsFloat()->val()));
+  return new Float(std::round(num->AsFloat()->val()));
 }
 
 Expr* Rationalize::DoEval(Env* env, Expr** args, size_t num_args) const {

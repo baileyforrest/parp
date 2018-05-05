@@ -28,6 +28,8 @@
 #include "parse/lexer.h"
 #include "util/exceptions.h"
 
+using expr::Vector;
+
 namespace parse {
 
 namespace {
@@ -187,7 +189,7 @@ expr::Expr* DatumParser::ParseVector() {
   }
   AdvTok();  // Skip RPAREN
 
-  return expr::Vector::New(std::move(exprs));
+  return new Vector(std::move(exprs));
 }
 
 }  // namespace
