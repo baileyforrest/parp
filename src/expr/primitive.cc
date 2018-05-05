@@ -18,7 +18,9 @@
  */
 
 #include <cmath>
+#include <cctype>
 #include <functional>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <set>
@@ -368,6 +370,33 @@ Expr* CopyList(Expr* list, Pair** last_link) {
 
   *last_link = prev;
   return ret;
+}
+
+template <template <typename T> class Op>
+Expr* EvalCharOp(Env* env, Expr** args, size_t num_args) {
+  EvalArgs(env, args, num_args);
+  auto* c1 = TryChar(args[0]);
+  auto* c2 = TryChar(args[1]);
+
+  Op<Char::ValType> op;
+  return op(c1->val(), c2->val()) ? True() : False();
+}
+
+template <template <typename T> class Op>
+Expr* EvalCharCiOp(Env* env, Expr** args, size_t num_args) {
+  EvalArgs(env, args, num_args);
+  auto* c1 = TryChar(args[0]);
+  auto* c2 = TryChar(args[1]);
+
+  Op<Char::ValType> op;
+  return op(std::tolower(c1->val()), std::tolower(c2->val())) ? True()
+                                                              : False();
+}
+
+template <int (*Op)(int)>
+Expr* CheckUnaryCharOp(Env* env, Expr** args, size_t num_args) {
+  EvalArgs(env, args, num_args);
+  return Op(TryChar(args[0])->val()) ? True() : False();
 }
 
 }  // namespace
@@ -1509,123 +1538,114 @@ Expr* StringToSymbol::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* IsChar::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return args[0]->type() == Expr::Type::CHAR ? True() : False();
 }
 
 Expr* IsCharEq::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalCharOp<std::equal_to>(env, args, num_args);
 }
 
 Expr* IsCharLt::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalCharOp<std::less>(env, args, num_args);
 }
 
 Expr* IsCharGt::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalCharOp<std::greater>(env, args, num_args);
 }
 
 Expr* IsCharLe::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalCharOp<std::less_equal>(env, args, num_args);
 }
 
 Expr* IsCharGe::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalCharOp<std::greater_equal>(env, args, num_args);
 }
 
 Expr* IsCharCiEq::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalCharCiOp<std::equal_to>(env, args, num_args);
 }
 
 Expr* IsCharCiLt::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalCharCiOp<std::less>(env, args, num_args);
 }
 
 Expr* IsCharCiGt::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalCharCiOp<std::greater>(env, args, num_args);
 }
 
 Expr* IsCharCiLe::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalCharCiOp<std::less_equal>(env, args, num_args);
 }
 
 Expr* IsCharCiGe::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  return EvalCharCiOp<std::greater_equal>(env, args, num_args);
 }
 
 Expr* IsCharAlphabetic::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  return CheckUnaryCharOp<std::isalpha>(env, args, num_args);
 }
 
 Expr* IsCharNumeric::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  return CheckUnaryCharOp<std::isdigit>(env, args, num_args);
 }
 
 Expr* IsCharWhitespace::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  return CheckUnaryCharOp<std::isspace>(env, args, num_args);
 }
 
 Expr* IsCharUpperCase::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  return CheckUnaryCharOp<std::isupper>(env, args, num_args);
 }
 
 Expr* IsCharLowerCase::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  return CheckUnaryCharOp<std::tolower>(env, args, num_args);
 }
 
 Expr* CharToInteger::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return new Int(TryChar(args[0])->val());
 }
 
 Expr* IntegerToChar::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  auto* as_int = TryInt(args[0]);
+  if (as_int->val() > std::numeric_limits<Char::ValType>::max()) {
+    throw new RuntimeException("Value out of range", as_int);
+  }
+  return new Char(as_int->val());
 }
 
 Expr* CharUpCase::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  auto char_val = TryChar(args[0])->val();
+  return std::isupper(char_val) ? args[0] : new Char(std::toupper(char_val));
 }
 
 Expr* CharDownCase::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  auto char_val = TryChar(args[0])->val();
+  return std::islower(char_val) ? args[0] : new Char(std::tolower(char_val));
 }
 
 Expr* IsString::DoEval(Env* env, Expr** args, size_t num_args) const {

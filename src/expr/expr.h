@@ -176,7 +176,9 @@ class Bool : public Expr {
 
 class Char : public Expr {
  public:
-  explicit Char(char val) : Expr(Type::CHAR), val_(val) {}
+  using ValType = char;
+
+  explicit Char(ValType val) : Expr(Type::CHAR), val_(val) {}
 
   // Expr implementation:
   const Char* AsChar() const override { return this; }
@@ -186,12 +188,12 @@ class Char : public Expr {
     return val_ == other->AsChar()->val_;
   }
 
-  char val() const { return val_; }
+  ValType val() const { return val_; }
 
  private:
   ~Char() override = default;
 
-  const char val_;
+  const ValType val_;
 };
 
 // TODO(bcf): Optimize for readonly strings.
