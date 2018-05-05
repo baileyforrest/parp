@@ -734,4 +734,34 @@ TEST_F(EvalTest, StringToSymbol) {
 #endif
 }
 
+TEST_F(EvalTest, VectorRef) {
+  EXPECT_EQ(*IntExpr(8), *EvalStr("(vector-ref '#(1 1 2 3 5 8 13 21) 5)"));
+
+  // clang-format off
+  EXPECT_EQ(*IntExpr(13), *EvalStr(
+      "(vector-ref '#(1 1 2 3 5 8 13 21)"
+      "  (let ((i (round (* 2 (acos -1)))))"
+      "    (if (inexact? i)"
+      "        (inexact->exact i)"
+      "        i)))"));
+  // clang-format on
+}
+
+TEST_F(EvalTest, VectorSet) {
+  // clang-format off
+  EXPECT_EQ(*EvalStr(
+      "(let ((vec (vector 0 '(2 2 2 2) \"Anna\")))"
+      "  (vector-set! vec 1 '(\"Sue\" \"Sue\"))"
+      "  vec)"),
+    *EvalStr("#(0 (\"Sue\" \"Sue\") \"Anna\")"));
+  // clang-format on
+}
+
+TEST_F(EvalTest, VectorListConversion) {
+  EXPECT_EQ(*EvalStr("(vector->list '#(dah dah didah))"),
+            *EvalStr("'(dah dah didah)"));
+  EXPECT_EQ(*EvalStr("(list->vector '(dididit dah))"),
+            *EvalStr("#(dididit dah)"));
+}
+
 }  // namespace eval

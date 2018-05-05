@@ -401,10 +401,16 @@ Expr* CheckUnaryCharOp(Env* env, Expr** args, size_t num_args) {
   return Op(TryChar(args[0])->val()) ? True() : False();
 }
 
-Int::ValType TryGetNonNegExactIntVal(Expr* expr) {
+Int::ValType TryGetNonNegExactIntVal(
+    Expr* expr,
+    Int::ValType max = std::numeric_limits<Int::ValType>::max()) {
   auto ret = TryInt(expr)->val();
   if (ret < 0) {
     throw RuntimeException("Expected exact positive integer", expr);
+  }
+  if (ret >= max) {
+    auto msg = "index out of range, expected <= " + std::to_string(max);
+    throw RuntimeException(std::move(msg), expr);
   }
   return ret;
 }
@@ -1714,11 +1720,8 @@ Expr* StringLength::DoEval(Env* env, Expr** args, size_t num_args) const {
 Expr* StringRef::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
   EvalArgs(env, args, num_args);
-  auto idx = TryGetNonNegExactIntVal(args[1]);
   auto& string_val = TryString(args[0])->val();
-  if (static_cast<size_t>(idx) >= string_val.size()) {
-    throw new RuntimeException("index out of range", args[1]);
-  }
+  auto idx = TryGetNonNegExactIntVal(args[1], string_val.size());
   return new Char(string_val[idx]);
 }
 
@@ -1730,7 +1733,7 @@ Expr* StringSet::DoEval(Env* env, Expr** args, size_t num_args) const {
     throw new RuntimeException("Attempt to write read only string", str);
   }
 
-  auto idx = TryGetNonNegExactIntVal(args[1]);
+  auto idx = TryGetNonNegExactIntVal(args[1], str->val().size());
   str->set_val_idx(idx, TryChar(args[2])->val());
   return Nil();
 }
@@ -1788,10 +1791,11 @@ Expr* IsStringGeCi::DoEval(Env* env, Expr** args, size_t num_args) const {
 Expr* Substring::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(3);
   EvalArgs(env, args, num_args);
-  auto start = TryGetNonNegExactIntVal(args[1]);
-  auto end = TryGetNonNegExactIntVal(args[2]);
+  auto& str_val = TryString(args[0])->val();
+  auto start = TryGetNonNegExactIntVal(args[1], str_val.size());
+  auto end = TryGetNonNegExactIntVal(args[2], str_val.size());
 
-  return new expr::String(TryString(args[0])->val().substr(start, end - start));
+  return new expr::String(str_val.substr(start, end - start));
 }
 
 Expr* StringAppend::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -1847,57 +1851,84 @@ Expr* StringFill::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* IsVector::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return args[0]->type() == Expr::Type::VECTOR ? True() : False();
 }
 
 Expr* MakeVector::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_LE(2);
+  EvalArgs(env, args, num_args);
+
+  auto count = TryGetNonNegExactIntVal(args[0]);
+  Expr* init_val = num_args == 2 ? args[1] : Nil();
+  return new expr::Vector(std::vector<Expr*>(count, init_val));
 }
 
 Expr* Vector::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EvalArgs(env, args, num_args);
+  return new expr::Vector(std::vector<Expr*>(args, args + num_args));
 }
 
 Expr* VectorLength::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return new Int(TryVector(args[0])->vals().size());
 }
 
 Expr* VectorRef::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  auto& vec = TryVector(args[0])->vals();
+  auto idx = TryGetNonNegExactIntVal(args[1], vec.size());
+  return vec[idx];
 }
 
 Expr* VectorSet::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(3);
+  EvalArgs(env, args, num_args);
+  auto& vec = TryVector(args[0])->vals();
+  auto idx = TryGetNonNegExactIntVal(args[1], vec.size());
+  vec[idx] = args[2];
+  return Nil();
 }
 
 Expr* VectorToList::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  Expr* ret = Nil();
+  auto& vec_val = TryVector(args[0])->vals();
+  for (auto it = vec_val.rbegin(); it != vec_val.rend(); ++it) {
+    ret = new Pair(*it, ret);
+  }
+
+  return ret;
 }
 
 Expr* ListToVector::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+
+  std::vector<Expr*> exprs;
+
+  Expr* cur = args[0];
+  for (; auto* list = cur->AsPair(); cur = list->cdr()) {
+    exprs.push_back(list->car());
+  }
+
+  return new expr::Vector(std::move(exprs));
 }
 
 Expr* VectorFill::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  auto& vec_val = TryVector(args[0])->vals();
+
+  for (auto& val : vec_val) {
+    val = args[1];
+  }
+
+  return Nil();
 }
 
 Expr* IsProcedure::DoEval(Env* env, Expr** args, size_t num_args) const {

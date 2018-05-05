@@ -218,8 +218,8 @@ X(Vector, vector)
 X(VectorLength, vector-length)
 X(VectorRef, vector-ref)
 X(VectorSet, vector-set!)
-X(VectorToList, vector-to-list)
-X(ListToVector, list-to-vector)
+X(VectorToList, vector->list)
+X(ListToVector, list->vector)
 X(VectorFill, vector-fill)
 
 // 6.4. Control features

@@ -312,6 +312,7 @@ class Vector : public Expr {
   }
   bool EqualImpl(const Expr* other) const override;
 
+  std::vector<Expr*>& vals() { return vals_; }
   const std::vector<Expr*>& vals() const { return vals_; }
 
  private:
