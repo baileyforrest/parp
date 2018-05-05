@@ -82,11 +82,7 @@ std::ostream& Apply::AppendStream(std::ostream& stream) const {
 Expr* Apply::DoEval(Env* env, Expr** exprs, size_t size) const {
   assert(!exprs);
   assert(size == 0);
-  auto* val = eval::DoEval(op_, env);
-  auto* evals = val->AsEvals();
-  if (!evals) {
-    throw util::RuntimeException("Expected evaluating value", val);
-  }
+  auto* evals = expr::TryEvals(eval::DoEval(op_, env));
   auto args_copy = args_;
   return evals->DoEval(env, args_copy.data(), args_copy.size());
 }
@@ -101,9 +97,6 @@ Expr* Analyze(Expr* expr) {
 
   auto* op = Analyze(pair->car());
   auto args = ExprVecFromList(pair->cdr());
-  auto refs = args;
-  refs.push_back(op);
-
   return Apply::New(op, args);
 }
 

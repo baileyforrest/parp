@@ -402,22 +402,18 @@ inline Pair* Cons(Expr* e1, Expr* e2) {
   }
 
 // TODO(bcf): Replace similar pattern with these.
-inline EmptyList* TryEmptyList(Expr* expr)
-    TRY_AS_IMPL(AsEmptyList, EMPTY_LIST) inline Bool* TryBool(
-        Expr* expr) TRY_AS_IMPL(AsBool,
-                                BOOL) inline Number* TryNumber(Expr* expr)
-        TRY_AS_IMPL(AsNumber, NUMBER) inline Char* TryChar(
-            Expr* expr) TRY_AS_IMPL(AsChar,
-                                    CHAR) inline String* TryString(Expr* expr)
-            TRY_AS_IMPL(AsString, STRING) inline Symbol* TrySymbol(Expr* expr)
-                TRY_AS_IMPL(AsSymbol, SYMBOL) inline Pair* TryPair(Expr* expr)
-                    TRY_AS_IMPL(AsPair,
-                                PAIR) inline Vector* TryVector(Expr* expr)
-                        TRY_AS_IMPL(AsVector,
-                                    VECTOR) inline Env* TryEnv(Expr* expr)
-                            TRY_AS_IMPL(AsEnv,
-                                        ENV) inline Evals* TryEvals(Expr* expr)
-                                TRY_AS_IMPL(AsEvals, EVALS)
+// clang-format off
+inline EmptyList* TryEmptyList(Expr* expr) TRY_AS_IMPL(AsEmptyList, EMPTY_LIST)
+inline Bool* TryBool(Expr* expr) TRY_AS_IMPL(AsBool, BOOL)
+inline Number* TryNumber(Expr* expr) TRY_AS_IMPL(AsNumber, NUMBER)
+inline Char* TryChar(Expr* expr) TRY_AS_IMPL(AsChar, CHAR)
+inline String* TryString(Expr* expr) TRY_AS_IMPL(AsString, STRING)
+inline Symbol* TrySymbol(Expr* expr) TRY_AS_IMPL(AsSymbol, SYMBOL)
+inline Pair* TryPair(Expr* expr) TRY_AS_IMPL(AsPair, PAIR)
+inline Vector* TryVector(Expr* expr) TRY_AS_IMPL(AsVector, VECTOR)
+inline Env* TryEnv(Expr* expr) TRY_AS_IMPL(AsEnv, ENV)
+inline Evals* TryEvals(Expr* expr) TRY_AS_IMPL(AsEvals, EVALS)
+// clang-format on
 
 #undef TRY_AS_IMPL
 
