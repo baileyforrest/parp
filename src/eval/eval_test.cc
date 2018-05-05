@@ -668,4 +668,17 @@ TEST_F(EvalTest, Append) {
   EXPECT_EQ(*EvalStr("(append '() 'a)"), *EvalStr("'a"));
 }
 
+TEST_F(EvalTest, Reverse) {
+  EXPECT_EQ(*EvalStr("(reverse '(a b c))"), *EvalStr("'(c b a)"));
+  EXPECT_EQ(*EvalStr("(reverse '(a (b c) d (e (f))))"),
+            *EvalStr("'((e (f)) d (b c) a)"));
+}
+
+TEST_F(EvalTest, ListTail) {
+  EXPECT_EQ(*EvalStr("(list-tail '(a b c) 3)"), *EvalStr("'()"));
+  EXPECT_EQ(*EvalStr("(list-tail '(a b c d) 3)"), *EvalStr("'(d)"));
+  EXPECT_THROW((void)EvalStr("(list-tail '(a b c d) 10)"),
+               util::RuntimeException);
+}
+
 }  // namespace eval

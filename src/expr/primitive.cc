@@ -315,7 +315,7 @@ Int::ValType TryGetIntValOrRound(Expr* expr, bool* is_exact) {
   auto* as_float = num->AsFloat();
   assert(as_float);
   if (std::trunc(as_float->val()) != as_float->val()) {
-    throw new RuntimeException("Expected integer", as_float);
+    throw RuntimeException("Expected integer", as_float);
   }
 
   *is_exact = false;
@@ -351,7 +351,7 @@ Expr* CopyList(Expr* list, Pair** last_link) {
   Expr* cur = list;
   Expr* ret = Nil();
   Pair* prev = nullptr;
-  while (auto* list = cur->AsPair()) {
+  for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     Pair* copy = new Pair(list->car(), Nil());
 
     if (prev) {
@@ -360,11 +360,10 @@ Expr* CopyList(Expr* list, Pair** last_link) {
       ret = copy;
     }
     prev = copy;
-    cur = list->cdr();
   }
 
   if (cur != Nil()) {
-    throw new RuntimeException("Expected list", list);
+    throw RuntimeException("Expected list", list);
   }
 
   *last_link = prev;
@@ -1164,8 +1163,8 @@ Expr* NumberToString::DoEval(Env* env, Expr** args, size_t num_args) const {
   int radix = num_args == 2 ? TryInt(args[1])->val() : 10;
   if (auto* as_float = num->AsFloat()) {
     if (radix != 10) {
-      throw new RuntimeException(
-          "inexact numbers can only be printed in base 10", this);
+      throw RuntimeException("inexact numbers can only be printed in base 10",
+                             this);
     }
 
     std::ostringstream oss;
@@ -1204,7 +1203,7 @@ Expr* NumberToString::DoEval(Env* env, Expr** args, size_t num_args) const {
       break;
     }
     default:
-      throw new RuntimeException("radix must be one of 2 8 10 16", this);
+      throw RuntimeException("radix must be one of 2 8 10 16", this);
   }
 
   return new expr::String(ret);
@@ -1284,13 +1283,12 @@ Expr* IsList::DoEval(Env* env, Expr** args, size_t num_args) const {
   Expr* cur = args[0];
 
   std::set<Expr*> seen;
-  while (auto* list = cur->AsPair()) {
+  for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     // If we found a loop, it's not a list.
     if (seen.find(list) != seen.end()) {
       return False();
     }
     seen.insert(list);
-    cur = list->cdr();
   }
 
   return cur == Nil() ? True() : False();
@@ -1311,13 +1309,12 @@ Expr* Length::DoEval(Env* env, Expr** args, size_t num_args) const {
   EvalArgs(env, args, num_args);
   Int::ValType ret = 0;
   Expr* cur = args[0];
-  while (auto* list = cur->AsPair()) {
-    cur = list->cdr();
+  for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     ++ret;
   }
 
   if (cur != Nil()) {
-    throw new RuntimeException("Expected list", args[0]);
+    throw RuntimeException("Expected list", args[0]);
   }
 
   return new Int(ret);
@@ -1357,15 +1354,43 @@ Expr* Append::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Reverse::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  Expr* ret = Nil();
+  Expr* cur = args[0];
+  for (; auto* list = cur->AsPair(); cur = list->cdr()) {
+    ret = new Pair(list->car(), ret);
+  }
+
+  if (cur != Nil()) {
+    throw RuntimeException("Expected list", args[0]);
+  }
+
+  return ret;
 }
 
 Expr* ListTail::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  Int::ValType k = TryInt(args[1])->val();
+
+  Expr* cur = args[0];
+  for (; auto *list = cur->AsPair(); cur = list->cdr(), --k) {
+    if (k == 0) {
+      return cur;
+    }
+  }
+
+  if (cur != Nil()) {
+    throw RuntimeException("Expected list", args[0]);
+  }
+
+  if (k != 0) {
+    std::cout << k << "\n";
+    throw RuntimeException("index too large for list", this);
+  }
+
+  return Nil();
 }
 
 Expr* ListRef::DoEval(Env* env, Expr** args, size_t num_args) const {
