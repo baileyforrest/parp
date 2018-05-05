@@ -908,12 +908,14 @@ Expr* Modulo::DoEval(Env* env, Expr** args, size_t num_args) const {
   return Float::New(ret);
 }
 
+// TODO(bcf): Implement in lisp
 Expr* Gcd::DoEval(Env* env, Expr** args, size_t num_args) const {
   throw util::RuntimeException("Not implemented", this);
   assert(false && env && args && num_args);
   return nullptr;
 }
 
+// TODO(bcf): Implement in lisp
 Expr* Lcm::DoEval(Env* env, Expr** args, size_t num_args) const {
   throw util::RuntimeException("Not implemented", this);
   assert(false && env && args && num_args);
@@ -933,27 +935,51 @@ Expr* Denominator::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Floor::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  auto* num = TryNumber(args[0]);
+  if (num->num_type() == Number::Type::INT) {
+    return num;
+  }
+
+  assert(num->num_type() == Number::Type::FLOAT);
+  return Float::New(std::floor(num->AsFloat()->val()));
 }
 
 Expr* Ceiling::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  auto* num = TryNumber(args[0]);
+  if (num->num_type() == Number::Type::INT) {
+    return num;
+  }
+
+  assert(num->num_type() == Number::Type::FLOAT);
+  return Float::New(std::ceil(num->AsFloat()->val()));
 }
 
 Expr* Truncate::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  auto* num = TryNumber(args[0]);
+  if (num->num_type() == Number::Type::INT) {
+    return num;
+  }
+
+  assert(num->num_type() == Number::Type::FLOAT);
+  return Float::New(std::trunc(num->AsFloat()->val()));
 }
 
 Expr* Round::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  auto* num = TryNumber(args[0]);
+  if (num->num_type() == Number::Type::INT) {
+    return num;
+  }
+
+  assert(num->num_type() == Number::Type::FLOAT);
+  return Float::New(std::round(num->AsFloat()->val()));
 }
 
 Expr* Rationalize::DoEval(Env* env, Expr** args, size_t num_args) const {

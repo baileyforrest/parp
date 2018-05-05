@@ -523,4 +523,28 @@ TEST_F(EvalTest, Modulo) {
   EXPECT_EQ(*IntExpr(-1), *EvalStr("(modulo -13 -4)"));
 }
 
+TEST_F(EvalTest, Floor) {
+  EXPECT_EQ(*FloatExpr(-5.0), *EvalStr("(floor -4.3)"));
+  EXPECT_EQ(*FloatExpr(3.0), *EvalStr("(floor 3.5)"));
+}
+
+TEST_F(EvalTest, Ceiling) {
+  EXPECT_EQ(*FloatExpr(-4.0), *EvalStr("(ceiling -4.3)"));
+  EXPECT_EQ(*FloatExpr(4.0), *EvalStr("(ceiling 3.5)"));
+}
+
+TEST_F(EvalTest, Truncate) {
+  EXPECT_EQ(*FloatExpr(-4.0), *EvalStr("(truncate -4.3)"));
+  EXPECT_EQ(*FloatExpr(3.0), *EvalStr("(truncate 3.5)"));
+}
+
+TEST_F(EvalTest, Round) {
+  EXPECT_EQ(*FloatExpr(-4.0), *EvalStr("(round -4.3)"));
+  EXPECT_EQ(*FloatExpr(4.0), *EvalStr("(round 3.5)"));
+#if 0
+  EXPECT_EQ(*IntExpr(4), *EvalStr("(round 7/4)"));
+#endif
+  EXPECT_EQ(*IntExpr(7), *EvalStr("(round 7)"));
+}
+
 }  // namespace eval
