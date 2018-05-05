@@ -141,11 +141,6 @@ inline bool operator==(const Expr& lhs, const Expr& rhs) {
 
 class EmptyList : public Expr {
  public:
-  EmptyList() : Expr(Type::EMPTY_LIST) {}
-
- private:
-  friend EmptyList* Nil();
-
   // Expr implementation:
   const EmptyList* AsEmptyList() const override { return this; }
   EmptyList* AsEmptyList() override { return this; }
@@ -153,6 +148,10 @@ class EmptyList : public Expr {
     return stream << "'()";
   }
 
+ private:
+  friend EmptyList* Nil();
+
+  EmptyList() : Expr(Type::EMPTY_LIST) {}
   ~EmptyList() override = default;
 };
 
@@ -160,17 +159,16 @@ class Bool : public Expr {
  public:
   bool val() const { return val_; }
 
- private:
-  friend Bool* True();
-  friend Bool* False();
-
-  explicit Bool(bool val) : Expr(Type::BOOL), val_(val) {}
-
   // Expr implementation:
   const Bool* AsBool() const override { return this; }
   Bool* AsBool() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
+ private:
+  friend Bool* True();
+  friend Bool* False();
+
+  explicit Bool(bool val) : Expr(Type::BOOL), val_(val) {}
   ~Bool() override = default;
 
   const bool val_;
@@ -180,9 +178,6 @@ class Char : public Expr {
  public:
   static Char* New(char c) { return new Char(c); }
 
-  char val() const { return val_; }
-
- private:
   // Expr implementation:
   const Char* AsChar() const override { return this; }
   Char* AsChar() override { return this; }
@@ -191,6 +186,9 @@ class Char : public Expr {
     return val_ == other->AsChar()->val_;
   }
 
+  char val() const { return val_; }
+
+ private:
   explicit Char(char val) : Expr(Type::CHAR), val_(val) {}
   ~Char() override = default;
 
@@ -204,9 +202,6 @@ class String : public Expr {
     return new String(std::move(val), read_only);
   }
 
-  const std::string& val() const { return val_; }
-
- private:
   // Expr implementation:
   const String* AsString() const override { return this; }
   String* AsString() override { return this; }
@@ -217,6 +212,9 @@ class String : public Expr {
     return val_ == other->AsString()->val_;
   }
 
+  const std::string& val() const { return val_; }
+
+ private:
   explicit String(std::string val, bool read_only)
       : Expr(Type::STRING), val_(std::move(val)), read_only_(read_only) {
     val_.shrink_to_fit();
@@ -235,9 +233,6 @@ class Symbol : public Expr {
     return new Symbol(std::move(val));
   }
 
-  const std::string& val() const { return val_; }
-
- private:
   // Expr implementation:
   const Symbol* AsSymbol() const override { return this; }
   Symbol* AsSymbol() override { return this; }
@@ -248,6 +243,9 @@ class Symbol : public Expr {
     return val_ == other->AsSymbol()->val_;
   }
 
+  const std::string& val() const { return val_; }
+
+ private:
   explicit Symbol(std::string val) : Expr(Type::SYMBOL), val_(std::move(val)) {
     assert(val_.size() > 0);
   }
@@ -260,14 +258,6 @@ class Pair : public Expr {
  public:
   static Pair* New(Expr* car, Expr* cdr) { return new Pair(car, cdr); }
 
-  expr::Expr* Cr(const std::string& str) const;
-
-  Expr* car() const { return car_; }
-  Expr* cdr() const { return cdr_; }
-  void set_car(Expr* expr) { car_ = expr; }
-  void set_cdr(Expr* expr) { cdr_ = expr; }
-
- private:
   // Expr implementation:
   const Pair* AsPair() const override { return this; }
   Pair* AsPair() override { return this; }
@@ -282,6 +272,14 @@ class Pair : public Expr {
            cdr_->Equal(other->AsPair()->cdr_);
   }
 
+  expr::Expr* Cr(const std::string& str) const;
+
+  Expr* car() const { return car_; }
+  Expr* cdr() const { return cdr_; }
+  void set_car(Expr* expr) { car_ = expr; }
+  void set_cdr(Expr* expr) { cdr_ = expr; }
+
+ private:
   Pair(Expr* car, Expr* cdr) : Expr(Type::PAIR), car_(car), cdr_(cdr) {
     assert(car);
     assert(cdr);
@@ -299,9 +297,6 @@ class Vector : public Expr {
     return new Vector(std::move(vals));
   }
 
-  const std::vector<Expr*>& vals() const { return vals_; }
-
- private:
   // Expr implementation:
   const Vector* AsVector() const override { return this; }
   Vector* AsVector() override { return this; }
@@ -311,6 +306,9 @@ class Vector : public Expr {
   }
   bool EqualImpl(const Expr* other) const override;
 
+  const std::vector<Expr*>& vals() const { return vals_; }
+
+ private:
   explicit Vector(std::vector<Expr*> vals)
       : Expr(Type::VECTOR), vals_(std::move(vals)) {
     vals_.shrink_to_fit();
@@ -324,17 +322,17 @@ class Env : public Expr {
  public:
   static Env* New(Env* enclosing = nullptr) { return new Env(enclosing); }
 
+  // Expr implementation:
+  const Env* AsEnv() const override { return this; }
+  Env* AsEnv() override { return this; }
+  std::ostream& AppendStream(std::ostream& stream) const override;
+
   Expr* Lookup(Symbol* var) const;
   const Env* enclosing() const { return enclosing_; }
   void DefineVar(Symbol* var, Expr* expr) { map_[var] = expr; }
   void SetVar(Symbol* var, Expr* expr);
 
  private:
-  // Expr implementation:
-  const Env* AsEnv() const override { return this; }
-  Env* AsEnv() override { return this; }
-  std::ostream& AppendStream(std::ostream& stream) const override;
-
   explicit Env(Env* enclosing) : Expr(Type::ENV), enclosing_(enclosing) {}
   ~Env() override = default;
 
@@ -356,11 +354,11 @@ class Evals : public Expr {
  public:
   virtual Expr* DoEval(Env* env, Expr** args, size_t num_args) const = 0;
 
- protected:
   // Expr implementation:
   const Evals* AsEvals() const override { return this; }
   Evals* AsEvals() override { return this; }
 
+ protected:
   Evals() : Expr(Type::EVALS) {}
   virtual ~Evals() = default;
 };

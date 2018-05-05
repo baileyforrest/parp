@@ -58,16 +58,6 @@
     }                                                                 \
   } while (0)
 
-#define EXPECT_TYPE(expected, expr)                              \
-  do {                                                           \
-    if (Expr::Type::expected != expr->type()) {                  \
-      std::ostringstream os;                                     \
-      os << "Expected type " << Expr::Type::expected << ". Got " \
-         << expr->type();                                        \
-      throw RuntimeException(os.str(), expr);                    \
-    }                                                            \
-  } while (0)
-
 using eval::Eval;
 using util::RuntimeException;
 
@@ -98,12 +88,9 @@ template <template <typename T> class Op>
 Number* ArithOp(Env* env, Expr* initial, Expr** args, size_t num_args) {
   initial = Eval(initial, env);
   EvalArgs(env, args, num_args);
-  EXPECT_TYPE(NUMBER, initial);
-  Number* result = initial->AsNumber();
+  Number* result = TryNumber(initial);
   for (size_t i = 0; i < num_args; ++i) {
-    auto* arg = args[i];
-    EXPECT_TYPE(NUMBER, arg);
-    result = OpInPlace<Op>(result, arg->AsNumber());
+    result = OpInPlace<Op>(result, TryNumber(args[i]));
   }
 
   return result;
@@ -112,12 +99,10 @@ Number* ArithOp(Env* env, Expr* initial, Expr** args, size_t num_args) {
 template <template <typename T> class Op>
 Expr* CmpOp(Env* env, Expr** args, size_t num_args) {
   EvalArgs(env, args, num_args);
-  EXPECT_TYPE(NUMBER, args[0]);
-  auto* last = args[0];
+  auto* last = TryNumber(args[0]);
   for (size_t i = 1; i < num_args; ++i) {
-    auto* cur = args[i];
-    EXPECT_TYPE(NUMBER, cur);
-    if (!OpCmp<Op>(last->AsNumber(), cur->AsNumber())) {
+    auto* cur = TryNumber(args[i]);
+    if (!OpCmp<Op>(last, cur)) {
       return False();
     }
     last = cur;
@@ -142,14 +127,13 @@ Expr* TestOp(Env* env, Expr** args, size_t num_args) {
 template <template <typename T> class Op>
 Expr* MostOp(Env* env, Expr** args, size_t num_args) {
   EvalArgs(env, args, num_args);
-  EXPECT_TYPE(NUMBER, args[0]);
-  Number* ret = args[0]->AsNumber();
+  Number* ret = TryNumber(args[0]);
   bool has_inexact = !ret->exact();
   for (size_t i = 1; i < num_args; ++i) {
-    EXPECT_TYPE(NUMBER, args[i]);
+    auto* arg = TryNumber(args[i]);
     has_inexact |= !ret->exact();
-    if (OpCmp<Op>(ret, args[i]->AsNumber())) {
-      ret = args[i]->AsNumber();
+    if (OpCmp<Op>(ret, arg)) {
+      ret = arg;
     }
   }
 
@@ -291,8 +275,7 @@ class CrImpl : public Evals {
   }
   Expr* DoEval(Env* /* env */, Expr** args, size_t num_args) const override {
     EXPECT_ARGS_NUM(1);
-    EXPECT_TYPE(PAIR, args[0]);
-    return args[0]->AsPair()->Cr(cr_);
+    return TryPair(args[0])->Cr(cr_);
   }
 
   explicit CrImpl(std::string cr) : cr_(cr) {}
@@ -352,14 +335,12 @@ Expr* Lambda::DoEval(Env* env, Expr** args, size_t num_args) const {
     case Type::PAIR: {
       Expr* cur_arg = args[0];
       while (auto* pair = cur_arg->AsPair()) {
-        EXPECT_TYPE(SYMBOL, pair->car());
-        auto* arg = pair->car()->AsSymbol();
+        auto* arg = TrySymbol(pair->car());
         req_args.push_back(arg);
         cur_arg = pair->cdr();
       }
       if (cur_arg != expr::Nil()) {
-        EXPECT_TYPE(SYMBOL, cur_arg);
-        var_arg = cur_arg->AsSymbol();
+        var_arg = TrySymbol(cur_arg);
       }
       break;
     };
@@ -391,8 +372,7 @@ Expr* If::DoEval(Env* env, Expr** args, size_t num_args) const {
 
 Expr* Set::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
-  EXPECT_TYPE(SYMBOL, args[0]);
-  env->SetVar(args[0]->AsSymbol(), args[1]);
+  env->SetVar(TrySymbol(args[0]), args[1]);
   return Nil();
 }
 
@@ -444,8 +424,7 @@ Expr* SyntaxRules::DoEval(Env* env, Expr** args, size_t num_args) const {
 
 Expr* Define::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
-  EXPECT_TYPE(SYMBOL, args[0]);
-  env->DefineVar(args[0]->AsSymbol(), Eval(args[1], env));
+  env->DefineVar(TrySymbol(args[0]), Eval(args[1], env));
   // TODO(bcf): handle define lambda.
 
   return Nil();
@@ -671,8 +650,7 @@ Expr* Or::DoEval(Env* env, Expr** args, size_t num_args) const {
 // TODO(bcf): Named let.
 Expr* Let::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
-  Expr* cur = args[0];
-  EXPECT_TYPE(PAIR, cur);
+  Expr* cur = TryPair(args[0]);
   auto* new_env = Env::New(env);
   while (auto* pair = cur->AsPair()) {
     static const char kErrMessage[] = "let: Expected binding: (var val)";
@@ -703,8 +681,7 @@ Expr* Let::DoEval(Env* env, Expr** args, size_t num_args) const {
 
 Expr* LetStar::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
-  Expr* cur = args[0];
-  EXPECT_TYPE(PAIR, cur);
+  Expr* cur = TryPair(args[0]);
   auto* new_env = Env::New(env);
   while (auto* pair = cur->AsPair()) {
     static const char kErrMessage[] = "let*: Expected binding: (var val)";
@@ -735,8 +712,7 @@ Expr* LetStar::DoEval(Env* env, Expr** args, size_t num_args) const {
 
 Expr* LetRec::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
-  Expr* cur = args[0];
-  EXPECT_TYPE(PAIR, cur);
+  Expr* cur = TryPair(args[0]);
   auto* new_env = Env::New(env);
   std::vector<std::pair<Symbol*, Expr*>> bindings;
   while (auto* pair = cur->AsPair()) {
@@ -853,9 +829,17 @@ Expr* Slash::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Abs::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  auto* num = TryNumber(args[0]);
+
+  if (auto* as_int = num->AsInt()) {
+    return as_int->val() >= 0 ? as_int : Int::New(-as_int->val());
+  }
+
+  auto* as_float = num->AsFloat();
+  assert(as_float);
+  return as_float->val() >= 0.0 ? as_float : Float::New(-as_float->val());
 }
 
 Expr* Quotient::DoEval(Env* env, Expr** args, size_t num_args) const {

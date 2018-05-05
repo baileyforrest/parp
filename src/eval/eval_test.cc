@@ -498,4 +498,9 @@ TEST_F(EvalTest, Slash) {
   EXPECT_EQ(*IntExpr(42), *EvalStr("(/ 504 -6 -2)"));
 }
 
+TEST_F(EvalTest, Abs) {
+  EXPECT_EQ(*IntExpr(7), *EvalStr("(abs -7)"));
+  EXPECT_EQ(*FloatExpr(42.0), *EvalStr("(abs -42.0)"));
+}
+
 }  // namespace eval
