@@ -236,7 +236,7 @@ std::ostream& LambdaImpl::AppendStream(std::ostream& stream) const {
   return stream << ")";
 }
 
-Expr* LambdaImpl::DoEval(Env* /* env */, Expr** args, size_t num_args) const {
+Expr* LambdaImpl::DoEval(Env* env, Expr** args, size_t num_args) const {
   if (num_args < required_args_.size()) {
     std::ostringstream os;
     os << "Invalid number of arguments. expected ";
@@ -248,7 +248,7 @@ Expr* LambdaImpl::DoEval(Env* /* env */, Expr** args, size_t num_args) const {
     os << " given: " << num_args;
     throw RuntimeException(os.str(), this);
   }
-  EvalArgs(env_, args, num_args);
+  EvalArgs(env, args, num_args);
 
   auto arg_it = args;
   auto* new_env = new Env(env_);
@@ -441,6 +441,94 @@ struct ICaseCmpStr {
   }
 };
 
+template <bool need_return>
+Expr* MapImpl(Env* env, Expr** args, size_t num_args) {
+  static constexpr char kEqualSizeListErr[] =
+      "Expected equal sized argument lists";
+  EvalArgs(env, args, num_args);
+  Evals* procedure = TryEvals(args[0]);
+
+  Expr* ret = Nil();
+  Pair* prev = nullptr;
+
+  while (true) {
+    bool done = false;
+    std::vector<Expr*> new_args(num_args - 1);
+    for (size_t i = 1; i < num_args; ++i) {
+      if (auto* list = args[i]->AsPair()) {
+        if (done) {
+          throw RuntimeException(kEqualSizeListErr, args[i]);
+        }
+        new_args[i - 1] = list->car();
+        args[i] = list->cdr();
+      } else {
+        if (args[i] != Nil()) {
+          throw RuntimeException("Expected list", args[i]);
+        }
+
+        if (i == 1) {
+          done = true;
+        } else {
+          if (!done) {
+            throw RuntimeException(kEqualSizeListErr, args[i]);
+          }
+        }
+      }
+    }
+    if (done) {
+      break;
+    }
+
+    // Quote non-self evaluating types to make sure they aren't considered an
+    // evaluation.
+    for (auto& expr : new_args) {
+      if (expr->type() == Expr::Type::PAIR ||
+          expr->type() == Expr::Type::SYMBOL) {
+        expr = new Pair(Symbol::New("quote"), new Pair(expr, Nil()));
+      }
+    }
+
+    Expr* res = procedure->DoEval(env, new_args.data(), new_args.size());
+    if (need_return) {
+      Pair* new_link = new Pair(res, Nil());
+      if (prev) {
+        prev->set_cdr(new_link);
+      } else {
+        ret = new_link;
+      }
+      prev = new_link;
+    }
+  }
+
+  return ret;
+}
+
+class Promise : public Evals {
+ public:
+  Promise(Expr* expr, Env* env) : expr_(expr), env_(env) {}
+
+  // Evals implementation:
+  std::ostream& AppendStream(std::ostream& stream) const override {
+    return stream << "promise";
+  }
+  Expr* DoEval(Env* /* env */,
+               Expr** /* args */,
+               size_t /* num_args */) const override {
+    if (!forced_val_) {
+      forced_val_ = Eval(expr_, env_);
+      expr_ = nullptr;
+      env_ = nullptr;
+    }
+
+    return forced_val_;
+  }
+
+ private:
+  mutable Expr* expr_;
+  mutable Env* env_;
+  mutable Expr* forced_val_ = nullptr;
+};
+
 }  // namespace
 
 namespace impl {
@@ -532,9 +620,8 @@ Expr* Do::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Delay::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  return new Promise(args[0], env);
 }
 
 Expr* Quasiquote::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -851,10 +938,11 @@ Expr* LetStar::DoEval(Env* env, Expr** args, size_t num_args) const {
 
 Expr* LetRec::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
-  Expr* cur = TryPair(args[0]);
   auto* new_env = new Env(env);
   std::vector<std::pair<Symbol*, Expr*>> bindings;
-  while (auto* pair = cur->AsPair()) {
+
+  Expr* cur = TryPair(args[0]);
+  for (; auto* pair = cur->AsPair(); cur = pair->cdr()) {
     static const char kErrMessage[] = "let*: Expected binding: (var val)";
     auto* binding = pair->car()->AsPair();
     if (!binding) {
@@ -872,14 +960,13 @@ Expr* LetRec::DoEval(Env* env, Expr** args, size_t num_args) const {
     auto* val = second_link->car();
     bindings.emplace_back(var, val);
     new_env->DefineVar(var, Nil());
-    cur = pair->cdr();
   }
   if (cur != Nil()) {
     throw RuntimeException("let: Malformed binding list", cur);
   }
 
   for (const auto& binding : bindings) {
-    new_env->SetVar(binding.first, Eval(binding.second, env));
+    new_env->SetVar(binding.first, Eval(binding.second, new_env));
   }
 
   return EvalArray(new_env, args + 1, num_args - 1);
@@ -1963,76 +2050,19 @@ Expr* Apply::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Map::DoEval(Env* env, Expr** args, size_t num_args) const {
-  static constexpr char kEqualSizeListErr[] =
-      "Expected equal sized argument lists";
   EXPECT_ARGS_GE(2);
-  EvalArgs(env, args, num_args);
-  Evals* procedure = TryEvals(args[0]);
-
-  Expr* ret = Nil();
-  Pair* prev = nullptr;
-
-  while (true) {
-    bool done = false;
-    std::vector<Expr*> new_args(num_args - 1);
-    for (size_t i = 1; i < num_args; ++i) {
-      if (auto* list = args[i]->AsPair()) {
-        if (done) {
-          throw RuntimeException(kEqualSizeListErr, args[i]);
-        }
-        new_args[i - 1] = list->car();
-        args[i] = list->cdr();
-      } else {
-        if (args[i] != Nil()) {
-          throw RuntimeException("Expected list", args[i]);
-        }
-
-        if (i == 1) {
-          done = true;
-        } else {
-          if (!done) {
-            throw RuntimeException(kEqualSizeListErr, args[i]);
-          }
-        }
-      }
-    }
-    if (done) {
-      break;
-    }
-
-    // Quote non-self evaluating types to make sure they aren't considered an
-    // evaluation.
-    for (auto& expr : new_args) {
-      if (expr->type() == Expr::Type::PAIR ||
-          expr->type() == Expr::Type::SYMBOL) {
-        expr = new Pair(Symbol::New("quote"), new Pair(expr, Nil()));
-      }
-    }
-
-    Expr* res = procedure->DoEval(env, new_args.data(), new_args.size());
-    Pair* new_link = new Pair(res, Nil());
-    if (prev) {
-      prev->set_cdr(new_link);
-    } else {
-      ret = new_link;
-    }
-
-    prev = new_link;
-  }
-
-  return ret;
+  return MapImpl<true>(env, args, num_args);
 }
 
 Expr* ForEach::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_GE(2);
+  return MapImpl<false>(env, args, num_args);
 }
 
 Expr* Force::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  return TryEvals(args[0])->DoEval(env, nullptr, 0);
 }
 
 Expr* CallWithCurrentContinuation::DoEval(Env* env,

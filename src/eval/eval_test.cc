@@ -805,4 +805,48 @@ TEST_F(EvalTest, Map) {
   // clang-format on
 }
 
+TEST_F(EvalTest, ForEach) {
+  // clang-format off
+  EXPECT_EQ(*EvalStr("#(0 1 4 9 16)"),
+      *EvalStr(
+          "(let ((v (make-vector 5)))"
+          "  (for-each (lambda (i)"
+          "              (vector-set! v i (* i i)))"
+          "            '(0 1 2 3 4))"
+          "  v)"));
+  // clang-format on
+}
+
+TEST_F(EvalTest, Force) {
+  EXPECT_EQ(*EvalStr("(force (delay (+ 1 2)))"), *IntExpr(3));
+  EXPECT_EQ(*EvalStr("(let ((p (delay (+ 1 2)))) (list (force p) (force p)))"),
+            *EvalStr("'(3 3)"));
+
+  // clang-format off
+  (void)EvalStr(
+      "(define a-stream"
+      "  (letrec ((next"
+      "            (lambda (n)"
+      "              (cons n (delay (next (+ n 1)))))))"
+      "  (next 0)))");
+  // clang-format on
+  (void)EvalStr("(define head car)");
+  (void)EvalStr("(define tail (lambda (stream) (force (cdr stream))))");
+  EXPECT_EQ(*IntExpr(2), *EvalStr("(head (tail (tail a-stream)))"));
+
+  (void)EvalStr("(define count 0)");
+  // clang-format off
+  (void)EvalStr(
+      "(define p"
+      "  (delay (begin (set! count (+ count 1))"
+      "                (if (> count x)"
+      "                    count"
+      "                    (force p)))))");
+  // clang-format on
+  (void)EvalStr("(define x 5)");
+  EXPECT_EQ(*IntExpr(6), *EvalStr("(force p)"));
+  (void)EvalStr("(begin (set! x 10))");
+  EXPECT_EQ(*IntExpr(6), *EvalStr("(force p)"));
+}
+
 }  // namespace eval
