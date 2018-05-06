@@ -74,6 +74,7 @@ namespace {
 
 // Depth for car, cdr, caar etc
 const int kCrDepth = 4;
+const int kSchemeVersion = 5;
 
 const struct {
   Evals* (*expr)();
@@ -2092,23 +2093,34 @@ Expr* DynamicWind::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* EvalPrim::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(2);
+  EvalArgs(env, args, num_args);
+  return Eval(args[0], TryEnv(args[1]));
 }
 
 Expr* SchemeReportEnvironment::DoEval(Env* env,
                                       Expr** args,
                                       size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  if (TryGetNonNegExactIntVal(args[0]) != kSchemeVersion) {
+    throw new RuntimeException("Unsupported version", args[0]);
+  }
+  auto* ret = new Env(nullptr);
+  LoadPrimitives(ret);
+  return ret;
 }
 
 Expr* NullEnvironment::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  EXPECT_ARGS_NUM(1);
+  EvalArgs(env, args, num_args);
+  if (TryGetNonNegExactIntVal(args[0]) != kSchemeVersion) {
+    throw new RuntimeException("Unsupported version", args[0]);
+  }
+  // TODO(bcf): Split out syntax from lib functions
+  auto* ret = new Env(nullptr);
+  LoadPrimitives(ret);
+  return ret;
 }
 
 Expr* InteractionEnvironment::DoEval(Env* env,

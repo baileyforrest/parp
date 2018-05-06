@@ -849,4 +849,15 @@ TEST_F(EvalTest, Force) {
   EXPECT_EQ(*IntExpr(6), *EvalStr("(force p)"));
 }
 
+TEST_F(EvalTest, Eval) {
+  EXPECT_EQ(*IntExpr(21),
+            *EvalStr("(eval '(* 7 3) (scheme-report-environment 5))"));
+  // clang-format off
+  EXPECT_EQ(*IntExpr(20), *EvalStr(
+      "(let ((f (eval '(lambda (f x) (f x x))"
+      "               (null-environment 5))))"
+      "  (f + 10))"));
+  // clang-format on
+}
+
 }  // namespace eval
