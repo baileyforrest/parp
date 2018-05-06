@@ -20,6 +20,8 @@
 #include "expr/expr.h"
 
 #include <cassert>
+#include <cerrno>
+#include <cstring>
 #include <sstream>
 
 #include "gc/gc.h"
@@ -45,6 +47,8 @@ const char* TypeToString(Expr::Type type) {
     CASE_STR(SYMBOL);
     CASE_STR(PAIR);
     CASE_STR(VECTOR);
+    CASE_STR(INPUT_PORT);
+    CASE_STR(OUTPUT_PORT);
     CASE_STR(ENV);
     CASE_STR(EVALS);
   }
@@ -113,6 +117,28 @@ bool Vector::EqualImpl(const Expr* other) const {
   }
 
   return true;
+}
+
+// static
+InputPort* InputPort::Open(const std::string& path) {
+  std::ifstream ifs(path);
+  if (!ifs) {
+    throw new util::RuntimeException(
+        "Failed to open " + path + ": " + std::strerror(errno), nullptr);
+  }
+
+  return new InputPort(path, std::move(ifs));
+}
+
+// static
+OutputPort* OutputPort::Open(const std::string& path) {
+  std::ifstream ifs(path);
+  if (!ifs) {
+    throw new util::RuntimeException(
+        "Failed to open " + path + ": " + std::strerror(errno), nullptr);
+  }
+
+  return new OutputPort(path, std::move(ifs));
 }
 
 std::ostream& Env::AppendStream(std::ostream& stream) const {

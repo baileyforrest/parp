@@ -22,6 +22,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -43,6 +44,8 @@ class String;
 class Symbol;
 class Pair;
 class Vector;
+class InputPort;
+class OutputPort;
 class Env;
 class Evals;
 
@@ -59,6 +62,10 @@ class Expr {
     SYMBOL,
     PAIR,
     VECTOR,
+
+    // IO
+    INPUT_PORT,
+    OUTPUT_PORT,
 
     // Special types
     ENV,    // Environment
@@ -94,6 +101,10 @@ class Expr {
   virtual Pair* AsPair() { return nullptr; }
   virtual const Vector* AsVector() const { return nullptr; }
   virtual Vector* AsVector() { return nullptr; }
+  virtual const InputPort* AsInputPort() const { return nullptr; }
+  virtual InputPort* AsInputPort() { return nullptr; }
+  virtual const OutputPort* AsOutputPort() const { return nullptr; }
+  virtual OutputPort* AsOutputPort() { return nullptr; }
   virtual const Env* AsEnv() const { return nullptr; }
   virtual Env* AsEnv() { return nullptr; }
   virtual const Evals* AsEvals() const { return nullptr; }
@@ -321,6 +332,50 @@ class Vector : public Expr {
   std::vector<Expr*> vals_;
 };
 
+class InputPort : public Expr {
+ public:
+  static InputPort* Open(const std::string& path);
+
+  // Expr implementation:
+  const InputPort* AsInputPort() const override { return this; }
+  InputPort* AsInputPort() override { return this; }
+  std::ostream& AppendStream(std::ostream& stream) const override {
+    return stream << "(Input port " << path_ << ")";
+  }
+
+  std::ifstream& stream() { return stream_; }
+
+ private:
+  InputPort(const std::string& path, std::ifstream stream)
+      : Expr(Type::INPUT_PORT), path_(path), stream_(std::move(stream)) {}
+  ~InputPort() override = default;
+
+  const std::string path_;
+  std::ifstream stream_;
+};
+
+class OutputPort : public Expr {
+ public:
+  static OutputPort* Open(const std::string& path);
+
+  // Expr implementation:
+  const OutputPort* AsOutputPort() const override { return this; }
+  OutputPort* AsOutputPort() override { return this; }
+  std::ostream& AppendStream(std::ostream& stream) const override {
+    return stream << "(Output port " << path_ << ")";
+  }
+
+  std::ifstream& stream() { return stream_; }
+
+ private:
+  OutputPort(const std::string& path, std::ifstream stream)
+      : Expr(Type::INPUT_PORT), path_(path), stream_(std::move(stream)) {}
+  ~OutputPort() override = default;
+
+  const std::string path_;
+  std::ifstream stream_;
+};
+
 class Env : public Expr {
  public:
   explicit Env(Env* enclosing = nullptr)
@@ -412,6 +467,8 @@ inline String* TryString(Expr* expr) TRY_AS_IMPL(AsString, STRING)
 inline Symbol* TrySymbol(Expr* expr) TRY_AS_IMPL(AsSymbol, SYMBOL)
 inline Pair* TryPair(Expr* expr) TRY_AS_IMPL(AsPair, PAIR)
 inline Vector* TryVector(Expr* expr) TRY_AS_IMPL(AsVector, VECTOR)
+inline InputPort* TryInputPort(Expr* expr) TRY_AS_IMPL(AsInputPort, VECTOR)
+inline OutputPort* TryOutputPort(Expr* expr) TRY_AS_IMPL(AsOutputPort, VECTOR)
 inline Env* TryEnv(Expr* expr) TRY_AS_IMPL(AsEnv, ENV)
 inline Evals* TryEvals(Expr* expr) TRY_AS_IMPL(AsEvals, EVALS)
 // clang-format on
