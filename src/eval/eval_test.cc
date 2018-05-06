@@ -73,7 +73,7 @@ class EvalTest : public test::TestBase {
  protected:
   virtual void TestSetUp() {
     env_ = new Env();
-    expr::primitive::LoadPrimitives(env_);
+    expr::LoadPrimitives(env_);
   }
   virtual void TestTearDown() { env_ = nullptr; }
 

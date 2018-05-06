@@ -149,7 +149,7 @@ std::ostream& Env::AppendStream(std::ostream& stream) const {
   return stream << "}";
 }
 
-Expr* Env::Lookup(Symbol* var) const {
+Expr* Env::TryLookup(Symbol* var) const {
   auto* env = this;
   while (env != nullptr) {
     auto search = env->map_.find(var);
@@ -159,7 +159,16 @@ Expr* Env::Lookup(Symbol* var) const {
     env = env->enclosing_;
   }
 
-  throw util::RuntimeException(kErrorUnboundVar, var);
+  return nullptr;
+}
+
+Expr* Env::Lookup(Symbol* var) const {
+  auto* ret = TryLookup(var);
+  if (!ret) {
+    throw util::RuntimeException(kErrorUnboundVar, var);
+  }
+
+  return ret;
 }
 
 void Env::SetVar(Symbol* var, Expr* expr) {

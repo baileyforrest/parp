@@ -7,7 +7,7 @@ MEMCHECK ?= valgrind
 BIN_NAME := parp
 SRC_EXT = cc
 SRC_DIR = src
-COMPILE_FLAGS = -std=c++14 -Wall -Wextra -Werror
+COMPILE_FLAGS = -std=c++14 -Wall -Wextra -Werror -Wno-unused-parameter
 RCOMPILE_FLAGS = -DNDEBUG -O3
 DCOMPILE_FLAGS = -DDEBUG -g -fprofile-arcs -ftest-coverage
 INCLUDES = -I$(SRC_DIR)/

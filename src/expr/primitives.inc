@@ -20,38 +20,6 @@
 #define X(name)
 #endif
 
-// 4.1. Primitive expression types
-X(Quote, quote)
-X(Lambda, lambda)
-X(If, if)
-X(Set, set!)
-
-// 4.2 Derived expression types
-X(Arrow, =>) // Not defined in the standard, used for cond
-X(Else, else) // Not defined in the standard, used for cond
-X(Cond, cond)
-X(Case, case)
-X(And, and)
-X(Or, or)
-X(Let, let)
-X(LetStar, let*)
-X(LetRec, letrec)
-X(Begin, begin)
-X(Do, do)
-X(Delay, delay)
-X(Quasiquote, quasiquote)
-
-// 4.3 Macros
-X(LetSyntax, let-syntax)
-X(LetRecSyntax, letrec-syntax)
-X(SyntaxRules, syntax-rules)
-
-// 5.2. Definitions
-X(Define, define)
-
-// 5.3. Syntax definitions
-X(DefineSyntax, define-syntax)
-
 // 6.1. Equivalence predicates
 X(IsEqv, eqv?)
 X(IsEq, eq?)

@@ -394,6 +394,7 @@ class Env : public Expr {
   Env* AsEnv() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
 
+  Expr* TryLookup(Symbol* var) const;
   Expr* Lookup(Symbol* var) const;
   const Env* enclosing() const { return enclosing_; }
   void DefineVar(Symbol* var, Expr* expr) { map_[var] = expr; }

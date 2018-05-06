@@ -38,6 +38,7 @@ flags = [
   '-std=c++14',
   '-Wall',
   '-Wextra',
+  '-Wno-unused-parameter',
   '-I',
   'src',
   '-x',

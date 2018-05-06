@@ -16,20 +16,36 @@
  * You should have received a copy of the GNU General Public License
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef X
+#define X(name)
+#endif
 
-#ifndef EXPR_PRIMITIVE_H_
-#define EXPR_PRIMITIVE_H_
+// 4.1. Primitive expression types
+X(Quote, quote)
+X(Lambda, lambda)
+X(If, if)
+X(Set, set!)
 
-namespace expr {
+// 4.2 Derived expression types
+X(Cond, cond)
+X(Case, case)
+X(And, and)
+X(Or, or)
+X(Let, let)
+X(LetStar, let*)
+X(LetRec, letrec)
+X(Begin, begin)
+X(Do, do)
+X(Delay, delay)
+X(Quasiquote, quasiquote)
 
-class Env;
+// 4.3 Macros
+X(LetSyntax, let-syntax)
+X(LetRecSyntax, letrec-syntax)
+X(SyntaxRules, syntax-rules)
 
-// Load basic syntax (e.g lambda, if).
-void LoadSyntax(Env* env);
+// 5.2. Definitions
+X(Define, define)
 
-// Load Syntax and standard library.
-void LoadPrimitives(Env* env);
-
-}  // namespace expr
-
-#endif  // EXPR_PRIMITIVE_H_
+// 5.3. Syntax definitions
+X(DefineSyntax, define-syntax)
