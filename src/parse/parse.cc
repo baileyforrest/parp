@@ -73,8 +73,8 @@ expr::Expr* DatumParser::ParseExpr() {
     case Token::Type::NUMBER:
     case Token::Type::CHAR:
     case Token::Type::STRING: {
-      assert(Tok().expr != nullptr);
-      expr::Expr* result = Tok().expr;
+      assert(Tok().expr);
+      expr::Expr* result = Tok().expr.get();
       AdvTok();
       return result;
     }

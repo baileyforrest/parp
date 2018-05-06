@@ -36,6 +36,7 @@ using expr::Float;
 using expr::Int;
 using expr::String;
 using expr::Symbol;
+using Lock = gc::Lock<expr::Expr>;
 
 namespace parse {
 

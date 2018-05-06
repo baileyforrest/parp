@@ -33,6 +33,7 @@
 #include "expr/number.h"
 #include "expr/primitive.h"
 #include "eval/eval.h"
+#include "gc/lock.h"
 #include "parse/lexer.h"
 #include "util/exceptions.h"
 #include "util/util.h"
@@ -252,7 +253,7 @@ Expr* LambdaImpl::DoEval(Env* env, Expr** args, size_t num_args) const {
   EvalArgs(env, args, num_args);
 
   auto arg_it = args;
-  auto* new_env = new Env(env_);
+  auto new_env = gc::make_locked<Env>(env_);
 
   for (auto* sym : required_args_) {
     new_env->DefineVar(sym, *arg_it++);
@@ -264,17 +265,15 @@ Expr* LambdaImpl::DoEval(Env* env, Expr** args, size_t num_args) const {
 
   assert(body_.size() >= 1);
   for (size_t i = 0; i < body_.size() - 1; ++i) {
-    Eval(body_[i], new_env);
+    Eval(body_[i], new_env.get());
   }
-  return Eval(body_.back(), new_env);
+  return Eval(body_.back(), new_env.get());
 }
 
 class CrImpl : public Evals {
  public:
-  static CrImpl* New(std::string cr) {
-    cr.shrink_to_fit();
-    return new CrImpl(std::move(cr));
-  }
+  explicit CrImpl(const std::string& cr) : cr_(cr) {}
+  ~CrImpl() override = default;
 
   // Evals implementation:
   std::ostream& AppendStream(std::ostream& stream) const override {
@@ -286,9 +285,6 @@ class CrImpl : public Evals {
     return TryPair(args[0])->Cr(cr_);
   }
 
-  explicit CrImpl(std::string cr) : cr_(cr) {}
-  ~CrImpl() override = default;
-
  private:
   std::string cr_;
 };
@@ -299,7 +295,7 @@ void LoadCr(Env* env, size_t depth, std::string* cur) {
   // car and cdr are defined manually for performance reasons.
   if (cur->size() > 1) {
     auto sym_name = "c" + *cur + "r";
-    env->DefineVar(Symbol::New(sym_name), CrImpl::New(*cur));
+    env->DefineVar(Symbol::New(sym_name), new CrImpl(*cur));
   }
 
   cur->push_back('a');
@@ -362,7 +358,7 @@ Expr* EvalBinaryFloatOp(Env* env, Expr** args) {
 
 Expr* CopyList(Expr* list, Pair** last_link) {
   Expr* cur = list;
-  Expr* ret = Nil();
+  gc::Lock<Expr> ret(Nil());
   Pair* prev = nullptr;
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     Pair* copy = new Pair(list->car(), Nil());
@@ -370,7 +366,7 @@ Expr* CopyList(Expr* list, Pair** last_link) {
     if (prev) {
       prev->set_cdr(copy);
     } else {
-      ret = copy;
+      ret.reset(copy);
     }
     prev = copy;
   }
@@ -380,7 +376,7 @@ Expr* CopyList(Expr* list, Pair** last_link) {
   }
 
   *last_link = prev;
-  return ret;
+  return ret.get();
 }
 
 template <template <typename T> class Op>
@@ -449,8 +445,10 @@ Expr* MapImpl(Env* env, Expr** args, size_t num_args) {
   EvalArgs(env, args, num_args);
   Evals* procedure = TryEvals(args[0]);
 
-  Expr* ret = Nil();
+  gc::Lock<Expr> ret(Nil());
   Pair* prev = nullptr;
+
+  std::vector<gc::Lock<Pair>> locks;
 
   while (true) {
     bool done = false;
@@ -485,23 +483,28 @@ Expr* MapImpl(Env* env, Expr** args, size_t num_args) {
     for (auto& expr : new_args) {
       if (expr->type() == Expr::Type::PAIR ||
           expr->type() == Expr::Type::SYMBOL) {
-        expr = new Pair(Symbol::New("quote"), new Pair(expr, Nil()));
+        auto pair =
+            gc::make_locked<Pair>(Symbol::New("quote"), new Pair(expr, Nil()));
+        expr = pair.get();
+        locks.push_back(std::move(pair));
       }
     }
 
     Expr* res = procedure->DoEval(env, new_args.data(), new_args.size());
     if (need_return) {
-      Pair* new_link = new Pair(res, Nil());
+      auto pair = gc::make_locked<Pair>(res, Nil());
+      Pair* new_link = pair.get();
+      locks.push_back(std::move(pair));
       if (prev) {
         prev->set_cdr(new_link);
       } else {
-        ret = new_link;
+        ret.reset(new_link);
       }
       prev = new_link;
     }
   }
 
-  return ret;
+  return ret.get();
 }
 
 class Promise : public Evals {
@@ -878,7 +881,7 @@ Expr* Or::DoEval(Env* env, Expr** args, size_t num_args) const {
 Expr* Let::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
   Expr* cur = TryPair(args[0]);
-  auto* new_env = new Env(env);
+  auto new_env = gc::make_locked<Env>(env);
   while (auto* pair = cur->AsPair()) {
     static const char kErrMessage[] = "let: Expected binding: (var val)";
     auto* binding = pair->car()->AsPair();
@@ -903,13 +906,13 @@ Expr* Let::DoEval(Env* env, Expr** args, size_t num_args) const {
     throw RuntimeException("let: Malformed binding list", cur);
   }
 
-  return EvalArray(new_env, args + 1, num_args - 1);
+  return EvalArray(new_env.get(), args + 1, num_args - 1);
 }
 
 Expr* LetStar::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
   Expr* cur = TryPair(args[0]);
-  auto* new_env = new Env(env);
+  auto new_env = gc::make_locked<Env>(env);
   while (auto* pair = cur->AsPair()) {
     static const char kErrMessage[] = "let*: Expected binding: (var val)";
     auto* binding = pair->car()->AsPair();
@@ -926,7 +929,7 @@ Expr* LetStar::DoEval(Env* env, Expr** args, size_t num_args) const {
       throw RuntimeException(kErrMessage, binding->cdr());
     }
     auto* val = second_link->car();
-    new_env->DefineVar(var, Eval(val, new_env));
+    new_env->DefineVar(var, Eval(val, new_env.get()));
 
     cur = pair->cdr();
   }
@@ -934,12 +937,12 @@ Expr* LetStar::DoEval(Env* env, Expr** args, size_t num_args) const {
     throw RuntimeException("let: Malformed binding list", cur);
   }
 
-  return EvalArray(new_env, args + 1, num_args - 1);
+  return EvalArray(new_env.get(), args + 1, num_args - 1);
 }
 
 Expr* LetRec::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_GE(2);
-  auto* new_env = new Env(env);
+  auto new_env = gc::make_locked<Env>(env);
   std::vector<std::pair<Symbol*, Expr*>> bindings;
 
   Expr* cur = TryPair(args[0]);
@@ -967,10 +970,10 @@ Expr* LetRec::DoEval(Env* env, Expr** args, size_t num_args) const {
   }
 
   for (const auto& binding : bindings) {
-    new_env->SetVar(binding.first, Eval(binding.second, new_env));
+    new_env->SetVar(binding.first, Eval(binding.second, new_env.get()));
   }
 
-  return EvalArray(new_env, args + 1, num_args - 1);
+  return EvalArray(new_env.get(), args + 1, num_args - 1);
 }
 
 Expr* OpEq::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -1038,11 +1041,13 @@ Expr* IsEven::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Plus::DoEval(Env* env, Expr** args, size_t num_args) const {
-  return ArithOp<std::plus>(env, new Int(0), args, num_args);
+  auto accum = gc::make_locked<Int>(0);
+  return ArithOp<std::plus>(env, accum.get(), args, num_args);
 }
 
 Expr* Star::DoEval(Env* env, Expr** args, size_t num_args) const {
-  return ArithOp<std::multiplies>(env, new Int(1), args, num_args);
+  auto accum = gc::make_locked<Int>(1);
+  return ArithOp<std::multiplies>(env, accum.get(), args, num_args);
 }
 
 Expr* Minus::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -1455,12 +1460,12 @@ Expr* IsList::DoEval(Env* env, Expr** args, size_t num_args) const {
 
 Expr* List::DoEval(Env* env, Expr** args, size_t num_args) const {
   EvalArgs(env, args, num_args);
-  Expr* front = Nil();
+  gc::Lock<Expr> front(Nil());
   for (ssize_t i = num_args - 1; i >= 0; --i) {
-    front = new Pair(args[i], front);
+    front.reset(new Pair(args[i], front.get()));
   }
 
-  return front;
+  return front.get();
 }
 
 Expr* Length::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -1515,17 +1520,17 @@ Expr* Append::DoEval(Env* env, Expr** args, size_t num_args) const {
 Expr* Reverse::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(1);
   EvalArgs(env, args, num_args);
-  Expr* ret = Nil();
+  gc::Lock<Expr> ret(Nil());
   Expr* cur = args[0];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
-    ret = new Pair(list->car(), ret);
+    ret.reset(new Pair(list->car(), ret.get()));
   }
 
   if (cur != Nil()) {
     throw RuntimeException("Expected list", args[0]);
   }
 
-  return ret;
+  return ret.get();
 }
 
 Expr* ListTail::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -1906,12 +1911,12 @@ Expr* StringToList::DoEval(Env* env, Expr** args, size_t num_args) const {
   EvalArgs(env, args, num_args);
   auto& str_val = TryString(args[0])->val();
 
-  Expr* ret = Nil();
+  gc::Lock<Expr> ret(Nil());
   for (ssize_t i = str_val.size() - 1; i >= 0; --i) {
-    ret = new Pair(new Char(str_val[i]), ret);
+    ret.reset(new Pair(new Char(str_val[i]), ret.get()));
   }
 
-  return ret;
+  return ret.get();
 }
 
 Expr* ListToString::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -1992,13 +1997,13 @@ Expr* VectorSet::DoEval(Env* env, Expr** args, size_t num_args) const {
 Expr* VectorToList::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(1);
   EvalArgs(env, args, num_args);
-  Expr* ret = Nil();
+  gc::Lock<Expr> ret(Nil());
   auto& vec_val = TryVector(args[0])->vals();
   for (auto it = vec_val.rbegin(); it != vec_val.rend(); ++it) {
-    ret = new Pair(*it, ret);
+    ret.reset(new Pair(*it, ret.get()));
   }
 
-  return ret;
+  return ret.get();
 }
 
 Expr* ListToVector::DoEval(Env* env, Expr** args, size_t num_args) const {
@@ -2104,23 +2109,23 @@ Expr* SchemeReportEnvironment::DoEval(Env* env,
   EXPECT_ARGS_NUM(1);
   EvalArgs(env, args, num_args);
   if (TryGetNonNegExactIntVal(args[0]) != kSchemeVersion) {
-    throw new RuntimeException("Unsupported version", args[0]);
+    throw RuntimeException("Unsupported version", args[0]);
   }
-  auto* ret = new Env(nullptr);
-  LoadPrimitives(ret);
-  return ret;
+  auto ret = gc::make_locked<Env>(nullptr);
+  LoadPrimitives(ret.get());
+  return ret.get();
 }
 
 Expr* NullEnvironment::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(1);
   EvalArgs(env, args, num_args);
   if (TryGetNonNegExactIntVal(args[0]) != kSchemeVersion) {
-    throw new RuntimeException("Unsupported version", args[0]);
+    throw RuntimeException("Unsupported version", args[0]);
   }
   // TODO(bcf): Split out syntax from lib functions
-  auto* ret = new Env(nullptr);
-  LoadPrimitives(ret);
-  return ret;
+  auto ret = gc::make_locked<Env>(nullptr);
+  LoadPrimitives(ret.get());
+  return ret.get();
 }
 
 Expr* InteractionEnvironment::DoEval(Env* env,

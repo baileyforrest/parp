@@ -123,7 +123,7 @@ bool Vector::EqualImpl(const Expr* other) const {
 InputPort* InputPort::Open(const std::string& path) {
   std::ifstream ifs(path);
   if (!ifs) {
-    throw new util::RuntimeException(
+    throw util::RuntimeException(
         "Failed to open " + path + ": " + std::strerror(errno), nullptr);
   }
 
@@ -134,7 +134,7 @@ InputPort* InputPort::Open(const std::string& path) {
 OutputPort* OutputPort::Open(const std::string& path) {
   std::ifstream ifs(path);
   if (!ifs) {
-    throw new util::RuntimeException(
+    throw util::RuntimeException(
         "Failed to open " + path + ": " + std::strerror(errno), nullptr);
   }
 

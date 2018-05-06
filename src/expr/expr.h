@@ -52,7 +52,7 @@ class Evals;
 // TODO(bcf): Define interface to get all references.
 class Expr {
  public:
-  enum class Type : char {
+  enum class Type : uint8_t {
     // Base types
     EMPTY_LIST,
     BOOL,
@@ -117,6 +117,10 @@ class Expr {
   // Do nothing. Garbage collector will take care of it.
   static void operator delete(void* /* ptr */) {}
 
+  void gc_lock_inc() { ++gc_lock_count_; }
+
+  void gc_lock_dec() { --gc_lock_count_; }
+
  protected:
   explicit Expr(Type type) : type_(type) {}
   virtual ~Expr() = default;
@@ -132,6 +136,10 @@ class Expr {
   static void* operator new[](std::size_t size) = delete;
 
   Type type_;
+  bool gc_mark_;
+
+  // > 0 if garbage collection is locked.
+  uint8_t gc_lock_count_ = 0;
 
   DISALLOW_MOVE_COPY_AND_ASSIGN(Expr);
 };

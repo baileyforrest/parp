@@ -301,7 +301,7 @@ std::ostream& Token::PrettyPrint(std::ostream& stream) const {
     case Token::Type::NUMBER:
     case Token::Type::CHAR:
     case Token::Type::STRING:
-      stream << *expr;
+      stream << *expr.get();
       break;
 
     case Token::Type::LPAREN:
@@ -345,7 +345,7 @@ bool operator==(const Token& lhs, const Token& rhs) {
     case Token::Type::NUMBER:
     case Token::Type::CHAR:
     case Token::Type::STRING:
-      return lhs.expr->Equal(rhs.expr);
+      return lhs.expr->Equal(rhs.expr.get());
     default:
       return true;
   }
@@ -421,7 +421,7 @@ void Lexer::LexId() {
   }
 
   token_.type = Token::Type::ID;
-  token_.expr = expr::Symbol::New(lexbuf_);
+  token_.expr.reset(expr::Symbol::New(lexbuf_));
 }
 
 void Lexer::LexNum() {
@@ -429,7 +429,7 @@ void Lexer::LexNum() {
   NumLexer num_lexer(lexbuf_, &token_.mark);
 
   token_.type = Token::Type::NUMBER;
-  token_.expr = num_lexer.LexNum();
+  token_.expr.reset(num_lexer.LexNum());
 }
 
 void Lexer::LexChar() {
@@ -448,7 +448,7 @@ void Lexer::LexChar() {
   }
 
   token_.type = Token::Type::CHAR;
-  token_.expr = new Char(lexbuf_[1]);
+  token_.expr.reset(new Char(lexbuf_[1]));
 }
 
 // Lex string after getting '"'
@@ -467,12 +467,12 @@ void Lexer::LexString() {
   }
 
   token_.type = Token::Type::STRING;
-  token_.expr = new String(lexbuf_, true);
+  token_.expr.reset(new String(lexbuf_, true));
 }
 
 const Token& Lexer::NextToken() {
   token_.type = Token::Type::INVAL;
-  token_.expr = nullptr;
+  token_.expr.reset();
   lexbuf_.clear();
 
   // Handle spaces and comments
@@ -550,7 +550,8 @@ const Token& Lexer::NextToken() {
         case 'F':
           c = stream_.Get();
           token_.type = Token::Type::BOOL;
-          token_.expr = (c == 't' || c == 'T') ? expr::True() : expr::False();
+          token_.expr.reset((c == 't' || c == 'T') ? expr::True()
+                                                   : expr::False());
           break;
         case '\\':
           LexChar();
@@ -580,7 +581,7 @@ const Token& Lexer::NextToken() {
       if (util::IsDelim(stream_.Peek())) {
         lexbuf_.push_back(c);
         token_.type = Token::Type::ID;
-        token_.expr = expr::Symbol::New(lexbuf_);
+        token_.expr.reset(expr::Symbol::New(lexbuf_));
         break;
       }
 

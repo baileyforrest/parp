@@ -24,6 +24,7 @@
 #include <ostream>
 #include <string>
 
+#include "gc/lock.h"
 #include "util/macros.h"
 #include "util/mark.h"
 #include "util/text_stream.h"
@@ -57,9 +58,13 @@ struct Token {
     DOT,          // .
   };
 
+  Token() = default;
+  Token(Type type_in, const util::Mark mark_in, expr::Expr* expr_in)
+      : type(type_in), mark(mark_in), expr(expr_in) {}
+
   Type type;
   util::Mark mark;
-  expr::Expr* expr;
+  gc::Lock<expr::Expr> expr;
 
   std::ostream& PrettyPrint(
       std::ostream& stream) const;  // NOLINT(runtime/references)
