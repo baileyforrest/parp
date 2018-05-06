@@ -38,33 +38,6 @@
 #include "util/exceptions.h"
 #include "util/util.h"
 
-#define EXPECT_ARGS_NUM(expected)                            \
-  do {                                                       \
-    if (num_args != expected) {                              \
-      std::ostringstream os;                                 \
-      os << "Expected " #expected " args. Got " << num_args; \
-      throw RuntimeException(os.str(), nullptr);             \
-    }                                                        \
-  } while (0)
-
-#define EXPECT_ARGS_LE(expected)                                     \
-  do {                                                               \
-    if (num_args > expected) {                                       \
-      std::ostringstream os;                                         \
-      os << "Expected at most " #expected " args. Got " << num_args; \
-      throw RuntimeException(os.str(), nullptr);                     \
-    }                                                                \
-  } while (0)
-
-#define EXPECT_ARGS_GE(expected)                                      \
-  do {                                                                \
-    if (num_args < expected) {                                        \
-      std::ostringstream os;                                          \
-      os << "Expected at least " #expected " args. Got " << num_args; \
-      throw RuntimeException(os.str(), nullptr);                      \
-    }                                                                 \
-  } while (0)
-
 using eval::Eval;
 using util::RuntimeException;
 
@@ -77,6 +50,30 @@ const int kCrDepth = 4;
 const int kSchemeVersion = 5;
 
 using PrimitiveFunc = Expr* (*)(Env* env, Expr** args, size_t num_args);
+
+void ExpectNumArgs(size_t num_args, size_t expected) {
+  if (num_args != expected) {
+    std::ostringstream os;
+    os << "Expected " << expected << " args. Got " << num_args;
+    throw RuntimeException(os.str(), nullptr);
+  }
+}
+
+void ExpectNumArgsLe(size_t num_args, size_t expected) {
+  if (num_args > expected) {
+    std::ostringstream os;
+    os << "Expected at most " << expected << " args. Got " << num_args;
+    throw RuntimeException(os.str(), nullptr);
+  }
+}
+
+void ExpectNumArgsGe(size_t num_args, size_t expected) {
+  if (num_args < expected) {
+    std::ostringstream os;
+    os << "Expected at least " << expected << " args. Got " << num_args;
+    throw RuntimeException(os.str(), nullptr);
+  }
+}
 
 std::vector<gc::Lock<Expr>> EvalArgs(Env* env, Expr** args, size_t num_args) {
   std::vector<gc::Lock<Expr>> locks;
@@ -303,7 +300,7 @@ class CrImpl : public Evals {
     return stream << "c" << cr_ << "r";
   }
   Expr* DoEval(Env* env, Expr** args, size_t num_args) const override {
-    EXPECT_ARGS_NUM(1);
+    ExpectNumArgs(num_args, 1);
     auto locks = EvalArgs(env, args, num_args);
     return TryPair(args[0])->Cr(cr_);
   }
@@ -550,12 +547,12 @@ class Promise : public Evals {
 };
 
 Expr* Quote(Env* /* env */, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return args[0];
 }
 
 Expr* Lambda(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(2);
+  ExpectNumArgsGe(num_args, 2);
   std::vector<Symbol*> req_args;
   Symbol* var_arg = nullptr;
   switch (args[0]->type()) {
@@ -589,8 +586,8 @@ Expr* Lambda(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* If(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(2);
-  EXPECT_ARGS_LE(3);
+  ExpectNumArgsGe(num_args, 2);
+  ExpectNumArgsLe(num_args, 3);
   auto* cond = Eval(args[0], env);
   if (cond == False()) {
     if (num_args == 3) {
@@ -603,7 +600,7 @@ Expr* If(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Set(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   env->SetVar(TrySymbol(args[0]), Eval(args[1], env));
   return Nil();
 }
@@ -658,7 +655,7 @@ Expr* Cond(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Case(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(1);
+  ExpectNumArgsGe(num_args, 1);
   auto* key = Eval(args[0], env);
   for (size_t i = 1; i < num_args; ++i) {
     auto* clause = args[i]->AsPair();
@@ -720,7 +717,7 @@ Expr* Or(Env* env, Expr** args, size_t num_args) {
 
 // TODO(bcf): Named let.
 Expr* Let(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(2);
+  ExpectNumArgsGe(num_args, 2);
   Expr* cur = TryPair(args[0]);
   auto new_env = gc::make_locked<Env>(env);
   while (auto* pair = cur->AsPair()) {
@@ -751,7 +748,7 @@ Expr* Let(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* LetStar(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(2);
+  ExpectNumArgsGe(num_args, 2);
   Expr* cur = TryPair(args[0]);
   auto new_env = gc::make_locked<Env>(env);
   while (auto* pair = cur->AsPair()) {
@@ -782,7 +779,7 @@ Expr* LetStar(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* LetRec(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(2);
+  ExpectNumArgsGe(num_args, 2);
   auto new_env = gc::make_locked<Env>(env);
   std::vector<std::pair<Symbol*, Expr*>> bindings;
 
@@ -834,7 +831,7 @@ Expr* Do(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Delay(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return new Promise(args[0], env);
 }
 
@@ -863,7 +860,7 @@ Expr* SyntaxRules(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Define(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   env->DefineVar(TrySymbol(args[0]), Eval(args[1], env));
   // TODO(bcf): handle define lambda.
 
@@ -877,45 +874,45 @@ Expr* DefineSyntax(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* IsEqv(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return args[0]->Eqv(args[1]) ? True() : False();
 }
 
 Expr* IsEq(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return args[0]->Eq(args[1]) ? True() : False();
 }
 
 Expr* IsEqual(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return args[0]->Equal(args[1]) ? True() : False();
 }
 
 Expr* IsNumber(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return args[0]->type() == Expr::Type::NUMBER ? True() : False();
 }
 
 Expr* IsComplex(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   // We don't support complex.
   return True();
 }
 
 Expr* IsReal(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   // We don't support complex.
   return True();
 }
 
 Expr* IsRational(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   // We don't support rational.
   return False();
 }
 
 Expr* IsInteger(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   auto* num = args[0]->AsNumber();
   if (!num) {
     return False();
@@ -932,71 +929,71 @@ Expr* IsInteger(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* IsExact(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return args[0]->type() == Expr::Type::NUMBER && args[0]->AsNumber()->exact()
              ? True()
              : False();
 }
 
 Expr* IsInexact(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return args[0]->type() == Expr::Type::NUMBER && args[0]->AsNumber()->exact()
              ? False()
              : True();
 }
 
 Expr* Min(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(1);
+  ExpectNumArgsGe(num_args, 1);
   return MostOp<std::less>(args, num_args);
 }
 
 Expr* Max(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(1);
+  ExpectNumArgsGe(num_args, 1);
   return MostOp<std::greater>(args, num_args);
 }
 
 Expr* OpEq(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(2);
+  ExpectNumArgsGe(num_args, 2);
   return CmpOp<std::equal_to>(env, args, num_args);
 }
 
 Expr* OpLt(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(2);
+  ExpectNumArgsGe(num_args, 2);
   return CmpOp<std::less>(env, args, num_args);
 }
 
 Expr* OpGt(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(2);
+  ExpectNumArgsGe(num_args, 2);
   return CmpOp<std::greater>(env, args, num_args);
 }
 
 Expr* OpLe(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(2);
+  ExpectNumArgsGe(num_args, 2);
   return CmpOp<std::less_equal>(env, args, num_args);
 }
 
 Expr* OpGe(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(2);
+  ExpectNumArgsGe(num_args, 2);
   return CmpOp<std::greater_equal>(env, args, num_args);
 }
 
 Expr* IsZero(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return TestOp<std::equal_to>(args[0]);
 }
 
 Expr* IsPositive(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return TestOp<std::greater>(args[0]);
 }
 
 Expr* IsNegative(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return TestOp<std::less>(args[0]);
 }
 
 Expr* IsOdd(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   auto* as_int = num->AsInt();
   if (!as_int) {
@@ -1007,7 +1004,7 @@ Expr* IsOdd(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* IsEven(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   auto* as_int = num->AsInt();
   if (!as_int) {
@@ -1028,17 +1025,17 @@ Expr* Star(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Minus(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(1);
+  ExpectNumArgsGe(num_args, 1);
   return ArithOp<std::minus>(env, *args, args + 1, num_args - 1);
 }
 
 Expr* Slash(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(1);
+  ExpectNumArgsGe(num_args, 1);
   return ArithOp<std::divides>(env, *args, args + 1, num_args - 1);
 }
 
 Expr* Abs(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
 
   if (auto* as_int = num->AsInt()) {
@@ -1051,7 +1048,7 @@ Expr* Abs(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Quotient(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   bool is_exact = true;
   Int::ValType arg1 = TryGetIntValOrRound(args[0], &is_exact);
   Int::ValType arg2 = TryGetIntValOrRound(args[1], &is_exact);
@@ -1064,7 +1061,7 @@ Expr* Quotient(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Remainder(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   bool is_exact = true;
   Int::ValType arg1 = TryGetIntValOrRound(args[0], &is_exact);
   Int::ValType arg2 = TryGetIntValOrRound(args[1], &is_exact);
@@ -1079,7 +1076,7 @@ Expr* Remainder(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Modulo(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   bool is_exact = true;
   Int::ValType arg1 = TryGetIntValOrRound(args[0], &is_exact);
   Int::ValType arg2 = TryGetIntValOrRound(args[1], &is_exact);
@@ -1123,7 +1120,7 @@ Expr* Denominator(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Floor(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   if (num->num_type() == Number::Type::INT) {
     return num;
@@ -1134,7 +1131,7 @@ Expr* Floor(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Ceiling(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   if (num->num_type() == Number::Type::INT) {
     return num;
@@ -1145,7 +1142,7 @@ Expr* Ceiling(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Truncate(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   if (num->num_type() == Number::Type::INT) {
     return num;
@@ -1156,7 +1153,7 @@ Expr* Truncate(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Round(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   if (num->num_type() == Number::Type::INT) {
     return num;
@@ -1173,42 +1170,42 @@ Expr* Rationalize(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Exp(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::exp>(args[0]);
 }
 
 Expr* Log(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::exp>(args[0]);
 }
 
 Expr* Sin(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::sin>(args[0]);
 }
 
 Expr* Cos(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::cos>(args[0]);
 }
 
 Expr* Tan(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::tan>(args[0]);
 }
 
 Expr* Asin(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::asin>(args[0]);
 }
 
 Expr* ACos(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::acos>(args[0]);
 }
 
 Expr* ATan(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_LE(2);
+  ExpectNumArgsLe(num_args, 2);
   if (num_args == 1) {
     return EvalUnaryFloatOp<std::atan>(args[0]);
   }
@@ -1217,12 +1214,12 @@ Expr* ATan(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Sqrt(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::sqrt>(args[0]);
 }
 
 Expr* Expt(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalBinaryFloatOp<std::pow>(args[0], args[1]);
 }
 
@@ -1263,7 +1260,7 @@ Expr* Angle(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* ExactToInexact(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   if (auto* as_float = num->AsFloat()) {
     return as_float;
@@ -1275,7 +1272,7 @@ Expr* ExactToInexact(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* InexactToExact(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   if (auto* as_int = num->AsInt()) {
     return as_int;
@@ -1287,7 +1284,7 @@ Expr* InexactToExact(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* NumberToString(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_LE(2);
+  ExpectNumArgsLe(num_args, 2);
   auto* num = TryNumber(args[0]);
 
   int radix = num_args == 2 ? TryInt(args[1])->val() : 10;
@@ -1340,7 +1337,7 @@ Expr* NumberToString(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* StringToNumber(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_LE(2);
+  ExpectNumArgsLe(num_args, 2);
   int radix = num_args == 2 ? TryInt(args[1])->val() : 10;
   const auto& str_val = TryString(args[0])->val();
   try {
@@ -1351,54 +1348,54 @@ Expr* StringToNumber(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Not(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return args[0] == False() ? True() : False();
 }
 
 Expr* IsBoolean(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return args[0]->type() == Expr::Type::BOOL ? True() : False();
 }
 
 Expr* IsPair(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return args[0]->type() == Expr::Type::PAIR ? True() : False();
 }
 
 Expr* Cons(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return new Pair(args[0], args[1]);
 }
 
 Expr* Car(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return TryPair(args[0])->car();
 }
 
 Expr* Cdr(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return TryPair(args[0])->cdr();
 }
 
 Expr* SetCar(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   TryPair(args[0])->set_car(args[1]);
   return Nil();
 }
 
 Expr* SetCdr(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   TryPair(args[0])->set_cdr(args[1]);
   return Nil();
 }
 
 Expr* IsNull(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return args[0] == Nil() ? True() : False();
 }
 
 Expr* IsList(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   Expr* cur = args[0];
 
   std::set<Expr*> seen;
@@ -1423,7 +1420,7 @@ Expr* List(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Length(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   Int::ValType ret = 0;
   Expr* cur = args[0];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
@@ -1438,7 +1435,7 @@ Expr* Length(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Append(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(1);
+  ExpectNumArgsGe(num_args, 1);
   Expr* ret = Nil();
   Pair* back = nullptr;
 
@@ -1470,7 +1467,7 @@ Expr* Append(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Reverse(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   gc::Lock<Expr> ret(Nil());
   Expr* cur = args[0];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
@@ -1485,7 +1482,7 @@ Expr* Reverse(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* ListTail(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   Int::ValType k = TryInt(args[1])->val();
 
   Expr* cur = args[0];
@@ -1512,7 +1509,7 @@ Expr* ListRef(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Memq(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   Expr* cur = args[1];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     if (args[0]->Eq(list->car())) {
@@ -1528,7 +1525,7 @@ Expr* Memq(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Memv(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   Expr* cur = args[1];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     if (args[0]->Eqv(list->car())) {
@@ -1544,7 +1541,7 @@ Expr* Memv(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Member(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   Expr* cur = args[1];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     if (args[0]->Equal(list->car())) {
@@ -1560,7 +1557,7 @@ Expr* Member(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Assq(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   Expr* cur = args[1];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     Pair* head = TryPair(list->car());
@@ -1573,7 +1570,7 @@ Expr* Assq(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Assv(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   Expr* cur = args[1];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     Pair* head = TryPair(list->car());
@@ -1586,7 +1583,7 @@ Expr* Assv(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Assoc(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   Expr* cur = args[1];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     Pair* head = TryPair(list->car());
@@ -1599,107 +1596,107 @@ Expr* Assoc(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* IsSymbol(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return args[0]->type() == Expr::Type::SYMBOL ? True() : False();
 }
 
 Expr* SymbolToString(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return new expr::String(TrySymbol(args[0])->val(), true /* read_only */);
 }
 
 Expr* StringToSymbol(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return Symbol::New(TryString(args[0])->val());
 }
 
 Expr* IsChar(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return args[0]->type() == Expr::Type::CHAR ? True() : False();
 }
 
 Expr* IsCharEq(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalCharOp<std::equal_to>(args[0], args[1]);
 }
 
 Expr* IsCharLt(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalCharOp<std::less>(args[0], args[1]);
 }
 
 Expr* IsCharGt(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalCharOp<std::greater>(args[0], args[1]);
 }
 
 Expr* IsCharLe(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalCharOp<std::less_equal>(args[0], args[1]);
 }
 
 Expr* IsCharGe(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalCharOp<std::greater_equal>(args[0], args[1]);
 }
 
 Expr* IsCharCiEq(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalCharCiOp<std::equal_to>(args[0], args[1]);
 }
 
 Expr* IsCharCiLt(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalCharCiOp<std::less>(args[0], args[1]);
 }
 
 Expr* IsCharCiGt(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalCharCiOp<std::greater>(args[0], args[1]);
 }
 
 Expr* IsCharCiLe(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalCharCiOp<std::less_equal>(args[0], args[1]);
 }
 
 Expr* IsCharCiGe(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalCharCiOp<std::greater_equal>(args[0], args[1]);
 }
 
 Expr* IsCharAlphabetic(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return CheckUnaryCharOp<std::isalpha>(args[0]);
 }
 
 Expr* IsCharNumeric(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return CheckUnaryCharOp<std::isdigit>(args[0]);
 }
 
 Expr* IsCharWhitespace(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return CheckUnaryCharOp<std::isspace>(args[0]);
 }
 
 Expr* IsCharUpperCase(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return CheckUnaryCharOp<std::isupper>(args[0]);
 }
 
 Expr* IsCharLowerCase(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return CheckUnaryCharOp<std::tolower>(args[0]);
 }
 
 Expr* CharToInteger(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return new Int(TryChar(args[0])->val());
 }
 
 Expr* IntegerToChar(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   auto* as_int = TryInt(args[0]);
   if (as_int->val() > std::numeric_limits<Char::ValType>::max()) {
     throw RuntimeException("Value out of range", as_int);
@@ -1708,24 +1705,24 @@ Expr* IntegerToChar(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* CharUpCase(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   auto char_val = TryChar(args[0])->val();
   return std::isupper(char_val) ? args[0] : new Char(std::toupper(char_val));
 }
 
 Expr* CharDownCase(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   auto char_val = TryChar(args[0])->val();
   return std::islower(char_val) ? args[0] : new Char(std::tolower(char_val));
 }
 
 Expr* IsString(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return args[0]->type() == Expr::Type::STRING ? True() : False();
 }
 
 Expr* MakeString(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_LE(2);
+  ExpectNumArgsLe(num_args, 2);
 
   auto len = TryGetNonNegExactIntVal(args[0]);
   char init_value = ' ';
@@ -1746,19 +1743,19 @@ Expr* String(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* StringLength(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return new Int(TryString(args[0])->val().size());
 }
 
 Expr* StringRef(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   auto& string_val = TryString(args[0])->val();
   auto idx = TryGetNonNegExactIntVal(args[1], string_val.size());
   return new Char(string_val[idx]);
 }
 
 Expr* StringSet(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(3);
+  ExpectNumArgs(num_args, 3);
   auto* str = TryString(args[0]);
   if (str->read_only()) {
     throw RuntimeException("Attempt to write read only string", str);
@@ -1770,57 +1767,57 @@ Expr* StringSet(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* IsStringEq(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalStringOp<std::equal_to<std::string>>(args[0], args[1]);
 }
 
 Expr* IsStringEqCi(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalStringOp<ICaseCmpStr<std::equal_to>>(args[0], args[1]);
 }
 
 Expr* IsStringLt(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalStringOp<std::less<std::string>>(args[0], args[1]);
 }
 
 Expr* IsStringGt(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalStringOp<std::greater<std::string>>(args[0], args[1]);
 }
 
 Expr* IsStringLe(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalStringOp<std::less_equal<std::string>>(args[0], args[1]);
 }
 
 Expr* IsStringGe(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalStringOp<std::greater_equal<std::string>>(args[0], args[1]);
 }
 
 Expr* IsStringLtCi(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalStringOp<ICaseCmpStr<std::less>>(args[0], args[1]);
 }
 
 Expr* IsStringGtCi(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalStringOp<ICaseCmpStr<std::greater>>(args[0], args[1]);
 }
 
 Expr* IsStringLeCi(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalStringOp<ICaseCmpStr<std::less_equal>>(args[0], args[1]);
 }
 
 Expr* IsStringGeCi(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return EvalStringOp<ICaseCmpStr<std::greater_equal>>(args[0], args[1]);
 }
 
 Expr* Substring(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(3);
+  ExpectNumArgs(num_args, 3);
   auto& str_val = TryString(args[0])->val();
   auto start = TryGetNonNegExactIntVal(args[1], str_val.size());
   auto end = TryGetNonNegExactIntVal(args[2], str_val.size());
@@ -1829,13 +1826,13 @@ Expr* Substring(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* StringAppend(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return new expr::String(TryString(args[0])->val() +
                           TryString(args[1])->val());
 }
 
 Expr* StringToList(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   auto& str_val = TryString(args[0])->val();
 
   gc::Lock<Expr> ret(Nil());
@@ -1847,7 +1844,7 @@ Expr* StringToList(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* ListToString(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   std::string str;
   Expr* cur = args[0];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
@@ -1858,12 +1855,12 @@ Expr* ListToString(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* StringCopy(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return new expr::String(TryString(args[0])->val());
 }
 
 Expr* StringFill(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   auto* str = TryString(args[0]);
   if (str->read_only()) {
     throw RuntimeException("Attempt to write read only string", str);
@@ -1876,12 +1873,12 @@ Expr* StringFill(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* IsVector(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return args[0]->type() == Expr::Type::VECTOR ? True() : False();
 }
 
 Expr* MakeVector(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_LE(2);
+  ExpectNumArgsLe(num_args, 2);
 
   auto count = TryGetNonNegExactIntVal(args[0]);
   Expr* init_val = num_args == 2 ? args[1] : Nil();
@@ -1893,19 +1890,19 @@ Expr* Vector(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* VectorLength(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return new Int(TryVector(args[0])->vals().size());
 }
 
 Expr* VectorRef(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   auto& vec = TryVector(args[0])->vals();
   auto idx = TryGetNonNegExactIntVal(args[1], vec.size());
   return vec[idx];
 }
 
 Expr* VectorSet(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(3);
+  ExpectNumArgs(num_args, 3);
   auto& vec = TryVector(args[0])->vals();
   auto idx = TryGetNonNegExactIntVal(args[1], vec.size());
   vec[idx] = args[2];
@@ -1913,7 +1910,7 @@ Expr* VectorSet(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* VectorToList(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   gc::Lock<Expr> ret(Nil());
   auto& vec_val = TryVector(args[0])->vals();
   for (auto it = vec_val.rbegin(); it != vec_val.rend(); ++it) {
@@ -1924,7 +1921,7 @@ Expr* VectorToList(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* ListToVector(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
 
   std::vector<Expr*> exprs;
 
@@ -1937,7 +1934,7 @@ Expr* ListToVector(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* VectorFill(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   auto& vec_val = TryVector(args[0])->vals();
 
   for (auto& val : vec_val) {
@@ -1948,12 +1945,12 @@ Expr* VectorFill(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* IsProcedure(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return args[0]->type() == Expr::Type::EVALS ? True() : False();
 }
 
 Expr* Apply(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(1);
+  ExpectNumArgsGe(num_args, 1);
   std::vector<Expr*> new_args(args + 1, args + 1 + num_args - 2);
   if (num_args > 1) {
     Expr* cur = args[num_args - 1];
@@ -1969,17 +1966,17 @@ Expr* Apply(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* Map(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(2);
+  ExpectNumArgsGe(num_args, 2);
   return MapImpl<true>(env, args, num_args);
 }
 
 Expr* ForEach(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_GE(2);
+  ExpectNumArgsGe(num_args, 2);
   return MapImpl<false>(env, args, num_args);
 }
 
 Expr* Force(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return TryEvals(args[0])->DoEval(env, nullptr, 0);
 }
 
@@ -2008,12 +2005,12 @@ Expr* DynamicWind(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* EvalPrim(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(2);
+  ExpectNumArgs(num_args, 2);
   return Eval(args[0], TryEnv(args[1]));
 }
 
 Expr* SchemeReportEnvironment(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   if (TryGetNonNegExactIntVal(args[0]) != kSchemeVersion) {
     throw RuntimeException("Unsupported version", args[0]);
   }
@@ -2023,7 +2020,7 @@ Expr* SchemeReportEnvironment(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* NullEnvironment(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   if (TryGetNonNegExactIntVal(args[0]) != kSchemeVersion) {
     throw RuntimeException("Unsupported version", args[0]);
   }
@@ -2052,12 +2049,12 @@ Expr* CallWithOutputFile(Env* env, Expr** args, size_t num_args) {
 }
 
 Expr* IsInputPort(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return args[0]->type() == Expr::Type::INPUT_PORT ? True() : False();
 }
 
 Expr* IsOutputPort(Env* env, Expr** args, size_t num_args) {
-  EXPECT_ARGS_NUM(1);
+  ExpectNumArgs(num_args, 1);
   return args[0]->type() == Expr::Type::OUTPUT_PORT ? True() : False();
 }
 
