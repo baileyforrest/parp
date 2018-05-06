@@ -337,10 +337,18 @@ Float::ValType TryGetFloatVal(Expr* expr) {
   return as_int->val();
 }
 
+Number* ExactIfPossible(Float::ValType val) {
+  Int::ValType int_val = std::trunc(val);
+  if (int_val == val) {
+    return new Int(int_val);
+  }
+  return new Float(val);
+}
+
 template <Float::ValType (*Op)(Float::ValType)>
 Expr* EvalUnaryFloatOp(Env* env, Expr** args) {
   EvalArgs(env, args, 1);
-  return new Float(Op(TryGetFloatVal(args[0])));
+  return ExactIfPossible(Op(TryGetFloatVal(args[0])));
 }
 
 template <Float::ValType (*Op)(Float::ValType, Float::ValType)>
@@ -348,7 +356,7 @@ Expr* EvalBinaryFloatOp(Env* env, Expr** args) {
   EvalArgs(env, args, 2);
   Float::ValType n1 = TryGetFloatVal(args[0]);
   Float::ValType n2 = TryGetFloatVal(args[1]);
-  return new Float(Op(n1, n2));
+  return ExactIfPossible(Op(n1, n2));
 }
 
 Expr* CopyList(Expr* list, Pair** last_link) {
@@ -503,7 +511,7 @@ Expr* If::DoEval(Env* env, Expr** args, size_t num_args) const {
 
 Expr* Set::DoEval(Env* env, Expr** args, size_t num_args) const {
   EXPECT_ARGS_NUM(2);
-  env->SetVar(TrySymbol(args[0]), args[1]);
+  env->SetVar(TrySymbol(args[0]), Eval(args[1], env));
   return Nil();
 }
 
@@ -1663,7 +1671,7 @@ Expr* IntegerToChar::DoEval(Env* env, Expr** args, size_t num_args) const {
   EvalArgs(env, args, num_args);
   auto* as_int = TryInt(args[0]);
   if (as_int->val() > std::numeric_limits<Char::ValType>::max()) {
-    throw new RuntimeException("Value out of range", as_int);
+    throw RuntimeException("Value out of range", as_int);
   }
   return new Char(as_int->val());
 }
@@ -1730,7 +1738,7 @@ Expr* StringSet::DoEval(Env* env, Expr** args, size_t num_args) const {
   EvalArgs(env, args, num_args);
   auto* str = TryString(args[0]);
   if (str->read_only()) {
-    throw new RuntimeException("Attempt to write read only string", str);
+    throw RuntimeException("Attempt to write read only string", str);
   }
 
   auto idx = TryGetNonNegExactIntVal(args[1], str->val().size());
@@ -1841,7 +1849,7 @@ Expr* StringFill::DoEval(Env* env, Expr** args, size_t num_args) const {
   EvalArgs(env, args, num_args);
   auto* str = TryString(args[0]);
   if (str->read_only()) {
-    throw new RuntimeException("Attempt to write read only string", str);
+    throw RuntimeException("Attempt to write read only string", str);
   }
   auto char_val = TryChar(args[1])->val();
   for (size_t i = 0; i < str->val().size(); ++i) {
@@ -1955,9 +1963,64 @@ Expr* Apply::DoEval(Env* env, Expr** args, size_t num_args) const {
 }
 
 Expr* Map::DoEval(Env* env, Expr** args, size_t num_args) const {
-  throw util::RuntimeException("Not implemented", this);
-  assert(false && env && args && num_args);
-  return nullptr;
+  static constexpr char kEqualSizeListErr[] =
+      "Expected equal sized argument lists";
+  EXPECT_ARGS_GE(2);
+  EvalArgs(env, args, num_args);
+  Evals* procedure = TryEvals(args[0]);
+
+  Expr* ret = Nil();
+  Pair* prev = nullptr;
+
+  while (true) {
+    bool done = false;
+    std::vector<Expr*> new_args(num_args - 1);
+    for (size_t i = 1; i < num_args; ++i) {
+      if (auto* list = args[i]->AsPair()) {
+        if (done) {
+          throw RuntimeException(kEqualSizeListErr, args[i]);
+        }
+        new_args[i - 1] = list->car();
+        args[i] = list->cdr();
+      } else {
+        if (args[i] != Nil()) {
+          throw RuntimeException("Expected list", args[i]);
+        }
+
+        if (i == 1) {
+          done = true;
+        } else {
+          if (!done) {
+            throw RuntimeException(kEqualSizeListErr, args[i]);
+          }
+        }
+      }
+    }
+    if (done) {
+      break;
+    }
+
+    // Quote non-self evaluating types to make sure they aren't considered an
+    // evaluation.
+    for (auto& expr : new_args) {
+      if (expr->type() == Expr::Type::PAIR ||
+          expr->type() == Expr::Type::SYMBOL) {
+        expr = new Pair(Symbol::New("quote"), new Pair(expr, Nil()));
+      }
+    }
+
+    Expr* res = procedure->DoEval(env, new_args.data(), new_args.size());
+    Pair* new_link = new Pair(res, Nil());
+    if (prev) {
+      prev->set_cdr(new_link);
+    } else {
+      ret = new_link;
+    }
+
+    prev = new_link;
+  }
+
+  return ret;
 }
 
 Expr* ForEach::DoEval(Env* env, Expr** args, size_t num_args) const {

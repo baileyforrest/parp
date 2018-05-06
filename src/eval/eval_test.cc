@@ -779,13 +779,30 @@ TEST_F(EvalTest, Apply) {
 
   // clang-format off
   (void)EvalStr(
-  "(define compose"
-  "  (lambda (f g)"
-  "    (lambda args"
-  "      (f (apply g args)))))");
+      "(define compose"
+      "  (lambda (f g)"
+      "    (lambda args"
+      "      (f (apply g args)))))");
   // clang-format on
 
-  EXPECT_EQ(*FloatExpr(30.0), *EvalStr("((compose sqrt *) 12 75)"));
+  EXPECT_EQ(*IntExpr(30), *EvalStr("((compose sqrt *) 12 75)"));
+}
+
+TEST_F(EvalTest, Map) {
+  EXPECT_EQ(*EvalStr("(map cadr '((a b) (d e) (g h)))"), *EvalStr("'(b e h)"));
+  EXPECT_EQ(*EvalStr("(map (lambda (n) (expt n n)) '(1 2 3 4 5))"),
+            *EvalStr("'(1 4 27 256 3125)"));
+  EXPECT_EQ(*EvalStr("(map + '(1 2 3) '(4 5 6))"), *EvalStr("'(5 7 9)"));
+
+  // clang-format off
+  EXPECT_EQ(*EvalStr(
+      "(let ((count 0))"
+      "  (map (lambda (ignored)"
+      "         (set! count (+ count 1))"
+      "         count)"
+      "       '(a b)))"),
+    *EvalStr("'(1 2)"));
+  // clang-format on
 }
 
 }  // namespace eval
