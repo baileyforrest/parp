@@ -80,9 +80,10 @@ void Gc::Collect() {
     }
   }
 
-  for (auto it = exprs_.begin(); it != exprs_.end(); ) {
+  for (auto it = exprs_.begin(); it != exprs_.end();) {
     expr::Expr* expr = *it;
     if (expr->gc_mark_) {
+      expr->gc_mark_ = false;
       ++it;
       continue;
     }

@@ -79,17 +79,21 @@ TEST_F(ParserTest, ReadSimpleDatum) {
 TEST_F(ParserTest, ReadVector) {
   const std::string kStr = "#(a b c d e)";
   // clang-format off
-  const ExprVec kExpected = {
-      gc::Lock<Expr>(new Vector({
-          Symbol::New("a"),
-          Symbol::New("b"),
-          Symbol::New("c"),
-          Symbol::New("d"),
-          Symbol::New("e"),
-      }))};
+  const std::vector<gc::Lock<Symbol>> kSyms = {
+      Symbol::NewLock("a"),
+      Symbol::NewLock("b"),
+      Symbol::NewLock("c"),
+      Symbol::NewLock("d"),
+      Symbol::NewLock("e"),
+  };
   // clang-format on
 
-  VerifyExprs(kExpected, Read(kStr));
+  std::vector<Expr*> expr_list;
+  for (const auto& sym : kSyms) {
+    expr_list.push_back(sym.get());
+  }
+  ExprVec expected = {gc::Lock<Expr>(new Vector(expr_list))};
+  VerifyExprs(expected, Read(kStr));
 }
 
 TEST_F(ParserTest, ReadListAbbreviation) {
@@ -99,13 +103,13 @@ TEST_F(ParserTest, ReadListAbbreviation) {
       ",a\n"
       ",@a\n";
 
-  auto tail = Cons(Symbol::New("a"), expr::Nil());
+  auto tail = Cons(Symbol::NewLock("a").get(), expr::Nil());
 
   const ExprVec kExpected = {
-      Cons(Symbol::New("quote"), tail.get()),
-      Cons(Symbol::New("quasiquote"), tail.get()),
-      Cons(Symbol::New("unquote"), tail.get()),
-      Cons(Symbol::New("unquote-splicing"), tail.get()),
+      Cons(Symbol::NewLock("quote").get(), tail.get()),
+      Cons(Symbol::NewLock("quasiquote").get(), tail.get()),
+      Cons(Symbol::NewLock("unquote").get(), tail.get()),
+      Cons(Symbol::NewLock("unquote-splicing").get(), tail.get()),
   };
 
   VerifyExprs(kExpected, Read(kStr));
@@ -114,11 +118,11 @@ TEST_F(ParserTest, ReadListAbbreviation) {
 TEST_F(ParserTest, ReadList) {
   const std::string kStr = "(a b c d e)";
   const ExprVec kExpected = {
-      Cons(Symbol::New("a"),
-           Cons(Symbol::New("b"),
-                Cons(Symbol::New("c"),
-                     Cons(Symbol::New("d"),
-                          Cons(Symbol::New("e"), expr::Nil()))))),
+      Cons(Symbol::NewLock("a").get(),
+           Cons(Symbol::NewLock("b").get(),
+                Cons(Symbol::NewLock("c").get(),
+                     Cons(Symbol::NewLock("d").get(),
+                          Cons(Symbol::NewLock("e").get(), expr::Nil()))))),
   };
 
   VerifyExprs(kExpected, Read(kStr));
@@ -130,12 +134,13 @@ TEST_F(ParserTest, ReadListDot) {
       "(f . g)";
 
   const ExprVec kExpected = {
-      Cons(Symbol::New("a"),
-           Cons(Symbol::New("b"),
-                Cons(Symbol::New("c"),
-                     Cons(Symbol::New("d"), Symbol::New("e"))))),
+      Cons(Symbol::NewLock("a").get(),
+           Cons(Symbol::NewLock("b").get(),
+                Cons(Symbol::NewLock("c").get(),
+                     Cons(Symbol::NewLock("d").get(),
+                          Symbol::NewLock("e").get())))),
 
-      Cons(Symbol::New("f"), Symbol::New("g")),
+      Cons(Symbol::NewLock("f").get(), Symbol::NewLock("g").get()),
   };
 
   VerifyExprs(kExpected, Read(kStr));

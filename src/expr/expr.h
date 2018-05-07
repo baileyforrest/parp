@@ -132,7 +132,6 @@ class Expr {
   explicit Expr(Type type) : type_(type) {}
   virtual ~Expr() = default;
 
-
  private:
   friend class gc::Gc;
 
@@ -144,11 +143,10 @@ class Expr {
   static void operator delete[](void* ptr) = delete;
   static void* operator new[](std::size_t size) = delete;
 
-  Type type_;
-  bool gc_mark_ = false;
-
   // > 0 if garbage collection is locked.
-  uint8_t gc_lock_count_ = 0;
+  uint32_t gc_lock_count_ = 0;
+  bool gc_mark_ = false;
+  Type type_;
 
   DISALLOW_MOVE_COPY_AND_ASSIGN(Expr);
 };
@@ -269,6 +267,10 @@ class Symbol : public Expr {
  public:
   static Symbol* New(const std::string& val) {
     return gc::Gc::Get().GetSymbol(val);
+  }
+
+  static gc::Lock<Symbol> NewLock(const std::string& val) {
+    return gc::Lock<Symbol>(New(val));
   }
 
   ~Symbol() override = default;

@@ -161,6 +161,9 @@ std::ostream& Env::AppendStream(std::ostream& stream) const {
 }
 
 void Env::MarkReferences() {
+  if (enclosing_) {
+    enclosing_->GcMark();
+  }
   for (const auto& pair : map_) {
     pair.first->GcMark();
     pair.second->GcMark();

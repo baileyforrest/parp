@@ -552,9 +552,12 @@ class Promise : public Evals {
     return ret;
   }
   void MarkReferences() override {
-    if (expr_) expr_->GcMark();
-    if (env_) env_->GcMark();
-    if (forced_val_) forced_val_->GcMark();
+    if (expr_)
+      expr_->GcMark();
+    if (env_)
+      env_->GcMark();
+    if (forced_val_)
+      forced_val_->GcMark();
   }
 
  private:
@@ -2228,18 +2231,20 @@ const struct {
 
 void LoadSyntax(Env* env) {
   for (const auto& syntax : kSyntax) {
-    env->DefineVar(
-        Symbol::New(syntax.name),
-        new PrimitiveImpl(syntax.name, syntax.func, false /* eval_args */));
+    env->DefineVar(Symbol::NewLock(syntax.name).get(),
+                   gc::make_locked<PrimitiveImpl>(syntax.name, syntax.func,
+                                                  false /* eval_args */)
+                       .get());
   }
 }
 
 void LoadPrimitives(Env* env) {
   LoadSyntax(env);
   for (const auto& primitive : kPrimitives) {
-    env->DefineVar(Symbol::New(primitive.name),
-                   new PrimitiveImpl(primitive.name, primitive.func,
-                                     true /* eval_args */));
+    env->DefineVar(Symbol::NewLock(primitive.name).get(),
+                   gc::make_locked<PrimitiveImpl>(
+                       primitive.name, primitive.func, true /* eval_args */)
+                       .get());
   }
 
   std::string tmp;

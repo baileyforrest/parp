@@ -722,7 +722,7 @@ TEST_F(EvalTest, SymbolToString) {
 
 TEST_F(EvalTest, StringToSymbol) {
   EXPECT_EQ(*EvalStr("(string->symbol \"mISSISSIppi\")"),
-            *Symbol::New("mISSISSIppi"));
+            *Symbol::NewLock("mISSISSIppi"));
   EXPECT_EQ(
       *EvalStr("(eq? 'JollyWog (string->symbol (symbol->string 'JollyWog)))"),
       *True());
@@ -830,7 +830,7 @@ TEST_F(EvalTest, Force) {
       "  (letrec ((next"
       "            (lambda (n)"
       "              (cons n (delay (next (+ n 1)))))))"
-      "  (next 0)))");
+      "    (next 0)))");
   // clang-format on
   (void)EvalStr("(define head car)");
   (void)EvalStr("(define tail (lambda (stream) (force (cdr stream))))");
