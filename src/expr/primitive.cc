@@ -49,7 +49,9 @@ namespace {
 const int kCrDepth = 4;
 const int kSchemeVersion = 5;
 
-using PrimitiveFunc = Expr* (*)(Env* env, Expr** args, size_t num_args);
+using PrimitiveFunc = gc::Lock<Expr> (*)(Env* env,
+                                         Expr** args,
+                                         size_t num_args);
 
 void ExpectNumArgs(size_t num_args, size_t expected) {
   if (num_args != expected) {
@@ -79,8 +81,9 @@ std::vector<gc::Lock<Expr>> EvalArgs(Env* env, Expr** args, size_t num_args) {
   std::vector<gc::Lock<Expr>> locks;
   locks.reserve(num_args);
   for (size_t i = 0; i < num_args; ++i) {
-    args[i] = Eval(args[i], env);
-    locks.emplace_back(args[i]);
+    auto lock = Eval(args[i], env);
+    args[i] = lock.get();
+    locks.emplace_back(lock);
   }
 
   return locks;
@@ -96,7 +99,7 @@ class PrimitiveImpl : public Evals {
     return stream << name_;
   }
 
-  Expr* DoEval(Env* env, Expr** args, size_t num_args) const override {
+  gc::Lock<Expr> DoEval(Env* env, Expr** args, size_t num_args) override {
     std::vector<gc::Lock<Expr>> locks;
     if (eval_args_) {
       locks = EvalArgs(env, args, num_args);
@@ -116,44 +119,43 @@ class PrimitiveImpl : public Evals {
 };
 
 template <template <typename T> class Op>
-Number* ArithOp(Env* env, Expr* initial, Expr** args, size_t num_args) {
-  initial = Eval(initial, env);
-  Number* result = TryNumber(initial);
+gc::Lock<Expr> ArithOp(Env* env, Expr* initial, Expr** args, size_t num_args) {
+  gc::Lock<Number> result(TryNumber(initial));
   for (size_t i = 0; i < num_args; ++i) {
-    result = OpInPlace<Op>(result, TryNumber(args[i]));
+    result = OpInPlace<Op>(result.get(), TryNumber(args[i]));
   }
 
-  return result;
+  return gc::Lock<Expr>(result.get());
 }
 
 template <template <typename T> class Op>
-Expr* CmpOp(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> CmpOp(Env* env, Expr** args, size_t num_args) {
   auto* last = TryNumber(args[0]);
   for (size_t i = 1; i < num_args; ++i) {
     auto* cur = TryNumber(args[i]);
     if (!OpCmp<Op>(last, cur)) {
-      return False();
+      return gc::Lock<Expr>(False());
     }
     last = cur;
   }
 
-  return True();
+  return gc::Lock<Expr>(True());
 }
 
 template <template <typename T> class Op>
-Expr* TestOp(Expr* val) {
+gc::Lock<Expr> TestOp(Expr* val) {
   auto* num = TryNumber(val);
   if (auto* as_int = num->AsInt()) {
     Op<Int::ValType> op;
-    return op(as_int->val(), 0) ? True() : False();
+    return gc::Lock<Expr>(op(as_int->val(), 0) ? True() : False());
   }
 
   Op<Float::ValType> op;
-  return op(num->AsFloat()->val(), 0.0) ? True() : False();
+  return gc::Lock<Expr>(op(num->AsFloat()->val(), 0.0) ? True() : False());
 }
 
 template <template <typename T> class Op>
-Expr* MostOp(Expr** args, size_t num_args) {
+gc::Lock<Expr> MostOp(Expr** args, size_t num_args) {
   Number* ret = TryNumber(args[0]);
   bool has_inexact = !ret->exact();
   for (size_t i = 1; i < num_args; ++i) {
@@ -167,14 +169,14 @@ Expr* MostOp(Expr** args, size_t num_args) {
   if (has_inexact && ret->exact()) {
     auto* int_ret = ret->AsInt();
     assert(int_ret);
-    return new Float(int_ret->val());
+    return gc::Lock<Expr>(new Float(int_ret->val()));
   }
 
-  return ret;
+  return gc::Lock<Expr>(ret);
 }
 
-Expr* ExecuteList(Env* env, Expr* cur) {
-  Expr* last_eval = nullptr;
+gc::Lock<Expr> ExecuteList(Env* env, Expr* cur) {
+  gc::Lock<Expr> last_eval;
   while (auto* link = cur->AsPair()) {
     last_eval = Eval(link->car(), env);
     cur = link->cdr();
@@ -191,8 +193,8 @@ Expr* ExecuteList(Env* env, Expr* cur) {
   return last_eval;
 }
 
-Expr* EvalArray(Env* env, Expr** args, size_t num_args) {
-  Expr* last_eval = nullptr;
+gc::Lock<Expr> EvalArray(Env* env, Expr** args, size_t num_args) {
+  gc::Lock<Expr> last_eval;
   for (size_t i = 0; i < num_args; ++i) {
     last_eval = Eval(args[i], env);
   }
@@ -202,21 +204,6 @@ Expr* EvalArray(Env* env, Expr** args, size_t num_args) {
 
 class LambdaImpl : public Evals {
  public:
-  static LambdaImpl* New(std::vector<Symbol*> required_args,
-                         Symbol* variable_arg,
-                         std::vector<Expr*> body,
-                         Env* env) {
-    required_args.shrink_to_fit();
-    body.shrink_to_fit();
-    return new LambdaImpl(std::move(required_args), variable_arg,
-                          std::move(body), env);
-  }
-
- private:
-  // Evals implementation:
-  std::ostream& AppendStream(std::ostream& stream) const override;
-  Expr* DoEval(Env* env, Expr** args, size_t num_args) const override;
-
   explicit LambdaImpl(std::vector<Symbol*> required_args,
                       Symbol* variable_arg,
                       std::vector<Expr*> body,
@@ -230,6 +217,11 @@ class LambdaImpl : public Evals {
   }
   ~LambdaImpl() override = default;
 
+  // Evals implementation:
+  std::ostream& AppendStream(std::ostream& stream) const override;
+  gc::Lock<Expr> DoEval(Env* env, Expr** args, size_t num_args) override;
+
+ private:
   const std::vector<Symbol*> required_args_;
   Symbol* variable_arg_;
   const std::vector<Expr*> body_;
@@ -257,7 +249,7 @@ std::ostream& LambdaImpl::AppendStream(std::ostream& stream) const {
   return stream << ")";
 }
 
-Expr* LambdaImpl::DoEval(Env* env, Expr** args, size_t num_args) const {
+gc::Lock<Expr> LambdaImpl::DoEval(Env* env, Expr** args, size_t num_args) {
   if (num_args < required_args_.size()) {
     std::ostringstream os;
     os << "Invalid number of arguments. expected ";
@@ -279,8 +271,11 @@ Expr* LambdaImpl::DoEval(Env* env, Expr** args, size_t num_args) const {
     new_env->DefineVar(sym, *arg_it++);
   }
   if (variable_arg_ != nullptr) {
-    auto* rest = ListFromIt(arg_it, args + num_args);
-    new_env->DefineVar(variable_arg_, rest);
+    gc::Lock<Expr> rest(Nil());
+    for (Expr** temp = args + num_args - 1; temp >= arg_it; --temp) {
+      rest.reset(new Pair(*temp, rest.get()));
+    }
+    new_env->DefineVar(variable_arg_, rest.get());
   }
 
   assert(body_.size() >= 1);
@@ -299,10 +294,10 @@ class CrImpl : public Evals {
   std::ostream& AppendStream(std::ostream& stream) const override {
     return stream << "c" << cr_ << "r";
   }
-  Expr* DoEval(Env* env, Expr** args, size_t num_args) const override {
+  gc::Lock<Expr> DoEval(Env* env, Expr** args, size_t num_args) override {
     ExpectNumArgs(num_args, 1);
     auto locks = EvalArgs(env, args, num_args);
-    return TryPair(args[0])->Cr(cr_);
+    return gc::Lock<Expr>(TryPair(args[0])->Cr(cr_));
   }
 
  private:
@@ -315,7 +310,8 @@ void LoadCr(Env* env, size_t depth, std::string* cur) {
   // car and cdr are defined manually for performance reasons.
   if (cur->size() > 1) {
     auto sym_name = "c" + *cur + "r";
-    env->DefineVar(Symbol::New(sym_name), new CrImpl(*cur));
+    auto cr = gc::make_locked<CrImpl>(*cur);
+    env->DefineVar(Symbol::New(sym_name), cr.get());
   }
 
   cur->push_back('a');
@@ -354,27 +350,27 @@ Float::ValType TryGetFloatVal(Expr* expr) {
   return as_int->val();
 }
 
-Number* ExactIfPossible(Float::ValType val) {
+gc::Lock<Expr> ExactIfPossible(Float::ValType val) {
   Int::ValType int_val = std::trunc(val);
   if (int_val == val) {
-    return new Int(int_val);
+    return gc::Lock<Expr>(new Int(int_val));
   }
-  return new Float(val);
+  return gc::Lock<Expr>(new Float(val));
 }
 
 template <Float::ValType (*Op)(Float::ValType)>
-Expr* EvalUnaryFloatOp(Expr* val) {
+gc::Lock<Expr> EvalUnaryFloatOp(Expr* val) {
   return ExactIfPossible(Op(TryGetFloatVal(val)));
 }
 
 template <Float::ValType (*Op)(Float::ValType, Float::ValType)>
-Expr* EvalBinaryFloatOp(Expr* v1, Expr* v2) {
+gc::Lock<Expr> EvalBinaryFloatOp(Expr* v1, Expr* v2) {
   Float::ValType n1 = TryGetFloatVal(v1);
   Float::ValType n2 = TryGetFloatVal(v2);
   return ExactIfPossible(Op(n1, n2));
 }
 
-Expr* CopyList(Expr* list, Pair** last_link) {
+gc::Lock<Expr> CopyList(Expr* list, Pair** last_link) {
   Expr* cur = list;
   gc::Lock<Expr> ret(Nil());
   Pair* prev = nullptr;
@@ -394,31 +390,31 @@ Expr* CopyList(Expr* list, Pair** last_link) {
   }
 
   *last_link = prev;
-  return ret.get();
+  return ret;
 }
 
 template <template <typename T> class Op>
-Expr* EvalCharOp(Expr* v1, Expr* v2) {
+gc::Lock<Expr> EvalCharOp(Expr* v1, Expr* v2) {
   auto* c1 = TryChar(v1);
   auto* c2 = TryChar(v2);
 
   Op<Char::ValType> op;
-  return op(c1->val(), c2->val()) ? True() : False();
+  return gc::Lock<Expr>(op(c1->val(), c2->val()) ? True() : False());
 }
 
 template <template <typename T> class Op>
-Expr* EvalCharCiOp(Expr* v1, Expr* v2) {
+gc::Lock<Expr> EvalCharCiOp(Expr* v1, Expr* v2) {
   auto* c1 = TryChar(v1);
   auto* c2 = TryChar(v2);
 
   Op<Char::ValType> op;
-  return op(std::tolower(c1->val()), std::tolower(c2->val())) ? True()
-                                                              : False();
+  return gc::Lock<Expr>(
+      op(std::tolower(c1->val()), std::tolower(c2->val())) ? True() : False());
 }
 
 template <int (*Op)(int)>
-Expr* CheckUnaryCharOp(Expr* val) {
-  return Op(TryChar(val)->val()) ? True() : False();
+gc::Lock<Expr> CheckUnaryCharOp(Expr* val) {
+  return gc::Lock<Expr>(Op(TryChar(val)->val()) ? True() : False());
 }
 
 Int::ValType TryGetNonNegExactIntVal(
@@ -436,12 +432,12 @@ Int::ValType TryGetNonNegExactIntVal(
 }
 
 template <typename Op>
-Expr* EvalStringOp(Expr* v1, Expr* v2) {
+gc::Lock<Expr> EvalStringOp(Expr* v1, Expr* v2) {
   auto* s1 = TryString(v1);
   auto* s2 = TryString(v2);
 
   Op op;
-  return op(s1->val(), s2->val()) ? True() : False();
+  return gc::Lock<Expr>(op(s1->val(), s2->val()) ? True() : False());
 }
 
 template <template <typename T> class Op>
@@ -453,7 +449,7 @@ struct ICaseCmpStr {
 };
 
 template <bool need_return>
-Expr* MapImpl(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> MapImpl(Env* env, Expr** args, size_t num_args) {
   static constexpr char kEqualSizeListErr[] =
       "Expected equal sized argument lists";
   Evals* procedure = TryEvals(args[0]);
@@ -496,16 +492,16 @@ Expr* MapImpl(Env* env, Expr** args, size_t num_args) {
     for (auto& expr : new_args) {
       if (expr->type() == Expr::Type::PAIR ||
           expr->type() == Expr::Type::SYMBOL) {
-        auto pair =
-            gc::make_locked<Pair>(Symbol::New("quote"), new Pair(expr, Nil()));
+        auto back = gc::make_locked<Pair>(expr, Nil());
+        auto pair = gc::make_locked<Pair>(Symbol::New("quote"), back.get());
         expr = pair.get();
         locks.push_back(std::move(pair));
       }
     }
 
-    Expr* res = procedure->DoEval(env, new_args.data(), new_args.size());
+    auto res = procedure->DoEval(env, new_args.data(), new_args.size());
     if (need_return) {
-      auto pair = gc::make_locked<Pair>(res, Nil());
+      auto pair = gc::make_locked<Pair>(res.get(), Nil());
       Pair* new_link = pair.get();
       locks.push_back(std::move(pair));
       if (prev) {
@@ -517,7 +513,7 @@ Expr* MapImpl(Env* env, Expr** args, size_t num_args) {
     }
   }
 
-  return ret.get();
+  return ret;
 }
 
 class Promise : public Evals {
@@ -528,30 +524,32 @@ class Promise : public Evals {
   std::ostream& AppendStream(std::ostream& stream) const override {
     return stream << "promise";
   }
-  Expr* DoEval(Env* /* env */,
-               Expr** /* args */,
-               size_t /* num_args */) const override {
-    if (!forced_val_) {
-      forced_val_ = Eval(expr_, env_);
-      expr_ = nullptr;
-      env_ = nullptr;
+  gc::Lock<Expr> DoEval(Env* /* env */,
+                        Expr** /* args */,
+                        size_t /* num_args */) override {
+    if (forced_val_) {
+      return gc::Lock<Expr>(forced_val_);
     }
 
-    return forced_val_;
+    auto ret = Eval(expr_, env_);
+    forced_val_ = ret.get();
+    expr_ = nullptr;
+    env_ = nullptr;
+    return ret;
   }
 
  private:
-  mutable Expr* expr_;
-  mutable Env* env_;
-  mutable Expr* forced_val_ = nullptr;
+  Expr* expr_;
+  Env* env_;
+  Expr* forced_val_ = nullptr;
 };
 
-Expr* Quote(Env* /* env */, Expr** args, size_t num_args) {
+gc::Lock<Expr> Quote(Env* /* env */, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return args[0];
+  return gc::Lock<Expr>(args[0]);
 }
 
-Expr* Lambda(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Lambda(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 2);
   std::vector<Symbol*> req_args;
   Symbol* var_arg = nullptr;
@@ -577,35 +575,41 @@ Expr* Lambda(Env* env, Expr** args, size_t num_args) {
       throw RuntimeException("Expected arguments", nullptr);
   }
 
+  std::vector<gc::Lock<Expr>> locks;
+  locks.reserve(num_args - 1);
   // TODO(bcf): Analyze in other places as appropriate.
   for (size_t i = 1; i < num_args; ++i) {
-    args[i] = eval::Analyze(args[i]);
+    auto lock = eval::Analyze(args[i]);
+    args[i] = lock.get();
+    locks.push_back(std::move(lock));
   }
 
-  return LambdaImpl::New(req_args, var_arg, {args + 1, args + num_args}, env);
+  req_args.shrink_to_fit();
+  return gc::Lock<Expr>(new LambdaImpl(std::move(req_args), var_arg,
+                                       {args + 1, args + num_args}, env));
 }
 
-Expr* If(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> If(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 2);
   ExpectNumArgsLe(num_args, 3);
-  auto* cond = Eval(args[0], env);
-  if (cond == False()) {
+  auto cond = Eval(args[0], env);
+  if (cond.get() == False()) {
     if (num_args == 3) {
       return Eval(args[2], env);
     } else {
-      return Nil();
+      return gc::Lock<Expr>(Nil());
     }
   }
   return Eval(args[1], env);
 }
 
-Expr* Set(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Set(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
-  env->SetVar(TrySymbol(args[0]), Eval(args[1], env));
-  return Nil();
+  env->SetVar(TrySymbol(args[0]), Eval(args[1], env).get());
+  return gc::Lock<Expr>(Nil());
 }
 
-Expr* Cond(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Cond(Env* env, Expr** args, size_t num_args) {
   for (size_t i = 0; i < num_args; ++i) {
     auto* pair = args[i]->AsPair();
     if (!pair) {
@@ -622,8 +626,8 @@ Expr* Cond(Env* env, Expr** args, size_t num_args) {
       }
     }
 
-    auto* test = Eval(first, env);
-    if (test == False()) {
+    auto test = Eval(first, env);
+    if (test.get() == False()) {
       continue;
     }
 
@@ -639,24 +643,25 @@ Expr* Cond(Env* env, Expr** args, size_t num_args) {
         throw RuntimeException("Unexpected expression", trailing);
       }
 
-      auto* val = Eval(pair->Cr("add"), env);
+      auto val = Eval(pair->Cr("add"), env);
       auto* func = val->AsEvals();
       if (!func) {
-        throw RuntimeException("Expected procedure", val);
+        throw RuntimeException("Expected procedure", val.get());
       }
 
-      return func->DoEval(env, &test, 1);
+      Expr* exprs[] = {test.get()};
+      return func->DoEval(env, exprs, 1);
     }
 
     return ExecuteList(env, pair->cdr());
   }
 
-  return Nil();
+  return gc::Lock<Expr>(Nil());
 }
 
-Expr* Case(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Case(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 1);
-  auto* key = Eval(args[0], env);
+  auto key = Eval(args[0], env);
   for (size_t i = 1; i < num_args; ++i) {
     auto* clause = args[i]->AsPair();
     if (!clause) {
@@ -689,34 +694,34 @@ Expr* Case(Env* env, Expr** args, size_t num_args) {
     }
   }
 
-  return Nil();
+  return gc::Lock<Expr>(Nil());
 }
 
-Expr* And(Env* env, Expr** args, size_t num_args) {
-  Expr* e = nullptr;
+gc::Lock<Expr> And(Env* env, Expr** args, size_t num_args) {
+  gc::Lock<Expr> e;
   for (size_t i = 0; i < num_args; ++i) {
     e = Eval(args[i], env);
-    if (e == False()) {
+    if (e.get() == False()) {
       return e;
     }
   }
 
-  return e ? e : True();
+  return e ? e : gc::Lock<Expr>(True());
 }
 
-Expr* Or(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Or(Env* env, Expr** args, size_t num_args) {
   for (size_t i = 0; i < num_args; ++i) {
-    auto* e = Eval(args[i], env);
-    if (e != False()) {
+    auto e = Eval(args[i], env);
+    if (e.get() != False()) {
       return e;
     }
   }
 
-  return False();
+  return gc::Lock<Expr>(False());
 }
 
 // TODO(bcf): Named let.
-Expr* Let(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Let(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 2);
   Expr* cur = TryPair(args[0]);
   auto new_env = gc::make_locked<Env>(env);
@@ -736,7 +741,7 @@ Expr* Let(Env* env, Expr** args, size_t num_args) {
       throw RuntimeException(kErrMessage, binding->cdr());
     }
     auto* val = second_link->car();
-    new_env->DefineVar(var, Eval(val, env));
+    new_env->DefineVar(var, Eval(val, env).get());
 
     cur = pair->cdr();
   }
@@ -747,7 +752,7 @@ Expr* Let(Env* env, Expr** args, size_t num_args) {
   return EvalArray(new_env.get(), args + 1, num_args - 1);
 }
 
-Expr* LetStar(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> LetStar(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 2);
   Expr* cur = TryPair(args[0]);
   auto new_env = gc::make_locked<Env>(env);
@@ -767,7 +772,7 @@ Expr* LetStar(Env* env, Expr** args, size_t num_args) {
       throw RuntimeException(kErrMessage, binding->cdr());
     }
     auto* val = second_link->car();
-    new_env->DefineVar(var, Eval(val, new_env.get()));
+    new_env->DefineVar(var, Eval(val, new_env.get()).get());
 
     cur = pair->cdr();
   }
@@ -778,7 +783,7 @@ Expr* LetStar(Env* env, Expr** args, size_t num_args) {
   return EvalArray(new_env.get(), args + 1, num_args - 1);
 }
 
-Expr* LetRec(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> LetRec(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 2);
   auto new_env = gc::make_locked<Env>(env);
   std::vector<std::pair<Symbol*, Expr*>> bindings;
@@ -808,15 +813,15 @@ Expr* LetRec(Env* env, Expr** args, size_t num_args) {
   }
 
   for (const auto& binding : bindings) {
-    new_env->SetVar(binding.first, Eval(binding.second, new_env.get()));
+    new_env->SetVar(binding.first, Eval(binding.second, new_env.get()).get());
   }
 
   return EvalArray(new_env.get(), args + 1, num_args - 1);
 }
 
-Expr* Begin(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Begin(Env* env, Expr** args, size_t num_args) {
   if (num_args == 0) {
-    return Nil();
+    return gc::Lock<Expr>(Nil());
   }
   for (; num_args > 1; --num_args, ++args) {
     Eval(*args, env);
@@ -824,175 +829,179 @@ Expr* Begin(Env* env, Expr** args, size_t num_args) {
   return Eval(*args, env);
 }
 
-Expr* Do(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Do(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* Delay(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Delay(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return new Promise(args[0], env);
+  return gc::Lock<Expr>(new Promise(args[0], env));
 }
 
-Expr* Quasiquote(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Quasiquote(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* LetSyntax(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> LetSyntax(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* LetRecSyntax(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> LetRecSyntax(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* SyntaxRules(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> SyntaxRules(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* Define(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Define(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
-  env->DefineVar(TrySymbol(args[0]), Eval(args[1], env));
+  env->DefineVar(TrySymbol(args[0]), Eval(args[1], env).get());
   // TODO(bcf): handle define lambda.
 
-  return Nil();
+  return gc::Lock<Expr>(Nil());
 }
 
-Expr* DefineSyntax(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> DefineSyntax(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* IsEqv(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsEqv(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
-  return args[0]->Eqv(args[1]) ? True() : False();
+  return gc::Lock<Expr>(args[0]->Eqv(args[1]) ? True() : False());
 }
 
-Expr* IsEq(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsEq(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
-  return args[0]->Eq(args[1]) ? True() : False();
+  return gc::Lock<Expr>(args[0]->Eq(args[1]) ? True() : False());
 }
 
-Expr* IsEqual(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsEqual(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
-  return args[0]->Equal(args[1]) ? True() : False();
+  return gc::Lock<Expr>(args[0]->Equal(args[1]) ? True() : False());
 }
 
-Expr* IsNumber(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsNumber(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return args[0]->type() == Expr::Type::NUMBER ? True() : False();
+  return gc::Lock<Expr>(args[0]->type() == Expr::Type::NUMBER ? True()
+                                                              : False());
 }
 
-Expr* IsComplex(Env* env, Expr** args, size_t num_args) {
-  ExpectNumArgs(num_args, 1);
-  // We don't support complex.
-  return True();
-}
-
-Expr* IsReal(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsComplex(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   // We don't support complex.
-  return True();
+  return gc::Lock<Expr>(True());
 }
 
-Expr* IsRational(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsReal(Env* env, Expr** args, size_t num_args) {
+  ExpectNumArgs(num_args, 1);
+  // We don't support complex.
+  return gc::Lock<Expr>(True());
+}
+
+gc::Lock<Expr> IsRational(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   // We don't support rational.
-  return False();
+  return gc::Lock<Expr>(False());
 }
 
-Expr* IsInteger(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsInteger(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   auto* num = args[0]->AsNumber();
   if (!num) {
-    return False();
+    return gc::Lock<Expr>(False());
   }
 
   if (num->num_type() == Number::Type::INT) {
-    return True();
+    return gc::Lock<Expr>(True());
   }
 
   auto* as_float = num->AsFloat();
   assert(as_float);
 
-  return as_float->val() == std::floor(as_float->val()) ? True() : False();
+  return gc::Lock<Expr>(
+      as_float->val() == std::floor(as_float->val()) ? True() : False());
 }
 
-Expr* IsExact(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsExact(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return args[0]->type() == Expr::Type::NUMBER && args[0]->AsNumber()->exact()
-             ? True()
-             : False();
+  return gc::Lock<Expr>(args[0]->type() == Expr::Type::NUMBER &&
+                                args[0]->AsNumber()->exact()
+                            ? True()
+                            : False());
 }
 
-Expr* IsInexact(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsInexact(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return args[0]->type() == Expr::Type::NUMBER && args[0]->AsNumber()->exact()
-             ? False()
-             : True();
+  return gc::Lock<Expr>(args[0]->type() == Expr::Type::NUMBER &&
+                                args[0]->AsNumber()->exact()
+                            ? False()
+                            : True());
 }
 
-Expr* Min(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Min(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 1);
   return MostOp<std::less>(args, num_args);
 }
 
-Expr* Max(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Max(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 1);
   return MostOp<std::greater>(args, num_args);
 }
 
-Expr* OpEq(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> OpEq(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 2);
   return CmpOp<std::equal_to>(env, args, num_args);
 }
 
-Expr* OpLt(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> OpLt(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 2);
   return CmpOp<std::less>(env, args, num_args);
 }
 
-Expr* OpGt(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> OpGt(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 2);
   return CmpOp<std::greater>(env, args, num_args);
 }
 
-Expr* OpLe(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> OpLe(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 2);
   return CmpOp<std::less_equal>(env, args, num_args);
 }
 
-Expr* OpGe(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> OpGe(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 2);
   return CmpOp<std::greater_equal>(env, args, num_args);
 }
 
-Expr* IsZero(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsZero(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return TestOp<std::equal_to>(args[0]);
 }
 
-Expr* IsPositive(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsPositive(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return TestOp<std::greater>(args[0]);
 }
 
-Expr* IsNegative(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsNegative(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return TestOp<std::less>(args[0]);
 }
 
-Expr* IsOdd(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsOdd(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   auto* as_int = num->AsInt();
@@ -1000,10 +1009,10 @@ Expr* IsOdd(Env* env, Expr** args, size_t num_args) {
     throw RuntimeException("expected integer, given float", num);
   }
 
-  return as_int->val() % 2 == 1 ? True() : False();
+  return gc::Lock<Expr>(as_int->val() % 2 == 1 ? True() : False());
 }
 
-Expr* IsEven(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsEven(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   auto* as_int = num->AsInt();
@@ -1011,56 +1020,56 @@ Expr* IsEven(Env* env, Expr** args, size_t num_args) {
     throw RuntimeException("expected integer, given float", num);
   }
 
-  return as_int->val() % 2 == 0 ? True() : False();
+  return gc::Lock<Expr>(as_int->val() % 2 == 0 ? True() : False());
 }
 
-Expr* Plus(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Plus(Env* env, Expr** args, size_t num_args) {
   auto accum = gc::make_locked<Int>(0);
   return ArithOp<std::plus>(env, accum.get(), args, num_args);
 }
 
-Expr* Star(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Star(Env* env, Expr** args, size_t num_args) {
   auto accum = gc::make_locked<Int>(1);
   return ArithOp<std::multiplies>(env, accum.get(), args, num_args);
 }
 
-Expr* Minus(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Minus(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 1);
   return ArithOp<std::minus>(env, *args, args + 1, num_args - 1);
 }
 
-Expr* Slash(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Slash(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 1);
   return ArithOp<std::divides>(env, *args, args + 1, num_args - 1);
 }
 
-Expr* Abs(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Abs(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
 
   if (auto* as_int = num->AsInt()) {
-    return as_int->val() >= 0 ? as_int : new Int(-as_int->val());
+    return gc::Lock<Expr>(as_int->val() >= 0 ? as_int
+                                             : new Int(-as_int->val()));
   }
 
   auto* as_float = num->AsFloat();
   assert(as_float);
-  return as_float->val() >= 0.0 ? as_float : new Float(-as_float->val());
+  return gc::Lock<Expr>(as_float->val() >= 0.0 ? as_float
+                                               : new Float(-as_float->val()));
 }
 
-Expr* Quotient(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Quotient(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   bool is_exact = true;
   Int::ValType arg1 = TryGetIntValOrRound(args[0], &is_exact);
   Int::ValType arg2 = TryGetIntValOrRound(args[1], &is_exact);
   Int::ValType ret = arg1 / arg2;
 
-  if (is_exact) {
-    return new Int(ret);
-  }
-  return new Float(ret);
+  return is_exact ? gc::Lock<Expr>(new Int(ret))
+                  : gc::Lock<Expr>(new Float(ret));
 }
 
-Expr* Remainder(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Remainder(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   bool is_exact = true;
   Int::ValType arg1 = TryGetIntValOrRound(args[0], &is_exact);
@@ -1069,13 +1078,11 @@ Expr* Remainder(Env* env, Expr** args, size_t num_args) {
   Int::ValType quotient = arg1 / arg2;
   Int::ValType ret = arg1 - arg2 * quotient;
 
-  if (is_exact) {
-    return new Int(ret);
-  }
-  return new Float(ret);
+  return is_exact ? gc::Lock<Expr>(new Int(ret))
+                  : gc::Lock<Expr>(new Float(ret));
 }
 
-Expr* Modulo(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Modulo(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   bool is_exact = true;
   Int::ValType arg1 = TryGetIntValOrRound(args[0], &is_exact);
@@ -1087,124 +1094,122 @@ Expr* Modulo(Env* env, Expr** args, size_t num_args) {
     ret += arg2;
   }
 
-  if (is_exact) {
-    return new Int(ret);
-  }
-  return new Float(ret);
+  return is_exact ? gc::Lock<Expr>(new Int(ret))
+                  : gc::Lock<Expr>(new Float(ret));
 }
 
 // TODO(bcf): Implement in lisp
-Expr* Gcd(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Gcd(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
 // TODO(bcf): Implement in lisp
-Expr* Lcm(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Lcm(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* Numerator(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Numerator(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* Denominator(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Denominator(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* Floor(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Floor(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   if (num->num_type() == Number::Type::INT) {
-    return num;
+    return gc::Lock<Expr>(num);
   }
 
   assert(num->num_type() == Number::Type::FLOAT);
-  return new Float(std::floor(num->AsFloat()->val()));
+  return gc::Lock<Expr>(new Float(std::floor(num->AsFloat()->val())));
 }
 
-Expr* Ceiling(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Ceiling(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   if (num->num_type() == Number::Type::INT) {
-    return num;
+    return gc::Lock<Expr>(num);
   }
 
   assert(num->num_type() == Number::Type::FLOAT);
-  return new Float(std::ceil(num->AsFloat()->val()));
+  return gc::Lock<Expr>(new Float(std::ceil(num->AsFloat()->val())));
 }
 
-Expr* Truncate(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Truncate(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   if (num->num_type() == Number::Type::INT) {
-    return num;
+    return gc::Lock<Expr>(num);
   }
 
   assert(num->num_type() == Number::Type::FLOAT);
-  return new Float(std::trunc(num->AsFloat()->val()));
+  return gc::Lock<Expr>(new Float(std::trunc(num->AsFloat()->val())));
 }
 
-Expr* Round(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Round(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   if (num->num_type() == Number::Type::INT) {
-    return num;
+    return gc::Lock<Expr>(num);
   }
 
   assert(num->num_type() == Number::Type::FLOAT);
-  return new Float(std::round(num->AsFloat()->val()));
+  return gc::Lock<Expr>(new Float(std::round(num->AsFloat()->val())));
 }
 
-Expr* Rationalize(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Rationalize(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* Exp(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Exp(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::exp>(args[0]);
 }
 
-Expr* Log(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Log(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::exp>(args[0]);
 }
 
-Expr* Sin(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Sin(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::sin>(args[0]);
 }
 
-Expr* Cos(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Cos(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::cos>(args[0]);
 }
 
-Expr* Tan(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Tan(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::tan>(args[0]);
 }
 
-Expr* Asin(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Asin(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::asin>(args[0]);
 }
 
-Expr* ACos(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> ACos(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::acos>(args[0]);
 }
 
-Expr* ATan(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> ATan(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsLe(num_args, 2);
   if (num_args == 1) {
     return EvalUnaryFloatOp<std::atan>(args[0]);
@@ -1213,77 +1218,77 @@ Expr* ATan(Env* env, Expr** args, size_t num_args) {
   return EvalBinaryFloatOp<std::atan2>(args[0], args[1]);
 }
 
-Expr* Sqrt(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Sqrt(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return EvalUnaryFloatOp<std::sqrt>(args[0]);
 }
 
-Expr* Expt(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Expt(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalBinaryFloatOp<std::pow>(args[0], args[1]);
 }
 
-Expr* MakeRectangular(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> MakeRectangular(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* MakePolar(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> MakePolar(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* RealPart(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> RealPart(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* ImagPart(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> ImagPart(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* Magnitude(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Magnitude(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* Angle(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Angle(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* ExactToInexact(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> ExactToInexact(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   if (auto* as_float = num->AsFloat()) {
-    return as_float;
+    return gc::Lock<Expr>(as_float);
   }
 
   auto* as_int = num->AsInt();
   assert(as_int);
-  return new Float(as_int->val());
+  return gc::Lock<Expr>(new Float(as_int->val()));
 }
 
-Expr* InexactToExact(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> InexactToExact(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   auto* num = TryNumber(args[0]);
   if (auto* as_int = num->AsInt()) {
-    return as_int;
+    return gc::Lock<Expr>(as_int);
   }
 
   auto* as_float = num->AsFloat();
   assert(as_float);
-  return new Int(as_float->val());
+  return gc::Lock<Expr>(new Int(as_float->val()));
 }
 
-Expr* NumberToString(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> NumberToString(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsLe(num_args, 2);
   auto* num = TryNumber(args[0]);
 
@@ -1297,7 +1302,7 @@ Expr* NumberToString(Env* env, Expr** args, size_t num_args) {
     std::ostringstream oss;
     oss << as_float->val();
 
-    return new expr::String(oss.str());
+    return gc::Lock<Expr>(new expr::String(oss.str()));
   }
 
   auto* as_int = num->AsInt();
@@ -1333,68 +1338,68 @@ Expr* NumberToString(Env* env, Expr** args, size_t num_args) {
       throw RuntimeException("radix must be one of 2 8 10 16", nullptr);
   }
 
-  return new expr::String(ret);
+  return gc::Lock<Expr>(new expr::String(ret));
 }
 
-Expr* StringToNumber(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> StringToNumber(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsLe(num_args, 2);
   int radix = num_args == 2 ? TryInt(args[1])->val() : 10;
   const auto& str_val = TryString(args[0])->val();
   try {
-    return parse::Lexer::LexNum(str_val, radix);
+    return gc::Lock<Expr>(parse::Lexer::LexNum(str_val, radix).get());
   } catch (const util::SyntaxException& e) {
-    return False();
+    return gc::Lock<Expr>(False());
   }
 }
 
-Expr* Not(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Not(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return args[0] == False() ? True() : False();
+  return gc::Lock<Expr>(args[0] == False() ? True() : False());
 }
 
-Expr* IsBoolean(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsBoolean(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return args[0]->type() == Expr::Type::BOOL ? True() : False();
+  return gc::Lock<Expr>(args[0]->type() == Expr::Type::BOOL ? True() : False());
 }
 
-Expr* IsPair(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsPair(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return args[0]->type() == Expr::Type::PAIR ? True() : False();
+  return gc::Lock<Expr>(args[0]->type() == Expr::Type::PAIR ? True() : False());
 }
 
-Expr* Cons(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Cons(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
-  return new Pair(args[0], args[1]);
+  return gc::Lock<Expr>(new Pair(args[0], args[1]));
 }
 
-Expr* Car(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Car(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return TryPair(args[0])->car();
+  return gc::Lock<Expr>(TryPair(args[0])->car());
 }
 
-Expr* Cdr(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Cdr(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return TryPair(args[0])->cdr();
+  return gc::Lock<Expr>(TryPair(args[0])->cdr());
 }
 
-Expr* SetCar(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> SetCar(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   TryPair(args[0])->set_car(args[1]);
-  return Nil();
+  return gc::Lock<Expr>(Nil());
 }
 
-Expr* SetCdr(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> SetCdr(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   TryPair(args[0])->set_cdr(args[1]);
-  return Nil();
+  return gc::Lock<Expr>(Nil());
 }
 
-Expr* IsNull(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsNull(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return args[0] == Nil() ? True() : False();
+  return gc::Lock<Expr>(args[0] == Nil() ? True() : False());
 }
 
-Expr* IsList(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsList(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   Expr* cur = args[0];
 
@@ -1402,24 +1407,24 @@ Expr* IsList(Env* env, Expr** args, size_t num_args) {
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     // If we found a loop, it's not a list.
     if (seen.find(list) != seen.end()) {
-      return False();
+      return gc::Lock<Expr>(False());
     }
     seen.insert(list);
   }
 
-  return cur == Nil() ? True() : False();
+  return gc::Lock<Expr>(cur == Nil() ? True() : False());
 }
 
-Expr* List(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> List(Env* env, Expr** args, size_t num_args) {
   gc::Lock<Expr> front(Nil());
   for (ssize_t i = num_args - 1; i >= 0; --i) {
     front.reset(new Pair(args[i], front.get()));
   }
 
-  return front.get();
+  return gc::Lock<Expr>(front.get());
 }
 
-Expr* Length(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Length(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   Int::ValType ret = 0;
   Expr* cur = args[0];
@@ -1431,33 +1436,33 @@ Expr* Length(Env* env, Expr** args, size_t num_args) {
     throw RuntimeException("Expected list", args[0]);
   }
 
-  return new Int(ret);
+  return gc::Lock<Expr>(new Int(ret));
 }
 
-Expr* Append(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Append(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 1);
-  Expr* ret = Nil();
+  gc::Lock<Expr> ret(Nil());
   Pair* back = nullptr;
 
   for (size_t i = 0; i < num_args - 1; ++i) {
     Pair* cur_back = nullptr;
-    Expr* copy = CopyList(args[i], &cur_back);
-    if (copy == Nil()) {
+    auto copy = CopyList(args[i], &cur_back);
+    if (copy.get() == Nil()) {
       continue;
     }
-    if (ret == Nil()) {
+    if (ret.get() == Nil()) {
       ret = copy;
     } else {
       assert(cur_back);
       assert(cur_back->cdr() == Nil());
-      cur_back->set_cdr(copy);
+      cur_back->set_cdr(copy.get());
     }
     back = cur_back;
   }
 
   Expr* last = args[num_args - 1];
-  if (ret == Nil()) {
-    return last;
+  if (ret.get() == Nil()) {
+    return gc::Lock<Expr>(last);
   }
 
   assert(back);
@@ -1466,7 +1471,7 @@ Expr* Append(Env* env, Expr** args, size_t num_args) {
   return ret;
 }
 
-Expr* Reverse(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Reverse(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   gc::Lock<Expr> ret(Nil());
   Expr* cur = args[0];
@@ -1478,17 +1483,17 @@ Expr* Reverse(Env* env, Expr** args, size_t num_args) {
     throw RuntimeException("Expected list", args[0]);
   }
 
-  return ret.get();
+  return ret;
 }
 
-Expr* ListTail(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> ListTail(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   Int::ValType k = TryInt(args[1])->val();
 
   Expr* cur = args[0];
   for (; auto *list = cur->AsPair(); cur = list->cdr(), --k) {
     if (k == 0) {
-      return cur;
+      return gc::Lock<Expr>(cur);
     }
   }
 
@@ -1500,20 +1505,20 @@ Expr* ListTail(Env* env, Expr** args, size_t num_args) {
     throw RuntimeException("index too large for list", nullptr);
   }
 
-  return Nil();
+  return gc::Lock<Expr>(Nil());
 }
 
-Expr* ListRef(Env* env, Expr** args, size_t num_args) {
-  Expr* tail = ListTail(env, args, num_args);
-  return TryPair(tail)->car();
+gc::Lock<Expr> ListRef(Env* env, Expr** args, size_t num_args) {
+  auto tail = ListTail(env, args, num_args);
+  return gc::Lock<Expr>(TryPair(tail.get())->car());
 }
 
-Expr* Memq(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Memq(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   Expr* cur = args[1];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     if (args[0]->Eq(list->car())) {
-      return list;
+      return gc::Lock<Expr>(list);
     }
   }
 
@@ -1521,15 +1526,15 @@ Expr* Memq(Env* env, Expr** args, size_t num_args) {
     throw RuntimeException("Expected list", args[0]);
   }
 
-  return False();
+  return gc::Lock<Expr>(False());
 }
 
-Expr* Memv(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Memv(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   Expr* cur = args[1];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     if (args[0]->Eqv(list->car())) {
-      return list;
+      return gc::Lock<Expr>(list);
     }
   }
 
@@ -1537,15 +1542,15 @@ Expr* Memv(Env* env, Expr** args, size_t num_args) {
     throw RuntimeException("Expected list", args[0]);
   }
 
-  return False();
+  return gc::Lock<Expr>(False());
 }
 
-Expr* Member(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Member(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   Expr* cur = args[1];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     if (args[0]->Equal(list->car())) {
-      return list;
+      return gc::Lock<Expr>(list);
     }
   }
 
@@ -1553,175 +1558,180 @@ Expr* Member(Env* env, Expr** args, size_t num_args) {
     throw RuntimeException("Expected list", args[0]);
   }
 
-  return False();
+  return gc::Lock<Expr>(False());
 }
 
-Expr* Assq(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Assq(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   Expr* cur = args[1];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     Pair* head = TryPair(list->car());
     if (head->car()->Eq(args[0])) {
-      return head;
+      return gc::Lock<Expr>(head);
     }
   }
 
-  return False();
+  return gc::Lock<Expr>(False());
 }
 
-Expr* Assv(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Assv(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   Expr* cur = args[1];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     Pair* head = TryPair(list->car());
     if (head->car()->Eqv(args[0])) {
-      return head;
+      return gc::Lock<Expr>(head);
     }
   }
 
-  return False();
+  return gc::Lock<Expr>(False());
 }
 
-Expr* Assoc(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Assoc(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   Expr* cur = args[1];
   for (; auto* list = cur->AsPair(); cur = list->cdr()) {
     Pair* head = TryPair(list->car());
     if (head->car()->Equal(args[0])) {
-      return head;
+      return gc::Lock<Expr>(head);
     }
   }
 
-  return False();
+  return gc::Lock<Expr>(False());
 }
 
-Expr* IsSymbol(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsSymbol(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return args[0]->type() == Expr::Type::SYMBOL ? True() : False();
+  return gc::Lock<Expr>(args[0]->type() == Expr::Type::SYMBOL ? True()
+                                                              : False());
 }
 
-Expr* SymbolToString(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> SymbolToString(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return new expr::String(TrySymbol(args[0])->val(), true /* read_only */);
+  return gc::Lock<Expr>(
+      new expr::String(TrySymbol(args[0])->val(), true /* read_only */));
 }
 
-Expr* StringToSymbol(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> StringToSymbol(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return Symbol::New(TryString(args[0])->val());
+  return gc::Lock<Expr>(Symbol::New(TryString(args[0])->val()));
 }
 
-Expr* IsChar(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsChar(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return args[0]->type() == Expr::Type::CHAR ? True() : False();
+  return gc::Lock<Expr>(args[0]->type() == Expr::Type::CHAR ? True() : False());
 }
 
-Expr* IsCharEq(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharEq(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalCharOp<std::equal_to>(args[0], args[1]);
 }
 
-Expr* IsCharLt(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharLt(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalCharOp<std::less>(args[0], args[1]);
 }
 
-Expr* IsCharGt(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharGt(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalCharOp<std::greater>(args[0], args[1]);
 }
 
-Expr* IsCharLe(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharLe(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalCharOp<std::less_equal>(args[0], args[1]);
 }
 
-Expr* IsCharGe(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharGe(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalCharOp<std::greater_equal>(args[0], args[1]);
 }
 
-Expr* IsCharCiEq(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharCiEq(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalCharCiOp<std::equal_to>(args[0], args[1]);
 }
 
-Expr* IsCharCiLt(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharCiLt(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalCharCiOp<std::less>(args[0], args[1]);
 }
 
-Expr* IsCharCiGt(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharCiGt(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalCharCiOp<std::greater>(args[0], args[1]);
 }
 
-Expr* IsCharCiLe(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharCiLe(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalCharCiOp<std::less_equal>(args[0], args[1]);
 }
 
-Expr* IsCharCiGe(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharCiGe(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalCharCiOp<std::greater_equal>(args[0], args[1]);
 }
 
-Expr* IsCharAlphabetic(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharAlphabetic(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return CheckUnaryCharOp<std::isalpha>(args[0]);
 }
 
-Expr* IsCharNumeric(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharNumeric(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return CheckUnaryCharOp<std::isdigit>(args[0]);
 }
 
-Expr* IsCharWhitespace(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharWhitespace(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return CheckUnaryCharOp<std::isspace>(args[0]);
 }
 
-Expr* IsCharUpperCase(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharUpperCase(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return CheckUnaryCharOp<std::isupper>(args[0]);
 }
 
-Expr* IsCharLowerCase(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharLowerCase(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return CheckUnaryCharOp<std::tolower>(args[0]);
 }
 
-Expr* CharToInteger(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> CharToInteger(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return new Int(TryChar(args[0])->val());
+  return gc::Lock<Expr>(new Int(TryChar(args[0])->val()));
 }
 
-Expr* IntegerToChar(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IntegerToChar(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   auto* as_int = TryInt(args[0]);
   if (as_int->val() > std::numeric_limits<Char::ValType>::max()) {
     throw RuntimeException("Value out of range", as_int);
   }
-  return new Char(as_int->val());
+  return gc::Lock<Expr>(new Char(as_int->val()));
 }
 
-Expr* CharUpCase(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> CharUpCase(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   auto char_val = TryChar(args[0])->val();
-  return std::isupper(char_val) ? args[0] : new Char(std::toupper(char_val));
+  return gc::Lock<Expr>(
+      std::isupper(char_val) ? args[0] : new Char(std::toupper(char_val)));
 }
 
-Expr* CharDownCase(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> CharDownCase(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   auto char_val = TryChar(args[0])->val();
-  return std::islower(char_val) ? args[0] : new Char(std::tolower(char_val));
+  return gc::Lock<Expr>(
+      std::islower(char_val) ? args[0] : new Char(std::tolower(char_val)));
 }
 
-Expr* IsString(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsString(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return args[0]->type() == Expr::Type::STRING ? True() : False();
+  return gc::Lock<Expr>(args[0]->type() == Expr::Type::STRING ? True()
+                                                              : False());
 }
 
-Expr* MakeString(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> MakeString(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsLe(num_args, 2);
 
   auto len = TryGetNonNegExactIntVal(args[0]);
@@ -1730,31 +1740,31 @@ Expr* MakeString(Env* env, Expr** args, size_t num_args) {
     init_value = TryChar(args[1])->val();
   }
 
-  return new expr::String(std::string(len, init_value));
+  return gc::Lock<Expr>(new expr::String(std::string(len, init_value)));
 }
 
-Expr* String(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> String(Env* env, Expr** args, size_t num_args) {
   std::string val;
   for (size_t i = 0; i < num_args; ++i) {
     val.push_back(TryChar(args[i])->val());
   }
 
-  return new expr::String(std::move(val));
+  return gc::Lock<Expr>(new expr::String(std::move(val)));
 }
 
-Expr* StringLength(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> StringLength(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return new Int(TryString(args[0])->val().size());
+  return gc::Lock<Expr>(new Int(TryString(args[0])->val().size()));
 }
 
-Expr* StringRef(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> StringRef(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   auto& string_val = TryString(args[0])->val();
   auto idx = TryGetNonNegExactIntVal(args[1], string_val.size());
-  return new Char(string_val[idx]);
+  return gc::Lock<Expr>(new Char(string_val[idx]));
 }
 
-Expr* StringSet(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> StringSet(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 3);
   auto* str = TryString(args[0]);
   if (str->read_only()) {
@@ -1763,75 +1773,75 @@ Expr* StringSet(Env* env, Expr** args, size_t num_args) {
 
   auto idx = TryGetNonNegExactIntVal(args[1], str->val().size());
   str->set_val_idx(idx, TryChar(args[2])->val());
-  return Nil();
+  return gc::Lock<Expr>(Nil());
 }
 
-Expr* IsStringEq(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsStringEq(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalStringOp<std::equal_to<std::string>>(args[0], args[1]);
 }
 
-Expr* IsStringEqCi(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsStringEqCi(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalStringOp<ICaseCmpStr<std::equal_to>>(args[0], args[1]);
 }
 
-Expr* IsStringLt(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsStringLt(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalStringOp<std::less<std::string>>(args[0], args[1]);
 }
 
-Expr* IsStringGt(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsStringGt(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalStringOp<std::greater<std::string>>(args[0], args[1]);
 }
 
-Expr* IsStringLe(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsStringLe(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalStringOp<std::less_equal<std::string>>(args[0], args[1]);
 }
 
-Expr* IsStringGe(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsStringGe(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalStringOp<std::greater_equal<std::string>>(args[0], args[1]);
 }
 
-Expr* IsStringLtCi(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsStringLtCi(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalStringOp<ICaseCmpStr<std::less>>(args[0], args[1]);
 }
 
-Expr* IsStringGtCi(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsStringGtCi(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalStringOp<ICaseCmpStr<std::greater>>(args[0], args[1]);
 }
 
-Expr* IsStringLeCi(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsStringLeCi(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalStringOp<ICaseCmpStr<std::less_equal>>(args[0], args[1]);
 }
 
-Expr* IsStringGeCi(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsStringGeCi(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return EvalStringOp<ICaseCmpStr<std::greater_equal>>(args[0], args[1]);
 }
 
-Expr* Substring(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Substring(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 3);
   auto& str_val = TryString(args[0])->val();
   auto start = TryGetNonNegExactIntVal(args[1], str_val.size());
   auto end = TryGetNonNegExactIntVal(args[2], str_val.size());
 
-  return new expr::String(str_val.substr(start, end - start));
+  return gc::Lock<Expr>(new expr::String(str_val.substr(start, end - start)));
 }
 
-Expr* StringAppend(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> StringAppend(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
-  return new expr::String(TryString(args[0])->val() +
-                          TryString(args[1])->val());
+  return gc::Lock<Expr>(
+      new expr::String(TryString(args[0])->val() + TryString(args[1])->val()));
 }
 
-Expr* StringToList(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> StringToList(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   auto& str_val = TryString(args[0])->val();
 
@@ -1840,10 +1850,10 @@ Expr* StringToList(Env* env, Expr** args, size_t num_args) {
     ret.reset(new Pair(new Char(str_val[i]), ret.get()));
   }
 
-  return ret.get();
+  return ret;
 }
 
-Expr* ListToString(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> ListToString(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   std::string str;
   Expr* cur = args[0];
@@ -1851,15 +1861,15 @@ Expr* ListToString(Env* env, Expr** args, size_t num_args) {
     str.push_back(TryChar(list->car())->val());
   }
 
-  return new expr::String(str);
+  return gc::Lock<Expr>(new expr::String(str));
 }
 
-Expr* StringCopy(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> StringCopy(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return new expr::String(TryString(args[0])->val());
+  return gc::Lock<Expr>(new expr::String(TryString(args[0])->val()));
 }
 
-Expr* StringFill(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> StringFill(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   auto* str = TryString(args[0]);
   if (str->read_only()) {
@@ -1869,47 +1879,49 @@ Expr* StringFill(Env* env, Expr** args, size_t num_args) {
   for (size_t i = 0; i < str->val().size(); ++i) {
     str->set_val_idx(i, char_val);
   }
-  return Nil();
+  return gc::Lock<Expr>(Nil());
 }
 
-Expr* IsVector(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsVector(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return args[0]->type() == Expr::Type::VECTOR ? True() : False();
+  return gc::Lock<Expr>(args[0]->type() == Expr::Type::VECTOR ? True()
+                                                              : False());
 }
 
-Expr* MakeVector(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> MakeVector(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsLe(num_args, 2);
 
   auto count = TryGetNonNegExactIntVal(args[0]);
   Expr* init_val = num_args == 2 ? args[1] : Nil();
-  return new expr::Vector(std::vector<Expr*>(count, init_val));
+  return gc::Lock<Expr>(new expr::Vector(std::vector<Expr*>(count, init_val)));
 }
 
-Expr* Vector(Env* env, Expr** args, size_t num_args) {
-  return new expr::Vector(std::vector<Expr*>(args, args + num_args));
+gc::Lock<Expr> Vector(Env* env, Expr** args, size_t num_args) {
+  return gc::Lock<Expr>(
+      new expr::Vector(std::vector<Expr*>(args, args + num_args)));
 }
 
-Expr* VectorLength(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> VectorLength(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return new Int(TryVector(args[0])->vals().size());
+  return gc::Lock<Expr>(new Int(TryVector(args[0])->vals().size()));
 }
 
-Expr* VectorRef(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> VectorRef(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   auto& vec = TryVector(args[0])->vals();
   auto idx = TryGetNonNegExactIntVal(args[1], vec.size());
-  return vec[idx];
+  return gc::Lock<Expr>(vec[idx]);
 }
 
-Expr* VectorSet(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> VectorSet(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 3);
   auto& vec = TryVector(args[0])->vals();
   auto idx = TryGetNonNegExactIntVal(args[1], vec.size());
   vec[idx] = args[2];
-  return Nil();
+  return gc::Lock<Expr>(Nil());
 }
 
-Expr* VectorToList(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> VectorToList(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   gc::Lock<Expr> ret(Nil());
   auto& vec_val = TryVector(args[0])->vals();
@@ -1917,23 +1929,15 @@ Expr* VectorToList(Env* env, Expr** args, size_t num_args) {
     ret.reset(new Pair(*it, ret.get()));
   }
 
-  return ret.get();
+  return ret;
 }
 
-Expr* ListToVector(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> ListToVector(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-
-  std::vector<Expr*> exprs;
-
-  Expr* cur = args[0];
-  for (; auto* list = cur->AsPair(); cur = list->cdr()) {
-    exprs.push_back(list->car());
-  }
-
-  return new expr::Vector(std::move(exprs));
+  return gc::Lock<Expr>(new expr::Vector(ExprVecFromList(args[0])));
 }
 
-Expr* VectorFill(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> VectorFill(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   auto& vec_val = TryVector(args[0])->vals();
 
@@ -1941,15 +1945,16 @@ Expr* VectorFill(Env* env, Expr** args, size_t num_args) {
     val = args[1];
   }
 
-  return Nil();
+  return gc::Lock<Expr>(Nil());
 }
 
-Expr* IsProcedure(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsProcedure(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return args[0]->type() == Expr::Type::EVALS ? True() : False();
+  return gc::Lock<Expr>(args[0]->type() == Expr::Type::EVALS ? True()
+                                                             : False());
 }
 
-Expr* Apply(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Apply(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 1);
   std::vector<Expr*> new_args(args + 1, args + 1 + num_args - 2);
   if (num_args > 1) {
@@ -1965,61 +1970,63 @@ Expr* Apply(Env* env, Expr** args, size_t num_args) {
   return TryEvals(args[0])->DoEval(env, new_args.data(), new_args.size());
 }
 
-Expr* Map(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Map(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 2);
   return MapImpl<true>(env, args, num_args);
 }
 
-Expr* ForEach(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> ForEach(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 2);
   return MapImpl<false>(env, args, num_args);
 }
 
-Expr* Force(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Force(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   return TryEvals(args[0])->DoEval(env, nullptr, 0);
 }
 
-Expr* CallWithCurrentContinuation(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> CallWithCurrentContinuation(Env* env,
+                                           Expr** args,
+                                           size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* Values(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Values(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* CallWithValues(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> CallWithValues(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* DynamicWind(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> DynamicWind(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* EvalPrim(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> EvalPrim(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 2);
   return Eval(args[0], TryEnv(args[1]));
 }
 
-Expr* SchemeReportEnvironment(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> SchemeReportEnvironment(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   if (TryGetNonNegExactIntVal(args[0]) != kSchemeVersion) {
     throw RuntimeException("Unsupported version", args[0]);
   }
   auto ret = gc::make_locked<Env>(nullptr);
   LoadPrimitives(ret.get());
-  return ret.get();
+  return gc::Lock<Expr>(ret.get());
 }
 
-Expr* NullEnvironment(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> NullEnvironment(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
   if (TryGetNonNegExactIntVal(args[0]) != kSchemeVersion) {
     throw RuntimeException("Unsupported version", args[0]);
@@ -2027,155 +2034,157 @@ Expr* NullEnvironment(Env* env, Expr** args, size_t num_args) {
 
   auto ret = gc::make_locked<Env>(nullptr);
   LoadSyntax(ret.get());
-  return ret.get();
+  return gc::Lock<Expr>(ret.get());
 }
 
-Expr* InteractionEnvironment(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> InteractionEnvironment(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* CallWithInputFile(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> CallWithInputFile(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* CallWithOutputFile(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> CallWithOutputFile(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* IsInputPort(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsInputPort(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return args[0]->type() == Expr::Type::INPUT_PORT ? True() : False();
+  return gc::Lock<Expr>(args[0]->type() == Expr::Type::INPUT_PORT ? True()
+                                                                  : False());
 }
 
-Expr* IsOutputPort(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsOutputPort(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgs(num_args, 1);
-  return args[0]->type() == Expr::Type::OUTPUT_PORT ? True() : False();
+  return gc::Lock<Expr>(args[0]->type() == Expr::Type::OUTPUT_PORT ? True()
+                                                                   : False());
 }
 
-Expr* CurrentInputPort(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> CurrentInputPort(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* CurrentOutputPort(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> CurrentOutputPort(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* WithInputFromFile(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> WithInputFromFile(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* WithOutputToFile(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> WithOutputToFile(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* OpenInputFile(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> OpenInputFile(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* OpenOutputFile(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> OpenOutputFile(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* CloseInputPort(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> CloseInputPort(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* CloseOutputPort(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> CloseOutputPort(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* Read(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Read(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* ReadChar(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> ReadChar(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* PeekChar(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> PeekChar(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* IsEofObject(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsEofObject(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* IsCharReady(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> IsCharReady(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* Write(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Write(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* Display(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Display(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* Newline(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Newline(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* WriteChar(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> WriteChar(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* Load(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> Load(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* TranscriptOn(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> TranscriptOn(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
-Expr* TranscriptOff(Env* env, Expr** args, size_t num_args) {
+gc::Lock<Expr> TranscriptOff(Env* env, Expr** args, size_t num_args) {
   throw util::RuntimeException("Not implemented", nullptr);
   assert(false && env && args && num_args);
-  return nullptr;
+  return {};
 }
 
 const struct {

@@ -52,7 +52,6 @@ class Lock {
     ReleaseLock();
     this->expr_ = other.expr_;
     other.expr_ = nullptr;
-    TakeLock();
     return *this;
   }
 
@@ -60,9 +59,11 @@ class Lock {
     ReleaseLock();
     this->expr_ = other.expr_;
     TakeLock();
+    return *this;
   }
 
   T* operator->() const { return expr_; }
+  T& operator*() const { return *expr_; }
   T* get() const { return expr_; }
   operator bool() const { return expr_ != nullptr; }
 

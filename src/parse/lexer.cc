@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <ios>
 #include <iostream>
+#include <utility>
 
 #include "expr/number.h"
 #include "util/char_class.h"
@@ -49,7 +50,7 @@ class NumLexer {
     assert(radix_ == 2 || radix_ == 8 || radix_ == 10 || radix_ == 16);
   }
 
-  expr::Number* LexNum();
+  gc::Lock<expr::Number> LexNum();
 
  private:
   bool Eof() { return it_ == str_.end(); }
@@ -61,7 +62,7 @@ class NumLexer {
 
   void ParsePrefix();
   std::string ExtractDigitStr(bool* has_dot);
-  expr::Number* ParseReal();
+  gc::Lock<expr::Number> ParseReal();
 
   const util::Mark* mark_;
   const std::string& str_;
@@ -74,7 +75,7 @@ class NumLexer {
   bool has_exp_ = false;
 };
 
-expr::Number* NumLexer::LexNum() {
+gc::Lock<expr::Number> NumLexer::LexNum() {
   ParsePrefix();
 
   if (!Eof() && (*it_ == '+' || *it_ == '-') && it_ + 1 != str_.end() &&
@@ -83,17 +84,16 @@ expr::Number* NumLexer::LexNum() {
     ThrowException("No support for complex numbers");
   }
 
-  expr::Number* real_part = ParseReal();
+  gc::Lock<expr::Number> real_part = ParseReal();
   if (Eof())
     return real_part;
 
-  expr::Number* imag_part = nullptr;
+  gc::Lock<expr::Number> imag_part;
 
   switch (*it_) {
     case 'i':
     case 'I':
-      imag_part = real_part;
-      real_part = nullptr;
+      imag_part = std::move(real_part);
       break;
     case '@':
       ++it_;
@@ -113,7 +113,7 @@ expr::Number* NumLexer::LexNum() {
   // TODO(bcf): Remove when complex supported
   (void)imag_part;
   ThrowException("No support for complex numbers");
-  return nullptr;
+  return {};
 }
 
 void NumLexer::ParsePrefix() {
@@ -259,15 +259,15 @@ std::string NumLexer::ExtractDigitStr(bool* has_dot) {
   return out;
 }
 
-expr::Number* NumLexer::ParseReal() {
+gc::Lock<expr::Number> NumLexer::ParseReal() {
   bool neum_has_dot;
   std::string neum_str = ExtractDigitStr(&neum_has_dot);
   if (Eof() || *it_ != '/') {
     try {
       if (exact_) {
-        return Int::Parse(neum_str, radix_);
+        return gc::Lock<expr::Number>(Int::Parse(neum_str, radix_).get());
       } else {
-        return Float::Parse(neum_str, radix_);
+        return gc::Lock<expr::Number>(Float::Parse(neum_str, radix_).get());
       }
     } catch (std::exception& e) {
       ThrowException(e.what());
@@ -285,7 +285,7 @@ expr::Number* NumLexer::ParseReal() {
 
   // TODO(bcf): Remove when rational numbers supported
   ThrowException("Rational numbers not supported");
-  return nullptr;
+  return {};
 }
 
 }  // namespace
@@ -388,7 +388,7 @@ std::ostream& operator<<(std::ostream& stream, const Token& token) {
 }
 
 // static
-expr::Number* Lexer::LexNum(const std::string& str, int radix) {
+gc::Lock<expr::Number> Lexer::LexNum(const std::string& str, int radix) {
   NumLexer num_lexer(str, nullptr /* mark */, radix);
   return num_lexer.LexNum();
 }
@@ -429,7 +429,7 @@ void Lexer::LexNum() {
   NumLexer num_lexer(lexbuf_, &token_.mark);
 
   token_.type = Token::Type::NUMBER;
-  token_.expr.reset(num_lexer.LexNum());
+  token_.expr.reset(num_lexer.LexNum().get());
 }
 
 void Lexer::LexChar() {

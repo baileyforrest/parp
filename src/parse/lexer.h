@@ -83,7 +83,7 @@ class Lexer {
   explicit Lexer(util::TextStream& stream) : stream_(stream) {}
   ~Lexer() = default;
 
-  static expr::Number* LexNum(const std::string& str, int radix);
+  static gc::Lock<expr::Number> LexNum(const std::string& str, int radix);
 
   const Token& NextToken();
 

@@ -24,6 +24,7 @@
 #include <string>
 
 #include "expr/expr.h"
+#include "gc/gc.h"
 
 namespace expr {
 
@@ -43,8 +44,6 @@ class Number : public Expr {
   virtual Int* AsInt() { return nullptr; }
   virtual const Float* AsFloat() const { return nullptr; }
   virtual Float* AsFloat() { return nullptr; }
-  // TODO(bcf): Move clone to expr if useful.
-  virtual Number* Clone() = 0;
 
   Type num_type() const { return num_type_; }
   bool exact() const { return num_type_ == Type::INT; }
@@ -81,7 +80,7 @@ class Int : public Number {
  public:
   using ValType = int64_t;
 
-  static Int* Parse(const std::string& str, int radix);
+  static gc::Lock<Int> Parse(const std::string& str, int radix);
 
   explicit Int(ValType val) : Number(Type::INT), val_(val) {}
 
@@ -95,7 +94,6 @@ class Int : public Number {
   }
   const Int* AsInt() const override { return this; }
   Int* AsInt() override { return this; }
-  Number* Clone() override { return new Int(val_); }
   bool NumEqv(const Number* other) const override {
     return val_ == other->AsInt()->val_;
   }
@@ -109,7 +107,7 @@ class Float : public Number {
  public:
   using ValType = double;
 
-  static Float* Parse(const std::string& str, int radix);
+  static gc::Lock<Float> Parse(const std::string& str, int radix);
 
   explicit Float(ValType val) : Number(Type::FLOAT), val_(val) {}
 
@@ -123,7 +121,6 @@ class Float : public Number {
   }
   const Float* AsFloat() const override { return this; }
   Float* AsFloat() override { return this; }
-  Number* Clone() override { return new Float(val_); }
   bool NumEqv(const Number* other) const override {
     return val_ == other->AsFloat()->val_;
   }
@@ -146,27 +143,27 @@ inline Int* TryInt(Expr* expr) {
 }
 
 template <template <typename T> class Op>
-Number* OpInPlace(Number* target, Number* other) {
+gc::Lock<Number> OpInPlace(Number* target, Number* other) {
   auto* itarget = target->AsInt();
   auto* iother = other->AsInt();
 
   if (itarget && iother) {
     Op<Int::ValType> op;
     itarget->set_val(op(itarget->val(), iother->val()));
-    return itarget;
+    return gc::Lock<Number>(itarget);
   }
 
   Op<Float::ValType> op;
   if (iother) {
     auto* ftarget = target->AsFloat();
     ftarget->set_val(op(ftarget->val(), iother->val()));
-    return target;
+    return gc::Lock<Number>(target);
   }
   auto* ftarget = itarget ? new Float(itarget->val()) : target->AsFloat();
   auto* fother = other->AsFloat();
 
   ftarget->set_val(op(ftarget->val(), fother->val()));
-  return ftarget;
+  return gc::Lock<Number>(ftarget);
 }
 
 template <template <typename T> class Op>

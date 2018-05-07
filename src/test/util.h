@@ -27,23 +27,14 @@ namespace test {
 
 class TestBase : public testing::Test {
  protected:
-  void SetUp() final {
-    // Clear all objects from heap
-    gc::Gc::Get().Purge();
-
-    TestSetUp();
-  }
-
-  void TearDown() final {
-    TestTearDown();
-
+  TestBase() {
     // Clear all objects from heap
     gc::Gc::Get().Purge();
   }
-
-  // Test fixtures should override these instead.
-  virtual void TestSetUp() {}
-  virtual void TestTearDown() {}
+  ~TestBase() {
+    // Clear all objects from heap
+    gc::Gc::Get().Purge();
+  }
 };
 
 }  // namespace test

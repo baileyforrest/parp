@@ -68,13 +68,13 @@ const char* TypeToString(Number::Type type) {
 }
 
 // static
-Int* Int::Parse(const std::string& str, int radix) {
-  return new Int(stoi64_whole(str, radix));
+gc::Lock<Int> Int::Parse(const std::string& str, int radix) {
+  return gc::make_locked<Int>(stoi64_whole(str, radix));
 }
 
 // static
-Float* Float::Parse(const std::string& str, int radix) {
-  return new Float(strtod_whole(str, radix));
+gc::Lock<Float> Float::Parse(const std::string& str, int radix) {
+  return gc::make_locked<Float>(strtod_whole(str, radix));
 }
 
 }  // namespace expr

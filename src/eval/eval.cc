@@ -34,37 +34,32 @@ namespace eval {
 
 namespace {
 
-Expr* DoEval(Expr* expr, expr::Env* env) {
+gc::Lock<Expr> DoEval(Expr* expr, expr::Env* env) {
   switch (expr->type()) {
     // If we are evaluating a EVALS directly, it must take no arguments.
     case Expr::Type::EVALS:
-      return expr->AsEvals()->DoEval(env, nullptr, 0);
+      return gc::Lock<Expr>(expr->AsEvals()->DoEval(env, nullptr, 0));
     case Expr::Type::SYMBOL:
-      return env->Lookup(expr->AsSymbol());
+      return gc::Lock<Expr>(env->Lookup(expr->AsSymbol()));
     default:
       break;
   }
 
-  return expr;
+  return gc::Lock<Expr>(expr);
 }
 
 class Apply : public expr::Evals {
  public:
-  static Apply* New(Expr* op, std::vector<Expr*> args) {
-    args.shrink_to_fit();
-    return new Apply(op, std::move(args));
-  }
-
- private:
-  // Evals implementation:
-  std::ostream& AppendStream(std::ostream& stream) const override;
-  Expr* DoEval(Env* env, Expr** exprs, size_t size) const override;
-
   Apply(Expr* op, std::vector<Expr*> args) : op_(op), args_(args) {
     assert(op);
   }
   ~Apply() override = default;
 
+  // Evals implementation:
+  std::ostream& AppendStream(std::ostream& stream) const override;
+  gc::Lock<Expr> DoEval(Env* env, Expr** exprs, size_t size) override;
+
+ private:
   Expr* op_;
   const std::vector<Expr*> args_;
 };
@@ -79,30 +74,31 @@ std::ostream& Apply::AppendStream(std::ostream& stream) const {
   return stream;
 }
 
-Expr* Apply::DoEval(Env* env, Expr** exprs, size_t size) const {
+gc::Lock<Expr> Apply::DoEval(Env* env, Expr** exprs, size_t size) {
   assert(!exprs);
   assert(size == 0);
-  auto* evals = expr::TryEvals(eval::DoEval(op_, env));
+  auto op = eval::DoEval(op_, env);
+  auto* evals = expr::TryEvals(op.get());
   auto args_copy = args_;
   return evals->DoEval(env, args_copy.data(), args_copy.size());
 }
 
 }  // namespace
 
-Expr* Analyze(Expr* expr) {
+gc::Lock<Expr> Analyze(Expr* expr) {
   auto* pair = expr->AsPair();
   if (!pair) {
-    return expr;
+    return gc::Lock<Expr>(expr);
   }
 
-  auto* op = Analyze(pair->car());
+  auto op = Analyze(pair->car());
   auto args = ExprVecFromList(pair->cdr());
-  return Apply::New(op, args);
+  return gc::Lock<Expr>(new Apply(op.get(), std::move(args)));
 }
 
-Expr* Eval(Expr* expr, expr::Env* env) {
-  auto* e = Analyze(expr);
-  return DoEval(e, env);
+gc::Lock<Expr> Eval(Expr* expr, expr::Env* env) {
+  auto e = Analyze(expr);
+  return DoEval(e.get(), env);
 }
 
 }  // namespace eval

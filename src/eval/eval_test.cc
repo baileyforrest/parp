@@ -43,88 +43,97 @@ namespace eval {
 
 namespace {
 
-expr::Expr* ParseExpr(const std::string& str) {
+gc::Lock<expr::Expr> ParseExpr(const std::string& str) {
   auto exprs = parse::Read(str);
   assert(exprs.size() == 1);
   return exprs[0];
 }
 
-// These are needed for gtest to correctly print the values when there's an
-// EXPECT mismatch
-Expr* IntExpr(Int::ValType val) {
-  return new Int(val);
+gc::Lock<Expr> IntExpr(Int::ValType val) {
+  return gc::Lock<Expr>(new Int(val));
 }
 
-Expr* FloatExpr(Float::ValType d) {
-  return new Float(d);
+gc::Lock<Expr> CharExpr(Char::ValType val) {
+  return gc::Lock<Expr>(new Char(val));
 }
 
-Expr* StringExpr(std::string str) {
-  return new String(std::move(str));
+gc::Lock<Expr> FloatExpr(Float::ValType d) {
+  return gc::Lock<Expr>(new Float(d));
 }
 
-Expr* SymExpr(std::string str) {
-  return Symbol::New(std::move(str));
+gc::Lock<Expr> StringExpr(std::string str) {
+  return gc::Lock<Expr>(new String(std::move(str)));
+}
+
+gc::Lock<Expr> SymExpr(std::string str) {
+  return gc::Lock<Expr>(Symbol::New(std::move(str)));
 }
 
 }  // namespace
 
 class EvalTest : public test::TestBase {
  protected:
-  virtual void TestSetUp() {
-    env_ = new Env();
-    expr::LoadPrimitives(env_);
-  }
-  virtual void TestTearDown() { env_ = nullptr; }
+  EvalTest() : env_(new Env()) { expr::LoadPrimitives(env_.get()); }
 
-  expr::Expr* EvalStr(const std::string& str) {
-    return Eval(ParseExpr(str), env_);
+  gc::Lock<expr::Expr> EvalStr(const std::string& str) {
+    return Eval(ParseExpr(str).get(), env_.get());
   }
 
-  expr::Env* env_ = nullptr;
+  gc::Lock<expr::Env> env_;
 };
 
 TEST_F(EvalTest, SelfEvaluating) {
-  EXPECT_EQ(Nil(), Eval(Nil(), env_));
-  EXPECT_EQ(expr::True(), Eval(expr::True(), env_));
-  EXPECT_EQ(expr::False(), Eval(expr::False(), env_));
+  EXPECT_EQ(Nil(), Eval(Nil(), env_.get()).get());
+  EXPECT_EQ(expr::True(), Eval(expr::True(), env_.get()).get());
+  EXPECT_EQ(expr::False(), Eval(expr::False(), env_.get()).get());
 
-  Expr* num = new Int(42);
-  EXPECT_EQ(num, Eval(num, env_));
+  auto num = IntExpr(42);
+  EXPECT_EQ(num.get(), Eval(num.get(), env_.get()).get());
 
-  Expr* character = new Char('a');
-  EXPECT_EQ(character, Eval(character, env_));
+  auto character = CharExpr('a');
+  EXPECT_EQ(character.get(), Eval(character.get(), env_.get()).get());
 
-  Expr* str = new String("abc");
-  EXPECT_EQ(str, Eval(str, env_));
+  auto str = StringExpr("abc");
+  EXPECT_EQ(str.get(), Eval(str.get(), env_.get()).get());
 
-  Expr* vec = new Vector({num, character, str});
-  EXPECT_EQ(vec, Eval(vec, env_));
+  auto vec =
+      gc::Lock<Expr>(new Vector({num.get(), character.get(), str.get()}));
+  EXPECT_EQ(vec.get(), Eval(vec.get(), env_.get()).get());
 }
 
 TEST_F(EvalTest, Symbol) {
-  Expr* num = new Int(42);
-  auto* symbol = ParseExpr("abc");
-  env_->DefineVar(symbol->AsSymbol(), num);
+  auto num = gc::make_locked<Int>(42);
+  auto symbol = ParseExpr("abc");
+  env_->DefineVar(symbol->AsSymbol(), num.get());
 
-  EXPECT_EQ(num, Eval(symbol, env_));
+  EXPECT_EQ(num.get(), Eval(symbol.get(), env_.get()).get());
 }
 
 TEST_F(EvalTest, Quote) {
   EXPECT_EQ(*IntExpr(42), *EvalStr("(quote 42)"));
-  Expr* e = Symbol::New("a");
-  EXPECT_EQ(*e, *EvalStr("(quote a)"));
-  EXPECT_EQ(*e, *EvalStr("'a"));
-  e = new Vector({Symbol::New("a"), Symbol::New("b"), Symbol::New("c")});
-  EXPECT_EQ(*e, *EvalStr("(quote #(a b c))"));
-  EXPECT_EQ(*e, *EvalStr("'#(a b c)"));
-  e = Cons(Symbol::New("+"), Cons(new Int(1), Cons(new Int(2), Nil())));
+  EXPECT_EQ(*SymExpr("a"), *EvalStr("(quote a)"));
+  EXPECT_EQ(*SymExpr("a"), *EvalStr("'a"));
+  EXPECT_EQ(*EvalStr("#(a b c)"), *EvalStr("(quote #(a b c))"));
+  EXPECT_EQ(*EvalStr("#(a b c)"), *EvalStr("'#(a b c)"));
   EXPECT_EQ(*Nil(), *EvalStr("'()"));
-  EXPECT_EQ(*e, *EvalStr("(quote (+ 1 2))"));
-  EXPECT_EQ(*e, *EvalStr("'(+ 1 2)"));
-  e = Cons(Symbol::New("quote"), Cons(Symbol::New("a"), Nil()));
-  EXPECT_EQ(*e, *EvalStr("'(quote a)"));
-  EXPECT_EQ(*e, *EvalStr("''a"));
+
+  auto one = gc::make_locked<Int>(1);
+  auto two = gc::make_locked<Int>(2);
+
+  gc::Lock<Expr> list(Nil());
+  list.reset(new expr::Pair(two.get(), list.get()));
+  list.reset(new expr::Pair(one.get(), list.get()));
+  list.reset(new expr::Pair(SymExpr("+").get(), list.get()));
+
+  EXPECT_EQ(*list, *EvalStr("(quote (+ 1 2))"));
+  EXPECT_EQ(*list, *EvalStr("'(+ 1 2)"));
+
+  list.reset(Nil());
+  list.reset(new expr::Pair(SymExpr("a").get(), list.get()));
+  list.reset(new expr::Pair(SymExpr("quote").get(), list.get()));
+
+  EXPECT_EQ(*list, *EvalStr("'(quote a)"));
+  EXPECT_EQ(*list, *EvalStr("''a"));
 }
 
 TEST_F(EvalTest, Lambda) {
@@ -138,21 +147,16 @@ TEST_F(EvalTest, Lambda) {
 }
 
 TEST_F(EvalTest, If) {
-  Expr* n42 = new Int(42);
+  auto n42 = gc::make_locked<Int>(42);
   EXPECT_EQ(*n42, *EvalStr("(if #t 42)"));
   EXPECT_EQ(*Nil(), *EvalStr("(if #f 42)"));
 
-  Expr* n43 = new Int(43);
+  auto n43 = gc::make_locked<Int>(43);
   EXPECT_EQ(*n42, *EvalStr("(if #t 42 43)"));
   EXPECT_EQ(*n43, *EvalStr("(if #f 42 43)"));
   EXPECT_EQ(*IntExpr(12), *EvalStr("((if #f + *) 3 4)"));
-
-  Expr* e = Cons(new Int(3),
-                 Cons(new Int(4), Cons(new Int(5), Cons(new Int(6), Nil()))));
-  EXPECT_EQ(*e, *EvalStr("((lambda x x) 3 4 5 6)"));
-
-  e = Cons(new Int(5), Cons(new Int(6), Nil()));
-  EXPECT_EQ(*e, *EvalStr("((lambda (x y . z) z) 3 4 5 6)"));
+  EXPECT_EQ(*EvalStr("'(3 4 5 6)"), *EvalStr("((lambda x x) 3 4 5 6)"));
+  EXPECT_EQ(*EvalStr("'(5 6)"), *EvalStr("((lambda (x y . z) z) 3 4 5 6)"));
 }
 
 TEST_F(EvalTest, Set) {
@@ -197,8 +201,7 @@ TEST_F(EvalTest, Case) {
 TEST_F(EvalTest, And) {
   EXPECT_EQ(*True(), *EvalStr("(and (= 2 2) (> 2 1))"));
   EXPECT_EQ(*False(), *EvalStr("(and (= 2 2) (< 2 1))"));
-  Expr* e = Cons(Symbol::New("f"), Cons(Symbol::New("g"), Nil()));
-  EXPECT_EQ(*e, *EvalStr("(and 1 2 'c '(f g))"));
+  EXPECT_EQ(*EvalStr("'(f g)"), *EvalStr("(and 1 2 'c '(f g))"));
   EXPECT_EQ(*True(), *EvalStr("(and)"));
 }
 
@@ -206,8 +209,7 @@ TEST_F(EvalTest, Or) {
   EXPECT_EQ(*True(), *EvalStr("(or (= 2 2) (> 2 1))"));
   EXPECT_EQ(*True(), *EvalStr("(or (= 2 2) (< 2 1))"));
   EXPECT_EQ(*False(), *EvalStr("(or #f #f #f)"));
-  Expr* e = Cons(Symbol::New("b"), Cons(Symbol::New("c"), Nil()));
-  EXPECT_EQ(*e, *EvalStr("(or (memq 'b '(a b c)) (/ 3 0))"));
+  EXPECT_EQ(*EvalStr("'(b c)"), *EvalStr("(or (memq 'b '(a b c)) (/ 3 0))"));
   EXPECT_EQ(*False(), *EvalStr("(or)"));
 }
 

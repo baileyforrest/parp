@@ -47,9 +47,9 @@ class DatumParser {
     throw util::SyntaxException("Parse error: " + msg, &Tok().mark);
   }
 
-  expr::Expr* ParseExpr();
-  expr::Expr* ParseList();
-  expr::Expr* ParseVector();
+  gc::Lock<expr::Expr> ParseExpr();
+  gc::Lock<expr::Expr> ParseList();
+  gc::Lock<expr::Expr> ParseVector();
 
   Lexer lexer_;
   const Token* cur_token_ = nullptr;
@@ -66,7 +66,7 @@ ExprVec DatumParser::Read() {
   return result;
 }
 
-expr::Expr* DatumParser::ParseExpr() {
+gc::Lock<expr::Expr> DatumParser::ParseExpr() {
   switch (Tok().type) {
     case Token::Type::ID:
     case Token::Type::BOOL:
@@ -74,7 +74,7 @@ expr::Expr* DatumParser::ParseExpr() {
     case Token::Type::CHAR:
     case Token::Type::STRING: {
       assert(Tok().expr);
-      expr::Expr* result = Tok().expr.get();
+      auto result = std::move(Tok().expr);
       AdvTok();
       return result;
     }
@@ -97,10 +97,10 @@ expr::Expr* DatumParser::ParseExpr() {
   }
 
   assert(false);
-  return nullptr;
+  return {};
 }
 
-expr::Expr* DatumParser::ParseList() {
+gc::Lock<expr::Expr> DatumParser::ParseList() {
   const char* header = nullptr;
 
   switch (Tok().type) {
@@ -131,25 +131,25 @@ expr::Expr* DatumParser::ParseList() {
       AdvTok();  // Skip RPAREN
 
       if (exprs.size() == 0)  // empty list
-        return expr::Nil();
+        return gc::Lock<expr::Expr>(expr::Nil());
 
-      expr::Pair* end = nullptr;
+      gc::Lock<expr::Expr> end;
       for (auto it = exprs.rbegin(); it != exprs.rend(); ++it) {
-        if (end == nullptr) {
+        if (!end) {
           // Dot case has no '()
           if (has_dot) {
             assert(it + 1 != exprs.rend());
             auto last = *it;
             auto second_last = *(++it);
-            end = expr::Cons(second_last, last);
+            end.reset(new expr::Pair(second_last.get(), last.get()));
             continue;
           }
 
-          end = expr::Cons(*it, expr::Nil());
+          end.reset(new expr::Pair(it->get(), expr::Nil()));
           continue;
         }
 
-        end = expr::Cons(*it, end);
+        end.reset(new expr::Pair(it->get(), end.get()));
       }
 
       return end;
@@ -176,20 +176,27 @@ expr::Expr* DatumParser::ParseList() {
   AdvTok();
   auto expr = ParseExpr();
 
-  return expr::Cons(expr::Symbol::New(header), expr::Cons(expr, expr::Nil()));
+  gc::Lock<expr::Expr> header_lock(expr::Symbol::New(header));
+  gc::Lock<expr::Expr> ret(expr::Nil());
+  ret.reset(new expr::Pair(expr.get(), ret.get()));
+  ret.reset(new expr::Pair(header_lock.get(), ret.get()));
+
+  return ret;
 }
 
-expr::Expr* DatumParser::ParseVector() {
+gc::Lock<expr::Expr> DatumParser::ParseVector() {
   assert(Tok().type == Token::Type::POUND_PAREN);
   AdvTok();
-  ExprVec exprs;
-
+  ExprVec locks;
+  std::vector<expr::Expr*> exprs;
   while (Tok().type != Token::Type::RPAREN) {
-    exprs.push_back(ParseExpr());
+    auto lock = ParseExpr();
+    exprs.push_back(lock.get());
+    locks.push_back(std::move(lock));
   }
   AdvTok();  // Skip RPAREN
 
-  return new Vector(std::move(exprs));
+  return gc::Lock<expr::Expr>(new Vector(std::move(exprs)));
 }
 
 }  // namespace

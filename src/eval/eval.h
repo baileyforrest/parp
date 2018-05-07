@@ -21,11 +21,12 @@
 #define EVAL_EVAL_H_
 
 #include "expr/expr.h"
+#include "gc/lock.h"
 
 namespace eval {
 
-expr::Expr* Analyze(expr::Expr* expr);
-expr::Expr* Eval(expr::Expr* expr, expr::Env* env);
+gc::Lock<expr::Expr> Analyze(expr::Expr* expr);
+gc::Lock<expr::Expr> Eval(expr::Expr* expr, expr::Env* env);
 
 }  // namespace eval
 

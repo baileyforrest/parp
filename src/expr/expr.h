@@ -31,6 +31,7 @@
 #include <vector>
 
 #include "gc/gc.h"
+#include "gc/lock.h"
 #include "util/macros.h"
 #include "util/exceptions.h"
 
@@ -118,7 +119,6 @@ class Expr {
   static void operator delete(void* /* ptr */) {}
 
   void gc_lock_inc() { ++gc_lock_count_; }
-
   void gc_lock_dec() { --gc_lock_count_; }
 
  protected:
@@ -342,7 +342,7 @@ class Vector : public Expr {
 
 class InputPort : public Expr {
  public:
-  static InputPort* Open(const std::string& path);
+  static gc::Lock<InputPort> Open(const std::string& path);
 
   // Expr implementation:
   const InputPort* AsInputPort() const override { return this; }
@@ -364,7 +364,7 @@ class InputPort : public Expr {
 
 class OutputPort : public Expr {
  public:
-  static OutputPort* Open(const std::string& path);
+  static gc::Lock<OutputPort> Open(const std::string& path);
 
   // Expr implementation:
   const OutputPort* AsOutputPort() const override { return this; }
@@ -419,7 +419,7 @@ class Env : public Expr {
 
 class Evals : public Expr {
  public:
-  virtual Expr* DoEval(Env* env, Expr** args, size_t num_args) const = 0;
+  virtual gc::Lock<Expr> DoEval(Env* env, Expr** args, size_t num_args) = 0;
 
   // Expr implementation:
   const Evals* AsEvals() const override { return this; }
@@ -436,24 +436,7 @@ Bool* True();
 Bool* False();
 
 // Helpers
-
 std::vector<Expr*> ExprVecFromList(Expr* expr);
-
-template <typename T>
-Expr* ListFromIt(T it, T e) {
-  if (it == e) {
-    return Nil();
-  }
-
-  auto* val = *it;
-  ++it;
-  return Cons(val, ListFromIt(it, e));
-}
-
-// Alias for new Pair
-inline Pair* Cons(Expr* e1, Expr* e2) {
-  return new Pair(e1, e2);
-}
 
 #define TRY_AS_IMPL(op, etype)                                               \
   {                                                                          \

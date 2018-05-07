@@ -120,25 +120,25 @@ bool Vector::EqualImpl(const Expr* other) const {
 }
 
 // static
-InputPort* InputPort::Open(const std::string& path) {
+gc::Lock<InputPort> InputPort::Open(const std::string& path) {
   std::ifstream ifs(path);
   if (!ifs) {
     throw util::RuntimeException(
         "Failed to open " + path + ": " + std::strerror(errno), nullptr);
   }
 
-  return new InputPort(path, std::move(ifs));
+  return gc::Lock<InputPort>(new InputPort(path, std::move(ifs)));
 }
 
 // static
-OutputPort* OutputPort::Open(const std::string& path) {
+gc::Lock<OutputPort> OutputPort::Open(const std::string& path) {
   std::ifstream ifs(path);
   if (!ifs) {
     throw util::RuntimeException(
         "Failed to open " + path + ": " + std::strerror(errno), nullptr);
   }
 
-  return new OutputPort(path, std::move(ifs));
+  return gc::Lock<OutputPort>(new OutputPort(path, std::move(ifs)));
 }
 
 std::ostream& Env::AppendStream(std::ostream& stream) const {
@@ -202,16 +202,16 @@ Bool* False() {
 }
 
 std::vector<Expr*> ExprVecFromList(Expr* expr) {
-  std::vector<Expr*> ret;
-  while (auto* pair = expr->AsPair()) {
-    ret.push_back(pair->car());
-    expr = pair->cdr();
+  std::vector<Expr*> exprs;
+  for (; auto* list = expr->AsPair(); expr = list->cdr()) {
+    exprs.push_back(list->car());
   }
   if (expr != expr::Nil())
     throw util::RuntimeException("Expected '() terminated list of expressions",
                                  expr);
 
-  return ret;
+  exprs.shrink_to_fit();
+  return exprs;
 }
 
 }  // namespace expr

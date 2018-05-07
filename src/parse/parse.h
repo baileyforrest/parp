@@ -28,7 +28,7 @@
 
 namespace parse {
 
-using ExprVec = std::vector<expr::Expr*>;
+using ExprVec = std::vector<gc::Lock<expr::Expr>>;
 
 // Implementation of read procedure. Parses |stream| into datum
 ExprVec Read(util::TextStream& stream);  // NOLINT(runtime/references)
