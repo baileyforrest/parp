@@ -4,16 +4,21 @@ CXX ?= g++
 CLANG_FORMAT ?= clang-format
 MEMCHECK ?= valgrind
 
+SAN_FLAGS := \
+	-fsanitize=address \
+	-fsanitize=leak \
+	-fsanitize=undefined
+
 BIN_NAME := parp
 SRC_EXT = cc
 SRC_DIR = src
 COMPILE_FLAGS = -std=c++14 -Wall -Wextra -Werror -Wno-unused-parameter
 RCOMPILE_FLAGS = -DNDEBUG -O3
-DCOMPILE_FLAGS = -DDEBUG -g -fprofile-arcs -ftest-coverage -fsanitize=address
+DCOMPILE_FLAGS = -DDEBUG -g -fprofile-arcs -ftest-coverage $(SAN_FLAGS)
 INCLUDES = -I$(SRC_DIR)/
 LINK_FLAGS = -lreadline
 RLINK_FLAGS =
-DLINK_FLAGS = -lgcov -fsanitize=address
+DLINK_FLAGS = -lgcov -fsanitize=address $(SAN_FLAGS)
 
 GTEST_DIR := third_party/googletest/googletest
 TEST_CXXFLAGS := -isystem $(GTEST_DIR)/include -pthread
