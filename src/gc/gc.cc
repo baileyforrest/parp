@@ -24,6 +24,13 @@
 
 namespace gc {
 
+namespace {
+
+// Right now just run collection every |kCollectionRate| allocations.
+constexpr int kCollectionRate = 1000;
+
+}  // namespace
+
 Gc::~Gc() {
   Purge();
 }
@@ -51,6 +58,11 @@ void* Gc::AllocExpr(std::size_t size) {
   if (debug_mode_) {
     Collect();
   }
+
+  if (alloc_since_last_collection_ >= kCollectionRate) {
+    Collect();
+  }
+
   auto* addr = reinterpret_cast<expr::Expr*>(new char[size]);
   exprs_.insert(addr);
   return addr;
@@ -64,16 +76,8 @@ void Gc::Purge() {
   symbol_name_to_symbol_.clear();
 }
 
-void Gc::DeleteExpr(expr::Expr* expr) {
-  if (auto* as_sym = expr->AsSymbol()) {
-    symbol_name_to_symbol_.erase(as_sym->val());
-  }
-
-  expr->~Expr();
-  delete[] reinterpret_cast<char*>(expr);
-}
-
 void Gc::Collect() {
+  alloc_since_last_collection_ = 0;
   for (auto expr : exprs_) {
     if (expr->gc_lock_count_ > 0) {
       expr->GcMark();
@@ -91,6 +95,15 @@ void Gc::Collect() {
     DeleteExpr(expr);
     it = exprs_.erase(it);
   }
+}
+
+void Gc::DeleteExpr(expr::Expr* expr) {
+  if (auto* as_sym = expr->AsSymbol()) {
+    symbol_name_to_symbol_.erase(as_sym->val());
+  }
+
+  expr->~Expr();
+  delete[] reinterpret_cast<char*>(expr);
 }
 
 }  // namespace gc

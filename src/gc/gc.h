@@ -43,6 +43,8 @@ class Gc {
   expr::Symbol* GetSymbol(const std::string& name);
   void* AllocExpr(std::size_t size);
   void Purge();
+  void Collect();
+  size_t NumObjects() { return exprs_.size(); }
 
   // If true, will collect on every single allocation.
   void set_debug_mode(bool debug_mode) { debug_mode_ = debug_mode; }
@@ -52,9 +54,11 @@ class Gc {
   ~Gc();
 
   void DeleteExpr(expr::Expr* expr);
-  void Collect();
 
   bool debug_mode_ = false;
+
+  // Number of allocations since last collection.
+  size_t alloc_since_last_collection_ = 0;
 
   std::unordered_map<std::string, expr::Symbol*> symbol_name_to_symbol_;
   std::unordered_set<expr::Expr*> exprs_;

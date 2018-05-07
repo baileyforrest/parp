@@ -27,13 +27,10 @@ namespace test {
 
 class TestBase : public testing::Test {
  protected:
-  TestBase() {
-    // Clear all objects from heap
-    gc::Gc::Get().Purge();
-  }
   ~TestBase() {
-    // Clear all objects from heap
-    gc::Gc::Get().Purge();
+    // Verify there are no leaks.
+    gc::Gc::Get().Collect();
+    EXPECT_EQ(0u, gc::Gc::Get().NumObjects());
   }
 };
 
