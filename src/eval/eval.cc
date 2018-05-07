@@ -25,6 +25,8 @@
 #include <utility>
 #include <vector>
 
+#include "expr/primitive.h"
+#include "parse/parse.h"
 #include "util/exceptions.h"
 
 using expr::Expr;
@@ -105,6 +107,22 @@ gc::Lock<Expr> Analyze(Expr* expr) {
 gc::Lock<Expr> Eval(Expr* expr, expr::Env* env) {
   auto e = Analyze(expr);
   return DoEval(e.get(), env);
+}
+
+std::vector<gc::Lock<expr::Expr>> EvalString(const std::string& str,
+                                             expr::Env* env,
+                                             const std::string& filename) {
+  auto exprs = parse::Read(str, filename);
+  for (auto& expr : exprs) {
+    expr = eval::Eval(expr.get(), env);
+  }
+  return exprs;
+}
+
+gc::Lock<expr::Env> GetDefaultEnv() {
+  auto env = gc::make_locked<expr::Env>(nullptr);
+  expr::LoadPrimitives(env.get());
+  return env;
 }
 
 }  // namespace eval

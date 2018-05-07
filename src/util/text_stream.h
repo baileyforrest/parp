@@ -33,7 +33,7 @@ namespace util {
 
 class TextStream {
  public:
-  TextStream(std::istream* istream, const std::string* file_name);
+  TextStream(std::istream* istream, const std::string& file_name);
   ~TextStream();
 
   int Get();
@@ -46,6 +46,7 @@ class TextStream {
   DISALLOW_MOVE_COPY_AND_ASSIGN(TextStream);
 
   std::istream* istream_;
+  const std::string file_name_;
   std::ios_base::iostate istream_except_mask_;
   Mark mark_;
 };

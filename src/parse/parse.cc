@@ -209,7 +209,7 @@ ExprVec Read(util::TextStream& stream) {  // NOLINT(runtime/references)
 
 ExprVec Read(const std::string& str, const std::string& filename) {
   std::istringstream is(str);
-  util::TextStream stream(&is, &filename);
+  util::TextStream stream(&is, filename);
 
   return Read(stream);
 }

@@ -17,9 +17,42 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+#include <fstream>
+
+#include "repl.h"  // NOLINT(build/include)
+#include "expr/expr.h"
+#include "eval/eval.h"
+#include "parse/parse.h"
+#include "util/text_stream.h"
+
 int main(int argc, char** argv) {
-  (void)argc;
-  (void)argv;
+  if (argc <= 1) {
+    repl::Start();
+    return EXIT_SUCCESS;
+  }
+
+  auto env = eval::GetDefaultEnv();
+
+  for (int i = 1; i < argc; ++i) {
+    std::ifstream ifs(argv[i]);
+    if (!ifs) {
+      std::cerr << "Failed to read " << argv[i] << ": " << strerror(errno);
+      return EXIT_FAILURE;
+    }
+
+    try {
+      util::TextStream ts(&ifs, argv[i]);
+      for (const auto& expr : parse::Read(ts)) {
+        eval::Eval(expr.get(), env.get());
+      }
+    } catch (std::exception& e) {
+      std::cerr << e.what() << "\n";
+    }
+  }
 
   return 0;
 }

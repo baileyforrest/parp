@@ -11,7 +11,7 @@ COMPILE_FLAGS = -std=c++14 -Wall -Wextra -Werror -Wno-unused-parameter
 RCOMPILE_FLAGS = -DNDEBUG -O3
 DCOMPILE_FLAGS = -DDEBUG -g -fprofile-arcs -ftest-coverage -fsanitize=address
 INCLUDES = -I$(SRC_DIR)/
-LINK_FLAGS =
+LINK_FLAGS = -lreadline
 RLINK_FLAGS =
 DLINK_FLAGS = -lgcov -fsanitize=address
 
@@ -47,7 +47,8 @@ GTEST_OUT := $(BUILD_PATH)/gtest
 GTEST_LIB := $(GTEST_OUT)/libgtest.a
 
 EXE_SOURCES := \
-	main.cc
+	main.cc \
+	repl.cc
 
 EXE_SOURCES := $(addprefix $(SRC_DIR)/, $(EXE_SOURCES))
 EXE_OBJS = $(EXE_SOURCES:$(SRC_DIR)/%.$(SRC_EXT)=$(BUILD_PATH)/%.o)

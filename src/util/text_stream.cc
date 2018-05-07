@@ -24,11 +24,13 @@
 
 namespace util {
 
-TextStream::TextStream(std::istream* istream, const std::string* file_name)
-    : istream_(istream), istream_except_mask_(istream_->exceptions()) {
+TextStream::TextStream(std::istream* istream, const std::string& file_name)
+    : istream_(istream),
+      file_name_(file_name),
+      istream_except_mask_(istream_->exceptions()) {
   // Enable all the exceptions on istream
   istream_->exceptions(std::istream::badbit | std::istream::failbit);
-  mark_ = {file_name, 1, 1};
+  mark_ = {&file_name_, 1, 1};
 }
 
 TextStream::~TextStream() {

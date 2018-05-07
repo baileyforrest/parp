@@ -17,25 +17,13 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef EVAL_EVAL_H_
-#define EVAL_EVAL_H_
+#ifndef REPL_H_
+#define REPL_H_
 
-#include <vector>
-#include <string>
+namespace repl {
 
-#include "expr/expr.h"
-#include "gc/lock.h"
+void Start();
 
-namespace eval {
+}  // namespace repl
 
-gc::Lock<expr::Expr> Analyze(expr::Expr* expr);
-gc::Lock<expr::Expr> Eval(expr::Expr* expr, expr::Env* env);
-std::vector<gc::Lock<expr::Expr>> EvalString(
-    const std::string& str,
-    expr::Env* env,
-    const std::string& filename = "string");
-gc::Lock<expr::Env> GetDefaultEnv();
-
-}  // namespace eval
-
-#endif  // EVAL_EVAL_H_
+#endif  // REPL_H_

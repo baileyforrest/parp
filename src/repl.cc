@@ -17,25 +17,43 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef EVAL_EVAL_H_
-#define EVAL_EVAL_H_
+#include "repl.h"  // NOLINT(build/include)
 
-#include <vector>
-#include <string>
+#include <readline/readline.h>
+#include <readline/history.h>
 
-#include "expr/expr.h"
-#include "gc/lock.h"
+#include <cstdlib>
+#include <iostream>
 
-namespace eval {
+#include "eval/eval.h"
 
-gc::Lock<expr::Expr> Analyze(expr::Expr* expr);
-gc::Lock<expr::Expr> Eval(expr::Expr* expr, expr::Env* env);
-std::vector<gc::Lock<expr::Expr>> EvalString(
-    const std::string& str,
-    expr::Env* env,
-    const std::string& filename = "string");
-gc::Lock<expr::Env> GetDefaultEnv();
+namespace repl {
 
-}  // namespace eval
+namespace {
 
-#endif  // EVAL_EVAL_H_
+static constexpr char kPrompt[] = "> ";
+
+}  // namespace
+
+void Start() {
+  // Configure readline to auto-complete paths when the tab key is hit.
+  rl_bind_key('\t', rl_complete);
+
+  auto env = eval::GetDefaultEnv();
+
+  while (true) {
+    char* input = readline(kPrompt);
+    if (!input) {
+      break;
+    }
+    add_history(input);
+    auto exprs = eval::EvalString(input, env.get(), "repl");
+    if (!exprs.empty()) {
+      std::cout << *exprs.back() << "\n";
+    }
+
+    free(input);
+  }
+}
+
+}  // namespace repl

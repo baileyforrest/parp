@@ -101,7 +101,7 @@ TEST_F(LexerTest, Basic) {
   };
 
   std::istringstream s(kStr);
-  util::TextStream stream(&s, &kFilename);
+  util::TextStream stream(&s, kFilename);
   Lexer lexer{stream};
 
   VerifyTokens(&lexer, kExpected);
@@ -114,7 +114,7 @@ TEST_F(LexerTest, Empty) {
   const std::vector<Token> kExpected;
 
   std::istringstream s(kStr);
-  util::TextStream stream(&s, &kFilename);
+  util::TextStream stream(&s, kFilename);
   Lexer lexer{stream};
 
   VerifyTokens(&lexer, kExpected);
@@ -137,7 +137,7 @@ TEST_F(LexerTest, NoTrailingNewine) {
 
   for (const auto& test : kTests) {
     std::istringstream s(test.str);
-    util::TextStream stream(&s, &kFilename);
+    util::TextStream stream(&s, kFilename);
     Lexer lexer{stream};
 
     VerifyTokens(&lexer, test.expected);
@@ -207,7 +207,7 @@ TEST_F(LexerTest, IdTest) {
   };
 
   std::istringstream s(kStr);
-  util::TextStream stream(&s, &kFilename);
+  util::TextStream stream(&s, kFilename);
   Lexer lexer{stream};
 
   VerifyTokens(&lexer, kExpected);
@@ -230,7 +230,7 @@ TEST_F(LexerTest, BoolTest) {
   };
 
   std::istringstream s(kStr);
-  util::TextStream stream(&s, &kFilename);
+  util::TextStream stream(&s, kFilename);
   Lexer lexer{stream};
 
   VerifyTokens(&lexer, kExpected);
@@ -319,7 +319,7 @@ TEST_F(LexerTest, NumTest) {
   };
 
   std::istringstream s(kStr);
-  util::TextStream stream(&s, &kFilename);
+  util::TextStream stream(&s, kFilename);
   Lexer lexer{stream};
 
   VerifyTokens(&lexer, kExpected);
@@ -352,7 +352,7 @@ TEST_F(LexerTest, CharTest) {
   }
 
   std::istringstream s(input);
-  util::TextStream stream(&s, &kFilename);
+  util::TextStream stream(&s, kFilename);
   Lexer lexer{stream};
 
   VerifyTokens(&lexer, expected);
@@ -371,7 +371,7 @@ TEST_F(LexerTest, CharTestSpaceNewline) {
   };
 
   std::istringstream s(kStr);
-  util::TextStream stream(&s, &kFilename);
+  util::TextStream stream(&s, kFilename);
   Lexer lexer{stream};
 
   VerifyTokens(&lexer, kExpected);
@@ -404,7 +404,7 @@ TEST_F(LexerTest, StringTest) {
   };
 
   std::istringstream s(kStr);
-  util::TextStream stream(&s, &kFilename);
+  util::TextStream stream(&s, kFilename);
   Lexer lexer{stream};
 
   VerifyTokens(&lexer, kExpected);
@@ -435,7 +435,7 @@ TEST_F(LexerTest, OtherTest) {
   };
 
   std::istringstream s(kStr);
-  util::TextStream stream(&s, &kFilename);
+  util::TextStream stream(&s, kFilename);
   Lexer lexer{stream};
 
   VerifyTokens(&lexer, kExpected);
