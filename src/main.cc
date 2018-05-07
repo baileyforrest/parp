@@ -27,9 +27,11 @@
 #include "expr/expr.h"
 #include "eval/eval.h"
 #include "parse/parse.h"
+#include "util/flags.h"
 #include "util/text_stream.h"
 
 int main(int argc, char** argv) {
+  util::Flags::Init(argc, argv);
   if (argc <= 1) {
     repl::Start();
     return EXIT_SUCCESS;

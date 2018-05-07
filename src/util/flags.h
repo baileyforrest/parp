@@ -17,13 +17,27 @@
  * along with parp.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "gtest/gtest.h"
-#include "gc/gc.h"
-#include "util/flags.h"
+#ifndef UTIL_FLAGS_H_
+#define UTIL_FLAGS_H_
 
-int main(int argc, char** argv) {
-  util::Flags::Init(argc, argv, true /* test_mode */);
-  testing::InitGoogleTest(&argc, argv);
+#include <vector>
+#include <string>
 
-  return RUN_ALL_TESTS();
-}
+namespace util {
+
+class Flags {
+ public:
+  static constexpr char kDebugMemory[] = "debug-memory";
+
+  // Test mode ignores unrecognized flags
+  static void Init(int argc, char** argv, bool test_mode = false);
+  static const std::vector<std::string>& Argv();
+  static bool IsSet(const std::string& value);
+
+ private:
+  Flags() = default;
+};
+
+}  // namespace util
+
+#endif  // UTIL_FLAGS_H_

@@ -2,7 +2,6 @@
 
 CXX ?= g++
 CLANG_FORMAT ?= clang-format
-MEMCHECK ?= valgrind
 
 SAN_FLAGS := \
 	-fsanitize=address \
@@ -68,6 +67,7 @@ COMMON_SOURCES := \
 	parse/parse.cc \
 	util/char_class.cc \
 	util/exceptions.cc \
+	util/flags.cc \
 	util/mark.cc \
 	util/text_stream.cc
 
@@ -163,7 +163,7 @@ run_test: test
 
 .PHONY: run_mem_test
 run_mem_test: test
-	@$(MEMCHECK) ./$(DEBUG_BIN_PATH)/$(TEST_NAME)
+	@./$(DEBUG_BIN_PATH)/$(TEST_NAME) --debug-memory
 
 .PHONY: coverage
 coverage:
