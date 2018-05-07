@@ -118,25 +118,34 @@ class Expr {
   // Do nothing. Garbage collector will take care of it.
   static void operator delete(void* /* ptr */) {}
 
-  void gc_lock_inc() { ++gc_lock_count_; }
-  void gc_lock_dec() { --gc_lock_count_; }
+  void GcLockInc() { ++gc_lock_count_; }
+  void GcLockDec() { --gc_lock_count_; }
+  void GcMark() {
+    if (gc_mark_) {
+      return;
+    }
+    gc_mark_ = true;
+    MarkReferences();
+  }
 
  protected:
   explicit Expr(Type type) : type_(type) {}
   virtual ~Expr() = default;
+
 
  private:
   friend class gc::Gc;
 
   virtual bool EqvImpl(const Expr* other) const { return Eq(other); }
   virtual bool EqualImpl(const Expr* other) const { return Eqv(other); }
+  virtual void MarkReferences() {}
 
   // We do now allow allocating arrays.
   static void operator delete[](void* ptr) = delete;
   static void* operator new[](std::size_t size) = delete;
 
   Type type_;
-  bool gc_mark_;
+  bool gc_mark_ = false;
 
   // > 0 if garbage collection is locked.
   uint8_t gc_lock_count_ = 0;
@@ -172,6 +181,8 @@ class EmptyList : public Expr {
 
   EmptyList() : Expr(Type::EMPTY_LIST) {}
   ~EmptyList() override = default;
+
+  DISALLOW_MOVE_COPY_AND_ASSIGN(EmptyList);
 };
 
 class Bool : public Expr {
@@ -191,6 +202,8 @@ class Bool : public Expr {
   ~Bool() override = default;
 
   const bool val_;
+
+  DISALLOW_MOVE_COPY_AND_ASSIGN(Bool);
 };
 
 class Char : public Expr {
@@ -213,6 +226,8 @@ class Char : public Expr {
   ~Char() override = default;
 
   const ValType val_;
+
+  DISALLOW_MOVE_COPY_AND_ASSIGN(Char);
 };
 
 // TODO(bcf): Optimize for readonly strings.
@@ -246,6 +261,8 @@ class String : public Expr {
 
   std::string val_;
   const bool read_only_;
+
+  DISALLOW_MOVE_COPY_AND_ASSIGN(String);
 };
 
 class Symbol : public Expr {
@@ -268,16 +285,14 @@ class Symbol : public Expr {
 
   const std::string& val() const { return *val_; }
 
-  // Just use default new/delete for symbols
-  static void* operator new(std::size_t size) { return new char[size]; }
-  static void operator delete(void* ptr) { delete[] static_cast<char*>(ptr); }
-
  private:
   friend expr::Symbol* gc::Gc::GetSymbol(const std::string& name);
 
   explicit Symbol(const std::string* val) : Expr(Type::SYMBOL), val_(val) {}
 
   const std::string* const val_ = nullptr;
+
+  DISALLOW_MOVE_COPY_AND_ASSIGN(Symbol);
 };
 
 class Pair : public Expr {
@@ -300,6 +315,7 @@ class Pair : public Expr {
     return car_->Equal(other->AsPair()->car_) &&
            cdr_->Equal(other->AsPair()->cdr_);
   }
+  void MarkReferences() override;
 
   expr::Expr* Cr(const std::string& str) const;
 
@@ -313,6 +329,8 @@ class Pair : public Expr {
 
   Expr* car_;
   Expr* cdr_;
+
+  DISALLOW_MOVE_COPY_AND_ASSIGN(Pair);
 };
 
 class Vector : public Expr {
@@ -330,6 +348,7 @@ class Vector : public Expr {
     return vals_ == other->AsVector()->vals_;
   }
   bool EqualImpl(const Expr* other) const override;
+  void MarkReferences() override;
 
   std::vector<Expr*>& vals() { return vals_; }
   const std::vector<Expr*>& vals() const { return vals_; }
@@ -338,6 +357,8 @@ class Vector : public Expr {
   ~Vector() override = default;
 
   std::vector<Expr*> vals_;
+
+  DISALLOW_MOVE_COPY_AND_ASSIGN(Vector);
 };
 
 class InputPort : public Expr {
@@ -360,6 +381,8 @@ class InputPort : public Expr {
 
   const std::string path_;
   std::ifstream stream_;
+
+  DISALLOW_MOVE_COPY_AND_ASSIGN(InputPort);
 };
 
 class OutputPort : public Expr {
@@ -382,6 +405,8 @@ class OutputPort : public Expr {
 
   const std::string path_;
   std::ifstream stream_;
+
+  DISALLOW_MOVE_COPY_AND_ASSIGN(OutputPort);
 };
 
 class Env : public Expr {
@@ -393,6 +418,7 @@ class Env : public Expr {
   const Env* AsEnv() const override { return this; }
   Env* AsEnv() override { return this; }
   std::ostream& AppendStream(std::ostream& stream) const override;
+  void MarkReferences() override;
 
   Expr* TryLookup(Symbol* var) const;
   Expr* Lookup(Symbol* var) const;
@@ -415,6 +441,8 @@ class Env : public Expr {
 
   Env* enclosing_;
   std::unordered_map<Symbol*, Expr*, VarHash, VarEqual> map_;
+
+  DISALLOW_MOVE_COPY_AND_ASSIGN(Env);
 };
 
 class Evals : public Expr {
@@ -428,6 +456,8 @@ class Evals : public Expr {
  protected:
   Evals() : Expr(Type::EVALS) {}
   virtual ~Evals() = default;
+
+  DISALLOW_MOVE_COPY_AND_ASSIGN(Evals);
 };
 
 // Special constants

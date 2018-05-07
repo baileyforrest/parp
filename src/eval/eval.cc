@@ -58,6 +58,12 @@ class Apply : public expr::Evals {
   // Evals implementation:
   std::ostream& AppendStream(std::ostream& stream) const override;
   gc::Lock<Expr> DoEval(Env* env, Expr** exprs, size_t size) override;
+  void MarkReferences() override {
+    op_->GcMark();
+    for (auto arg : args_) {
+      arg->GcMark();
+    }
+  }
 
  private:
   Expr* op_;

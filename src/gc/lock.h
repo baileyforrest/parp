@@ -70,12 +70,12 @@ class Lock {
  private:
   void TakeLock() {
     if (expr_) {
-      expr_->gc_lock_inc();
+      expr_->GcLockInc();
     }
   }
   void ReleaseLock() {
     if (expr_) {
-      expr_->gc_lock_dec();
+      expr_->GcLockDec();
     }
   }
   T* expr_ = nullptr;

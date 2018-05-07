@@ -220,12 +220,26 @@ class LambdaImpl : public Evals {
   // Evals implementation:
   std::ostream& AppendStream(std::ostream& stream) const override;
   gc::Lock<Expr> DoEval(Env* env, Expr** args, size_t num_args) override;
+  void MarkReferences() override {
+    for (auto arg : required_args_) {
+      arg->GcMark();
+    }
+    if (variable_arg_) {
+      variable_arg_->GcMark();
+    }
+
+    for (auto expr : body_) {
+      expr->GcMark();
+    }
+
+    env_->GcMark();
+  }
 
  private:
   const std::vector<Symbol*> required_args_;
-  Symbol* variable_arg_;
+  Symbol* const variable_arg_;
   const std::vector<Expr*> body_;
-  Env* env_;
+  Env* const env_;
 };
 
 std::ostream& LambdaImpl::AppendStream(std::ostream& stream) const {
@@ -536,6 +550,11 @@ class Promise : public Evals {
     expr_ = nullptr;
     env_ = nullptr;
     return ret;
+  }
+  void MarkReferences() override {
+    if (expr_) expr_->GcMark();
+    if (env_) env_->GcMark();
+    if (forced_val_) forced_val_->GcMark();
   }
 
  private:

@@ -21,10 +21,10 @@
 #define GC_GC_H_
 
 #include <cstddef>
-#include <deque>
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "util/macros.h"
 
@@ -44,13 +44,20 @@ class Gc {
   void* AllocExpr(std::size_t size);
   void Purge();
 
+  // If true, will collect on every single allocation.
+  void set_debug_mode(bool debug_mode) { debug_mode_ = debug_mode; }
+
  private:
   Gc() = default;
   ~Gc();
 
-  std::unordered_map<std::string, std::unique_ptr<expr::Symbol>>
-      symbol_name_to_symbol_;
-  std::deque<expr::Expr*> exprs_;
+  void DeleteExpr(expr::Expr* expr);
+  void Collect();
+
+  bool debug_mode_ = false;
+
+  std::unordered_map<std::string, expr::Symbol*> symbol_name_to_symbol_;
+  std::unordered_set<expr::Expr*> exprs_;
 
   DISALLOW_MOVE_COPY_AND_ASSIGN(Gc);
 };

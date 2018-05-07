@@ -96,6 +96,11 @@ expr::Expr* Pair::Cr(const std::string& str) const {
   return expr;
 }
 
+void Pair::MarkReferences() {
+  car_->GcMark();
+  cdr_->GcMark();
+}
+
 std::ostream& Vector::AppendStream(std::ostream& stream) const {
   stream << "#(";
 
@@ -117,6 +122,12 @@ bool Vector::EqualImpl(const Expr* other) const {
   }
 
   return true;
+}
+
+void Vector::MarkReferences() {
+  for (auto val : vals_) {
+    val->GcMark();
+  }
 }
 
 // static
@@ -147,6 +158,13 @@ std::ostream& Env::AppendStream(std::ostream& stream) const {
     stream << "(" << *pair.first << ", " << *pair.second << ")";
 
   return stream << "}";
+}
+
+void Env::MarkReferences() {
+  for (const auto& pair : map_) {
+    pair.first->GcMark();
+    pair.second->GcMark();
+  }
 }
 
 Expr* Env::TryLookup(Symbol* var) const {

@@ -37,29 +37,59 @@ Gc& Gc::Get() {
 expr::Symbol* Gc::GetSymbol(const std::string& name) {
   auto it = symbol_name_to_symbol_.find(name);
   if (it != symbol_name_to_symbol_.end()) {
-    return it->second.get();
+    return it->second;
   }
 
   auto res = symbol_name_to_symbol_.emplace(name, nullptr);
   assert(res.second);
   auto& inserted_it = res.first;
-  inserted_it->second.reset(new expr::Symbol(&inserted_it->first));
-  return inserted_it->second.get();
+  inserted_it->second = (new expr::Symbol(&inserted_it->first));
+  return inserted_it->second;
 }
 
 void* Gc::AllocExpr(std::size_t size) {
+  if (debug_mode_) {
+    Collect();
+  }
   auto* addr = reinterpret_cast<expr::Expr*>(new char[size]);
-  exprs_.push_back(addr);
+  exprs_.insert(addr);
   return addr;
 }
 
 void Gc::Purge() {
   for (auto* expr : exprs_) {
-    expr->~Expr();
-    delete[] reinterpret_cast<char*>(expr);
+    DeleteExpr(expr);
   }
   exprs_.clear();
   symbol_name_to_symbol_.clear();
+}
+
+void Gc::DeleteExpr(expr::Expr* expr) {
+  if (auto* as_sym = expr->AsSymbol()) {
+    symbol_name_to_symbol_.erase(as_sym->val());
+  }
+
+  expr->~Expr();
+  delete[] reinterpret_cast<char*>(expr);
+}
+
+void Gc::Collect() {
+  for (auto expr : exprs_) {
+    if (expr->gc_lock_count_ > 0) {
+      expr->GcMark();
+    }
+  }
+
+  for (auto it = exprs_.begin(); it != exprs_.end(); ) {
+    expr::Expr* expr = *it;
+    if (expr->gc_mark_) {
+      ++it;
+      continue;
+    }
+
+    DeleteExpr(expr);
+    it = exprs_.erase(it);
+  }
 }
 
 }  // namespace gc
