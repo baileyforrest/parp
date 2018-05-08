@@ -10,3 +10,4 @@
     - use defined literals
     - noreturn
 + Don't use exceptions?
++ make more types immutable (int, char)

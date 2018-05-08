@@ -62,6 +62,7 @@ void* Gc::AllocExpr(std::size_t size) {
   if (alloc_since_last_collection_ >= kCollectionRate) {
     Collect();
   }
+  ++alloc_since_last_collection_;
 
   auto* addr = reinterpret_cast<expr::Expr*>(new char[size]);
   exprs_.insert(addr);

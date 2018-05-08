@@ -47,9 +47,14 @@ void Start() {
       break;
     }
     add_history(input);
-    auto exprs = eval::EvalString(input, env.get(), "repl");
-    if (!exprs.empty()) {
-      std::cout << *exprs.back() << "\n";
+
+    try {
+      auto exprs = eval::EvalString(input, env.get(), "repl");
+      if (!exprs.empty()) {
+        std::cout << *exprs.back() << "\n";
+      }
+    } catch (std::exception& e) {
+      std::cout << e.what() << "\n";
     }
 
     free(input);

@@ -1057,12 +1057,14 @@ gc::Lock<Expr> Star(Env* env, Expr** args, size_t num_args) {
 
 gc::Lock<Expr> Minus(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 1);
-  return ArithOp<std::minus>(env, *args, args + 1, num_args - 1);
+  auto accum = TryNumber(args[0])->Clone();
+  return ArithOp<std::minus>(env, accum.get(), args + 1, num_args - 1);
 }
 
 gc::Lock<Expr> Slash(Env* env, Expr** args, size_t num_args) {
   ExpectNumArgsGe(num_args, 1);
-  return ArithOp<std::divides>(env, *args, args + 1, num_args - 1);
+  auto accum = TryNumber(args[0])->Clone();
+  return ArithOp<std::divides>(env, accum.get(), args + 1, num_args - 1);
 }
 
 gc::Lock<Expr> Abs(Env* env, Expr** args, size_t num_args) {

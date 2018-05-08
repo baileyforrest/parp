@@ -40,6 +40,7 @@ class Number : public Expr {
     FLOAT,
   };
 
+  virtual gc::Lock<Number> Clone() = 0;
   virtual const Int* AsInt() const { return nullptr; }
   virtual Int* AsInt() { return nullptr; }
   virtual const Float* AsFloat() const { return nullptr; }
@@ -92,6 +93,9 @@ class Int : public Number {
   std::ostream& AppendStream(std::ostream& stream) const override {
     return stream << val_;
   }
+  gc::Lock<Number> Clone() override {
+    return gc::Lock<Number>(new Int(this->val_));
+  }
   const Int* AsInt() const override { return this; }
   Int* AsInt() override { return this; }
   bool NumEqv(const Number* other) const override {
@@ -118,6 +122,9 @@ class Float : public Number {
   // Override from Number
   std::ostream& AppendStream(std::ostream& stream) const override {
     return stream << val_;
+  }
+  gc::Lock<Number> Clone() override {
+    return gc::Lock<Number>(new Float(this->val_));
   }
   const Float* AsFloat() const override { return this; }
   Float* AsFloat() override { return this; }
